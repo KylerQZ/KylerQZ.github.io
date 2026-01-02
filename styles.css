@@ -213,6 +213,113 @@ footer p {
   text-decoration: underline;
 }
 
+.games-grid {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.game-card {
+  background: var(--bg-white);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-card:not(.placeholder):hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.game-card.placeholder {
+  opacity: 0.7;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.game-header h3 {
+  font-size: 1.75rem;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.game-date {
+  font-size: 0.875rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.game-description {
+  color: var(--text-light);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+.game-links {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn.primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn.secondary {
+  background: var(--bg-light);
+  color: var(--text-dark);
+  border: 2px solid var(--border);
+}
+
+.btn.secondary:hover {
+  background: var(--bg-white);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.game-tech {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tech-tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-light);
+  color: var(--text-light);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
   .hero h2 {
     font-size: 2rem;
@@ -224,6 +331,7 @@ footer p {
 
   .nav-links {
     gap: 1rem;
+    font-size: 0.9rem;
   }
 
   .content {
@@ -232,5 +340,18 @@ footer p {
 
   .content h1 {
     font-size: 2rem;
+  }
+
+  .game-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .game-links {
+    flex-direction: column;
+  }
+
+  .btn {
+    text-align: center;
   }
 }
