@@ -1626,12 +1626,11 @@ function createWallHealthBar(wall) {
 // ============================================
 
 function shoot() {
-    if (!weapon.canShoot || weapon.isReloading) {
+    if (!weapon.canShoot || weapon.isReloading || weapon.currentAmmo <= 0) {
         return;
     }
     
-    // Infinite ammo - no ammo decrease
-    // weapon.currentAmmo--;
+    weapon.currentAmmo--;
     weapon.canShoot = false;
     weapon.shootCooldown = weapon.fireRate;
     
@@ -1719,16 +1718,16 @@ function shoot() {
         }
     }
     
-    // Auto reload disabled - infinite ammo
-    // if (weapon.currentAmmo === 0) {
-    //     reload();
-    // }
+    // Auto reload if empty
+    if (weapon.currentAmmo === 0) {
+        reload();
+    }
     
     updateUI();
 }
 
 function reload() {
-    if (weapon.isReloading || weapon.currentAmmo === weapon.magazineSize || weapon.reserveAmmo === 0) {
+    if (weapon.isReloading || weapon.currentAmmo === weapon.magazineSize) {
         return;
     }
     
@@ -1771,10 +1770,9 @@ function reload() {
     }, 16);
     
     setTimeout(() => {
-        const ammoNeeded = weapon.magazineSize - weapon.currentAmmo;
-        const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
-        weapon.currentAmmo += ammoToReload;
-        weapon.reserveAmmo -= ammoToReload;
+        // Infinite reserve ammo - always refill to full magazine
+        weapon.currentAmmo = weapon.magazineSize;
+        weapon.reserveAmmo = 999; // Keep reserve ammo display high
         weapon.isReloading = false;
         console.log('Reload complete!');
         updateUI();
