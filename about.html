@@ -64,16 +64,16 @@
   </footer>
 
   <script>
-    // Auto-update age based on birthdate (born in 2013, assuming birthday already passed this year)
+    // Auto-update age based on birthdate
     function updateAge() {
-      const birthYear = 2013;
+      const birthYear = 2012;
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth(); // 0-11
       
-      // Assuming birthday is January 7, 2013 (adjust if different)
-      const birthMonth = 0; // January (0-indexed)
-      const birthDay = 7;
+      // Birthday is September 25, 2012
+      const birthMonth = 8; // September (0-indexed, so 8 = September)
+      const birthDay = 25;
       
       let age = currentYear - birthYear;
       
