@@ -133,6 +133,7 @@ h1 {
   right: 15px;
   bottom: 15px;
   z-index: 2;
+  pointer-events: none;
 }
 
 .tile {
@@ -144,8 +145,16 @@ h1 {
   font-weight: bold;
   border-radius: 8px;
   transition: all 0.15s ease-in-out;
-  width: calc((100% - 45px) / 4);
-  height: calc((100% - 45px) / 4);
+  width: 106px;
+  height: 106px;
+}
+
+.tile-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .tile-2 { background: #d4af37; color: #000000; }
@@ -161,23 +170,23 @@ h1 {
 .tile-2048 { background: #675210; color: #ffffff; font-size: 1.5rem; box-shadow: 0 0 30px rgba(212, 175, 55, 0.8); }
 .tile-super { background: #000000; color: #d4af37; font-size: 1.2rem; box-shadow: 0 0 30px rgba(212, 175, 55, 1); }
 
-/* Tile positioning - 4x4 grid */
-.tile-position-1-1 { top: 0; left: 0; }
-.tile-position-1-2 { top: 0; left: calc(25% + 11.25px); }
-.tile-position-1-3 { top: 0; left: calc(50% + 22.5px); }
-.tile-position-1-4 { top: 0; left: calc(75% + 33.75px); }
-.tile-position-2-1 { top: calc(25% + 11.25px); left: 0; }
-.tile-position-2-2 { top: calc(25% + 11.25px); left: calc(25% + 11.25px); }
-.tile-position-2-3 { top: calc(25% + 11.25px); left: calc(50% + 22.5px); }
-.tile-position-2-4 { top: calc(25% + 11.25px); left: calc(75% + 33.75px); }
-.tile-position-3-1 { top: calc(50% + 22.5px); left: 0; }
-.tile-position-3-2 { top: calc(50% + 22.5px); left: calc(25% + 11.25px); }
-.tile-position-3-3 { top: calc(50% + 22.5px); left: calc(50% + 22.5px); }
-.tile-position-3-4 { top: calc(50% + 22.5px); left: calc(75% + 33.75px); }
-.tile-position-4-1 { top: calc(75% + 33.75px); left: 0; }
-.tile-position-4-2 { top: calc(75% + 33.75px); left: calc(25% + 11.25px); }
-.tile-position-4-3 { top: calc(75% + 33.75px); left: calc(50% + 22.5px); }
-.tile-position-4-4 { top: calc(75% + 33.75px); left: calc(75% + 33.75px); }
+/* Tile positioning - 4x4 grid with 15px gaps */
+.tile-position-1-1 { transform: translate(0px, 0px); }
+.tile-position-1-2 { transform: translate(121px, 0px); }
+.tile-position-1-3 { transform: translate(242px, 0px); }
+.tile-position-1-4 { transform: translate(363px, 0px); }
+.tile-position-2-1 { transform: translate(0px, 121px); }
+.tile-position-2-2 { transform: translate(121px, 121px); }
+.tile-position-2-3 { transform: translate(242px, 121px); }
+.tile-position-2-4 { transform: translate(363px, 121px); }
+.tile-position-3-1 { transform: translate(0px, 242px); }
+.tile-position-3-2 { transform: translate(121px, 242px); }
+.tile-position-3-3 { transform: translate(242px, 242px); }
+.tile-position-3-4 { transform: translate(363px, 242px); }
+.tile-position-4-1 { transform: translate(0px, 363px); }
+.tile-position-4-2 { transform: translate(121px, 363px); }
+.tile-position-4-3 { transform: translate(242px, 363px); }
+.tile-position-4-4 { transform: translate(363px, 363px); }
 
 .tile-new {
   animation: appear 0.2s ease;
