@@ -344,7 +344,7 @@
         <button id="masterMode" onclick="window.location.href='master-mode.html'" style="background: linear-gradient(135deg, #9D00FF 0%, #5500FF 100%); border-color: #9D00FF; color: #FFF;">👑 MASTER MODE</button>
         <button id="howToPlay">📋 MISSION BRIEFING</button>
         <button id="settings">⚙️ SETTINGS</button>
-        <button onclick="window.location.href='../../game centre /index.html'" style="background: linear-gradient(135deg, #667eea, #764ba2);">🎮 GAME CENTRE</button>
+        <button onclick="window.location.href='../../games.html'" style="background: linear-gradient(135deg, #667eea, #764ba2);">🏠 BACK TO GAMES</button>
     </div>
     
     <div id="ui" style="display: none;">
@@ -474,7 +474,7 @@
         </p>
         <button id="restart">Try Again</button>
         <button id="mainMenuBtn">Main Menu</button>
-        <button id="gameCentreBtn" style="background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px;">🏠 Game Centre</button>
+        <button id="gameCentreBtn" style="background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px;">🏠 Back to Games</button>
     </div>
     
     <canvas id="gameCanvas"></canvas>
@@ -488,9 +488,9 @@
     </script>
     <script type="module" src="shooter.js"></script>
     <script>
-        // Game Centre button handler
+        // Back to Games button handler
         document.getElementById('gameCentreBtn').addEventListener('click', () => {
-            window.location.href = '../../game centre /index.html';
+            window.location.href = '../../games.html';
         });
     </script>
 </body>
