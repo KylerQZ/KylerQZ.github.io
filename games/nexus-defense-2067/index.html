@@ -1,0 +1,3214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS DEFENSE 2067</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #000;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    
+    h1 {
+      color: #facc15;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(250,204,21,0.5);
+      margin-bottom: 10px;
+      font-size: 2em;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+    }
+    
+    #gameContainer {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #2d5016;
+      cursor: crosshair;
+    }
+    
+    #ui {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      background: rgba(0,0,0,0.8);
+      padding: 15px;
+      z-index: 100;
+    }
+    
+    #stats {
+      display: flex;
+      gap: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    
+    .stat {
+      background: #facc15;
+      padding: 8px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    #towers {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .tower-btn {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+    }
+    
+    .tower-btn:hover {
+      background: #0284c7;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    
+    .tower-btn.selected {
+      background: #facc15;
+      color: #000;
+      border: 3px solid #000;
+    }
+    
+    .tower-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    #controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .control-btn {
+      background: #000;
+      color: #facc15;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+      background: #333;
+      transform: translateY(-2px);
+    }
+    
+    #message {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+      margin-top: 10px;
+      min-height: 30px;
+    }
+    
+    /* Store Modal */
+    #storeModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 5000;
+    }
+    
+    #storeModal.show {
+      display: flex;
+    }
+    
+    .store-content {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 900px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      border: 3px solid #facc15;
+    }
+    
+    .store-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      color: #facc15;
+    }
+    
+    .store-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .tab-btn {
+      background: rgba(250,204,21,0.2);
+      color: #facc15;
+      border: 2px solid #facc15;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    
+    .tab-btn.active {
+      background: #facc15;
+      color: #000;
+    }
+    
+    .store-items {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    
+    .store-item {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(250,204,21,0.3);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    
+    .store-item:hover {
+      border-color: #facc15;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(250,204,21,0.3);
+    }
+    
+    .store-item.owned {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .item-icon {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+    
+    .item-name {
+      color: #fff;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .item-desc {
+      color: #94a3b8;
+      font-size: 0.85em;
+      margin-bottom: 10px;
+    }
+    
+    .item-cost {
+      color: #facc15;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    
+    /* Deck Display */
+    #deckDisplay {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 180px;
+      background: rgba(30, 41, 59, 0.95);
+      padding: 15px;
+      border-radius: 15px;
+      border: 3px solid #facc15;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    
+    /* Custom scrollbar for deck */
+    #deckDisplay::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #deckDisplay::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+    }
+    
+    #deckDisplay::-webkit-scrollbar-thumb {
+      background: #facc15;
+      border-radius: 10px;
+    }
+    
+    #deckDisplay::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+    
+    .deck-title {
+      color: #facc15;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .deck-counter {
+      color: #94a3b8;
+      font-size: 0.75em;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    
+    .deck-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .deck-card {
+      background: rgba(51, 65, 85, 0.8);
+      border: 2px solid #475569;
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      position: relative;
+    }
+    
+    .deck-card:hover {
+      border-color: #facc15;
+      transform: translateX(-5px);
+      box-shadow: 0 8px 20px rgba(250, 204, 21, 0.4);
+    }
+    
+    .deck-card.selected {
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, 0.2);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+      transform: translateY(-5px);
+    }
+    
+    .card-icon {
+      font-size: 2em;
+      flex-shrink: 0;
+    }
+    
+    .card-info {
+      flex: 1;
+      text-align: left;
+    }
+    
+    .card-name {
+      font-size: 0.9em;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+    
+    .deck-card.selected .card-name {
+      color: #fff;
+    }
+    
+    .card-cooldown {
+      font-size: 0.9em;
+      color: #ef4444;
+      font-weight: bold;
+      background: rgba(239, 68, 68, 0.2);
+      padding: 3px 8px;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+    
+    .back-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: inline-block;
+      color: #000;
+      text-decoration: none;
+      padding: 10px 20px;
+      background: #facc15;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      transition: all 0.2s;
+      z-index: 10000;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    
+    .back-link:hover {
+      background: #0ea5e9;
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .stat {
+      background: rgba(250,204,21,0.9);
+      padding: 8px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+      color: #000;
+    }
+    
+    /* Final Wave Notification */
+    #finalWaveNotification {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      padding: 40px 80px;
+      border-radius: 20px;
+      font-size: 4em;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 100px rgba(239,68,68,0.8);
+      z-index: 9999;
+      border: 5px solid #facc15;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.8);
+      pointer-events: none;
+      opacity: 0;
+    }
+    
+    #finalWaveNotification.show {
+      animation: finalWaveAnim 3.5s ease-out forwards;
+    }
+    
+    @keyframes finalWaveAnim {
+      0% {
+        transform: translate(-50%, -50%) scale(0) rotate(-15deg);
+        opacity: 0;
+      }
+      15% {
+        transform: translate(-50%, -50%) scale(1.3) rotate(8deg);
+        opacity: 1;
+      }
+      30% {
+        transform: translate(-50%, -50%) scale(0.9) rotate(-4deg);
+        opacity: 1;
+      }
+      45% {
+        transform: translate(-50%, -50%) scale(1.1) rotate(2deg);
+        opacity: 1;
+      }
+      60% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      85% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ NEXUS DEFENSE 2067</h1>
+  
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="650" height="500"></canvas>
+    
+    <div id="ui">
+      <div id="stats">
+        <div class="stat">💰 Gold: <span id="gold">200</span></div>
+        <div class="stat">❤️ Lives: <span id="lives">20</span></div>
+        <div class="stat">📍 Level: <span id="level">1</span></div>
+        <div class="stat">🌊 Wave: <span id="wave">1</span>/5</div>
+        <div class="stat">💀 Kills: <span id="kills">0</span></div>
+        <div class="stat">⚔️ Soldiers: <span id="soldierCount">0</span></div>
+      </div>
+      
+      <div id="controls">
+        <button class="control-btn" id="startWave">Start Wave</button>
+        <button class="control-btn" id="openStore">🏪 Store</button>
+        <button class="control-btn" id="saveGame">💾 Save</button>
+        <button class="control-btn" id="loadGame">📂 Load</button>
+        <button class="control-btn" id="restart">🔄 Restart</button>
+        <button class="control-btn" id="resetAll" style="background: #ef4444;">🗑️ Reset All</button>
+      </div>
+    </div>
+    
+    <div id="message"></div>
+  </div>
+  
+  <div id="finalWaveNotification">⚠️ FINAL WAVE ⚠️</div>
+  
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" style="display: none;">
+    <div style="background: rgba(0,0,0,0.95); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 1000;">
+      <div style="text-align: center; color: #fff;">
+        <h1 style="font-size: 4em; color: #ef4444; margin-bottom: 20px; text-shadow: 0 0 20px #ef4444;">💀 DEFEATED 💀</h1>
+        <p style="font-size: 1.5em; color: #94a3b8; margin-bottom: 30px;">The stronghold has fallen...</p>
+        <div style="background: rgba(30, 41, 59, 0.8); padding: 20px; border-radius: 15px; border: 2px solid #ef4444; margin-bottom: 30px;">
+          <p style="font-size: 1.2em; margin: 10px 0;">📍 Level Reached: <span id="finalLevel" style="color: #facc15;">1</span></p>
+          <p style="font-size: 1.2em; margin: 10px 0;">🌊 Wave Reached: <span id="finalWave" style="color: #facc15;">1</span></p>
+          <p style="font-size: 1.2em; margin: 10px 0;">💰 Gold Earned: <span id="finalGold" style="color: #facc15;">0</span></p>
+        </div>
+        <button onclick="location.reload()" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; padding: 15px 40px; font-size: 1.3em; font-weight: bold; border-radius: 10px; cursor: pointer; margin-right: 15px;">🔄 Try Again</button>
+        <button onclick="location.href='home.html'" style="background: linear-gradient(135deg, #facc15, #f59e0b); border: none; color: #000; padding: 15px 40px; font-size: 1.3em; font-weight: bold; border-radius: 10px; cursor: pointer;">🏠 Home</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Level Complete Screen -->
+  <div id="levelCompleteScreen" style="display: none;">
+    <div style="background: rgba(0,0,0,0.95); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 1000;">
+      <div style="text-align: center; color: #fff;">
+        <h1 style="font-size: 4em; color: #22c55e; margin-bottom: 20px; text-shadow: 0 0 20px #22c55e;">🎉 LEVEL COMPLETE! 🎉</h1>
+        <p style="font-size: 1.5em; color: #94a3b8; margin-bottom: 30px;">The stronghold holds strong!</p>
+        <div style="background: rgba(30, 41, 59, 0.8); padding: 20px; border-radius: 15px; border: 2px solid #22c55e; margin-bottom: 30px;">
+          <p style="font-size: 1.2em; margin: 10px 0;">📍 Level: <span id="completeLevel" style="color: #facc15;">1</span></p>
+          <p style="font-size: 1.2em; margin: 10px 0;">💰 Gold: <span id="completeGold" style="color: #facc15;">0</span></p>
+          <p style="font-size: 1.2em; margin: 10px 0;">❤️ Lives: <span id="completeLives" style="color: #facc15;">20</span></p>
+          <p style="font-size: 0.9em; color: #94a3b8; margin-top: 15px;">✅ Progress Auto-Saved</p>
+        </div>
+        <button id="nextLevelBtn" style="background: linear-gradient(135deg, #22c55e, #16a34a); border: none; color: #fff; padding: 15px 40px; font-size: 1.3em; font-weight: bold; border-radius: 10px; cursor: pointer; margin-right: 15px;">➡️ Next Level</button>
+        <button onclick="location.href='home.html'" style="background: linear-gradient(135deg, #facc15, #f59e0b); border: none; color: #000; padding: 15px 40px; font-size: 1.3em; font-weight: bold; border-radius: 10px; cursor: pointer;">🏠 Home</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Store Modal -->
+  <div id="storeModal">
+    <div class="store-content">
+      <div class="store-header">
+        <h2>🏪 Battle Shop</h2>
+        <button class="control-btn" id="closeStore">✕ Close</button>
+      </div>
+      
+      <div class="store-tabs">
+        <button class="tab-btn active" data-tab="towers">Towers</button>
+        <button class="tab-btn" data-tab="spells">Spells</button>
+        <button class="tab-btn" data-tab="soldiers">Soldiers</button>
+        <button class="tab-btn" data-tab="upgrades">Upgrades</button>
+      </div>
+      
+      <div id="storeItemsContainer" class="store-items"></div>
+    </div>
+  </div>
+  
+  <!-- Deck Display -->
+  <div id="deckDisplay">
+    <div class="deck-title">
+      ⚔️ DECK
+      <button id="toggleDeck" style="position: absolute; right: 10px; top: 10px; background: none; border: none; color: #facc15; font-size: 1.2em; cursor: pointer;">✕</button>
+    </div>
+    <div class="deck-counter" id="deckCounter">0/6</div>
+    <div class="deck-items" id="deckItems"></div>
+  </div>
+  
+  <!-- Deck Toggle Button (when minimized) -->
+  <button id="showDeck" style="display: none; position: fixed; top: 80px; right: 20px; background: rgba(30, 41, 59, 0.95); border: 3px solid #facc15; color: #facc15; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; z-index: 50;">⚔️ DECK (6)</button>
+  
+  <button id="backButton" class="back-link">🏠 Home</button>
+  
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Resize canvas to fullscreen
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Mouse tracking for shadow preview
+    let mouseX = 0;
+    let mouseY = 0;
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    });
+    
+    // Game state
+    let gold = 200; // Starting gold
+    let lives = 20;
+    let currentLevel = 1;
+    let currentWave = 1; // Wave within current level (1-5)
+    
+    // Ensure gold is always a valid number
+    if (isNaN(gold)) gold = 200;
+    let selectedTower = null;
+    let selectedSpell = null;
+    let selectedSoldier = null;
+    let towers = [];
+    let enemies = [];
+    let projectiles = [];
+    let soldiers = [];
+    let spellEffects = [];
+    let gameRunning = false;
+    let totalKills = 0;
+    let soundEnabled = true;
+    let waveInProgress = false;
+    let enemiesSpawned = 0;
+    let enemiesInWave = 0;
+    
+    // Store and Deck System
+    let ownedItems = {
+      towers: ['machineGun'],
+      spells: ['bomb'],
+      soldiers: ['policeTeam'],
+      upgrades: []
+    };
+    let playerDeck = [
+      { id: 'machineGun', name: 'Machine Gun', icon: '🔫', desc: '3x5 DMG, 120 range', type: 'tower' },
+      { id: 'bomb', name: 'Bomb', icon: '💣', cost: 0, desc: '200 area damage', cooldown: 10, type: 'spell' },
+      { id: 'policeTeam', name: 'Police Team', icon: '👮', cost: 0, desc: '3 units, 80HP, 18 DMG', cooldown: 15, type: 'soldier' }
+    ];
+    let spellCooldowns = {};
+    let deathEffects = [];
+    
+    // Multiple level maps - DUAL PATHS for more strategy
+    const levelMaps = [
+      // Level 1 - Two simple paths
+      {
+        path1: [
+          {x: 0, y: 0.25}, {x: 0.3, y: 0.25}, {x: 0.3, y: 0.6}, 
+          {x: 0.6, y: 0.6}, {x: 0.6, y: 0.3}, {x: 1, y: 0.3}
+        ],
+        path2: [
+          {x: 0, y: 0.75}, {x: 0.4, y: 0.75}, {x: 0.4, y: 0.4},
+          {x: 0.7, y: 0.4}, {x: 0.7, y: 0.7}, {x: 1, y: 0.7}
+        ]
+      },
+      // Level 2 - Crossing paths
+      {
+        path1: [
+          {x: 0, y: 0.2}, {x: 0.25, y: 0.2}, {x: 0.5, y: 0.5},
+          {x: 0.75, y: 0.8}, {x: 1, y: 0.8}
+        ],
+        path2: [
+          {x: 0, y: 0.8}, {x: 0.25, y: 0.8}, {x: 0.5, y: 0.5},
+          {x: 0.75, y: 0.2}, {x: 1, y: 0.2}
+        ]
+      },
+      // Level 3 - Spiral paths
+      {
+        path1: [
+          {x: 0, y: 0.3}, {x: 0.3, y: 0.3}, {x: 0.3, y: 0.15},
+          {x: 0.7, y: 0.15}, {x: 0.7, y: 0.7}, {x: 0.4, y: 0.7},
+          {x: 0.4, y: 0.4}, {x: 1, y: 0.4}
+        ],
+        path2: [
+          {x: 0, y: 0.7}, {x: 0.25, y: 0.7}, {x: 0.25, y: 0.85},
+          {x: 0.75, y: 0.85}, {x: 0.75, y: 0.5}, {x: 1, y: 0.5}
+        ]
+      },
+      // Level 4 - Complex maze with splits
+      {
+        path1: [
+          {x: 0, y: 0.2}, {x: 0.15, y: 0.2}, {x: 0.15, y: 0.5},
+          {x: 0.35, y: 0.5}, {x: 0.35, y: 0.15}, {x: 0.55, y: 0.15},
+          {x: 0.55, y: 0.6}, {x: 0.75, y: 0.6}, {x: 0.75, y: 0.3}, {x: 1, y: 0.3}
+        ],
+        path2: [
+          {x: 0, y: 0.8}, {x: 0.2, y: 0.8}, {x: 0.2, y: 0.6},
+          {x: 0.4, y: 0.6}, {x: 0.4, y: 0.85}, {x: 0.6, y: 0.85},
+          {x: 0.6, y: 0.7}, {x: 0.8, y: 0.7}, {x: 1, y: 0.7}
+        ]
+      },
+      // Level 5 - Zigzag chaos
+      {
+        path1: [
+          {x: 0, y: 0.15}, {x: 0.2, y: 0.15}, {x: 0.2, y: 0.4},
+          {x: 0.4, y: 0.4}, {x: 0.4, y: 0.15}, {x: 0.6, y: 0.15},
+          {x: 0.6, y: 0.5}, {x: 0.8, y: 0.5}, {x: 0.8, y: 0.25}, {x: 1, y: 0.25}
+        ],
+        path2: [
+          {x: 0, y: 0.85}, {x: 0.15, y: 0.85}, {x: 0.15, y: 0.6},
+          {x: 0.35, y: 0.6}, {x: 0.35, y: 0.85}, {x: 0.55, y: 0.85},
+          {x: 0.55, y: 0.55}, {x: 0.75, y: 0.55}, {x: 0.75, y: 0.75}, {x: 1, y: 0.75}
+        ]
+      },
+      // Level 6 - Double spiral
+      {
+        path1: [
+          {x: 0, y: 0.5}, {x: 0.2, y: 0.5}, {x: 0.2, y: 0.2},
+          {x: 0.5, y: 0.2}, {x: 0.5, y: 0.7}, {x: 0.3, y: 0.7},
+          {x: 0.3, y: 0.35}, {x: 0.7, y: 0.35}, {x: 0.7, y: 0.8},
+          {x: 1, y: 0.8}
+        ],
+        path2: [
+          {x: 0, y: 0.3}, {x: 0.25, y: 0.3}, {x: 0.25, y: 0.6},
+          {x: 0.55, y: 0.6}, {x: 0.55, y: 0.15}, {x: 0.8, y: 0.15},
+          {x: 0.8, y: 0.5}, {x: 1, y: 0.5}
+        ]
+      },
+      // Level 7 - Extreme maze
+      {
+        path1: [
+          {x: 0, y: 0.1}, {x: 0.12, y: 0.1}, {x: 0.12, y: 0.35},
+          {x: 0.25, y: 0.35}, {x: 0.25, y: 0.15}, {x: 0.4, y: 0.15},
+          {x: 0.4, y: 0.5}, {x: 0.55, y: 0.5}, {x: 0.55, y: 0.2},
+          {x: 0.7, y: 0.2}, {x: 0.7, y: 0.6}, {x: 0.85, y: 0.6},
+          {x: 0.85, y: 0.35}, {x: 1, y: 0.35}
+        ],
+        path2: [
+          {x: 0, y: 0.9}, {x: 0.15, y: 0.9}, {x: 0.15, y: 0.65},
+          {x: 0.3, y: 0.65}, {x: 0.3, y: 0.85}, {x: 0.45, y: 0.85},
+          {x: 0.45, y: 0.55}, {x: 0.6, y: 0.55}, {x: 0.6, y: 0.75},
+          {x: 0.75, y: 0.75}, {x: 0.75, y: 0.45}, {x: 0.9, y: 0.45},
+          {x: 0.9, y: 0.65}, {x: 1, y: 0.65}
+        ]
+      },
+      // Level 8+ - Ultimate challenge
+      {
+        path1: [
+          {x: 0, y: 0.25}, {x: 0.1, y: 0.25}, {x: 0.1, y: 0.5},
+          {x: 0.2, y: 0.5}, {x: 0.2, y: 0.15}, {x: 0.35, y: 0.15},
+          {x: 0.35, y: 0.6}, {x: 0.5, y: 0.6}, {x: 0.5, y: 0.25},
+          {x: 0.65, y: 0.25}, {x: 0.65, y: 0.7}, {x: 0.8, y: 0.7},
+          {x: 0.8, y: 0.4}, {x: 1, y: 0.4}
+        ],
+        path2: [
+          {x: 0, y: 0.75}, {x: 0.12, y: 0.75}, {x: 0.12, y: 0.45},
+          {x: 0.25, y: 0.45}, {x: 0.25, y: 0.85}, {x: 0.4, y: 0.85},
+          {x: 0.4, y: 0.35}, {x: 0.55, y: 0.35}, {x: 0.55, y: 0.75},
+          {x: 0.7, y: 0.75}, {x: 0.7, y: 0.2}, {x: 0.85, y: 0.2},
+          {x: 0.85, y: 0.6}, {x: 1, y: 0.6}
+        ]
+      }
+    ];
+    
+    // Convert relative paths to absolute coordinates
+    function getPaths() {
+      const levelIndex = Math.min(currentLevel - 1, levelMaps.length - 1);
+      const levelData = levelMaps[levelIndex];
+      return {
+        path1: levelData.path1.map(p => ({
+          x: p.x * canvas.width,
+          y: p.y * canvas.height
+        })),
+        path2: levelData.path2.map(p => ({
+          x: p.x * canvas.width,
+          y: p.y * canvas.height
+        }))
+      };
+    }
+    
+    let paths = getPaths();
+    let allPaths = [paths.path1, paths.path2];
+    
+    // Map backgrounds based on level - Apocalyptic wasteland theme
+    const mapBackgrounds = [
+      '#3d2817', // Level 1 - Scorched earth
+      '#4a3520', // Level 2 - Desert wasteland
+      '#2c2416', // Level 3 - Ash lands
+      '#1a1410'  // Level 4 - Dead zone
+    ];
+    
+    function getMapBackground() {
+      return mapBackgrounds[Math.min(currentLevel - 1, mapBackgrounds.length - 1)];
+    }
+    
+    // Store Items Database
+    const storeItems = {
+      towers: [
+        { id: 'machineGun', name: 'Machine Gun', icon: '🔫', cost: 0, desc: '3x5 DMG, 120 range, 0.2s fire rate', owned: true },
+        { id: 'sniper', name: 'Sniper Rifle', icon: '🎯', cost: 200, desc: '80 DMG, 250 range, 2s fire rate' },
+        { id: 'laser', name: 'Laser Turret', icon: '⚡', cost: 250, desc: '15 DMG, 150 range, 0.1s rapid fire' },
+        { id: 'rocket', name: 'Rocket Launcher', icon: '🚀', cost: 300, desc: '50 DMG, 180 range, 50px splash' },
+        { id: 'plasma', name: 'Plasma Cannon', icon: '💠', cost: 350, desc: '100 DMG, 160 range, 1.5s fire rate' }
+      ],
+      spells: [
+        { id: 'bomb', name: 'Bomb', icon: '💣', cost: 0, desc: '200 area damage', cooldown: 10, owned: true },
+        { id: 'airstrike', name: 'Airstrike', icon: '✈️', cost: 150, desc: 'Massive line damage', cooldown: 20 },
+        { id: 'emp', name: 'EMP Blast', icon: '⚡', cost: 180, desc: 'Stuns all enemies 3s', cooldown: 25 },
+        { id: 'nuke', name: 'Tactical Nuke', icon: '☢️', cost: 300, desc: 'Huge area devastation', cooldown: 40 },
+        { id: 'heal', name: 'Repair Kit', icon: '🔧', cost: 100, desc: 'Restore 5 lives', cooldown: 30 },
+        { id: 'goldRush', name: 'Supply Drop', icon: '📦', cost: 80, desc: 'Gain 300 gold', cooldown: 35 }
+      ],
+      soldiers: [
+        { id: 'policeTeam', name: 'Police Team', icon: '👮', cost: 0, desc: '3 units, 80HP, 18 DMG, 1s attack', cooldown: 15, owned: true },
+        { id: 'swatTeam', name: 'SWAT Team', icon: '🚔', cost: 200, desc: '4 units, 120HP, 25 DMG, 0.9s attack', cooldown: 20 },
+        { id: 'military', name: 'Military Squad', icon: '🎖️', cost: 300, desc: '5 units, 160HP, 35 DMG, 0.75s attack', cooldown: 25 },
+        { id: 'cyborg', name: 'Cyborg Unit', icon: '🤖', cost: 400, desc: '2 units, 250HP, 55 DMG, 0.65s attack', cooldown: 30 }
+      ],
+      upgrades: [
+        { id: 'damage1', name: 'Damage +10%', icon: '⚔️', cost: 200, desc: 'All units deal 10% more damage' },
+        { id: 'range1', name: 'Range +15%', icon: '📡', cost: 180, desc: 'All towers have 15% more range' },
+        { id: 'speed1', name: 'Fire Rate +20%', icon: '⚡', cost: 220, desc: 'All towers fire 20% faster' },
+        { id: 'goldBoost', name: 'Gold Boost', icon: '💎', cost: 150, desc: 'Earn 50% more gold' }
+      ]
+    };
+    
+    // Tower types
+    const towerTypes = {
+      machineGun: {
+        cost: 100,
+        damage: 5,
+        range: 120,
+        fireRate: 200,
+        bulletsPerShot: 3,
+        color: '#64748b',
+        projectileColor: '#facc15'
+      },
+      basic: {
+        cost: 50,
+        damage: 10,
+        range: 100,
+        fireRate: 1000,
+        color: '#0ea5e9',
+        projectileColor: '#facc15'
+      },
+      sniper: {
+        cost: 200,
+        damage: 80,
+        range: 250,
+        fireRate: 2000,
+        color: '#22c55e',
+        projectileColor: '#ef4444'
+      },
+      laser: {
+        cost: 250,
+        damage: 15,
+        range: 150,
+        fireRate: 100,
+        color: '#0ea5e9',
+        projectileColor: '#00d9ff'
+      },
+      rocket: {
+        cost: 300,
+        damage: 50,
+        range: 180,
+        fireRate: 1800,
+        color: '#f97316',
+        projectileColor: '#ff6b00',
+        splash: 50
+      },
+      plasma: {
+        cost: 350,
+        damage: 100,
+        range: 160,
+        fireRate: 1500,
+        color: '#8b5cf6',
+        projectileColor: '#a855f7'
+      },
+      cannon: {
+        cost: 150,
+        damage: 30,
+        range: 120,
+        fireRate: 1500,
+        color: '#ef4444',
+        projectileColor: '#f97316',
+        splash: 50
+      }
+    };
+    
+    // Tower class
+    class Tower {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.stats = towerTypes[type];
+        this.lastFire = 0;
+        this.target = null;
+      }
+      
+      draw() {
+        // Draw realistic 3D tower
+        if (this.type === 'machineGun') {
+          this.drawMachineGunTower();
+        } else if (this.type === 'basic') {
+          this.drawBasicTower();
+        } else if (this.type === 'sniper') {
+          this.drawSniperTower();
+        } else if (this.type === 'rocket') {
+          this.drawRocketTower();
+        } else if (this.type === 'laser') {
+          this.drawLaserTower();
+        } else if (this.type === 'plasma') {
+          this.drawPlasmaTower();
+        } else if (this.type === 'cannon') {
+          this.drawCannonTower();
+        }
+      }
+      
+      drawMachineGunTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 18, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Metal base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 20);
+        gradient1.addColorStop(0, '#71717a');
+        gradient1.addColorStop(1, '#3f3f46');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#27272a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tower body (gray metal)
+        const gradient2 = ctx.createLinearGradient(this.x - 12, this.y, this.x + 12, this.y);
+        gradient2.addColorStop(0, '#52525b');
+        gradient2.addColorStop(0.5, '#71717a');
+        gradient2.addColorStop(1, '#52525b');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 12, this.y - 22, 24, 22);
+        ctx.strokeStyle = '#3f3f46';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 12, this.y - 22, 24, 22);
+        
+        // Triple barrels
+        ctx.fillStyle = '#18181b';
+        ctx.fillRect(this.x - 8, this.y - 28, 4, 8);
+        ctx.fillRect(this.x - 2, this.y - 28, 4, 8);
+        ctx.fillRect(this.x + 4, this.y - 28, 4, 8);
+        // Barrel tips
+        ctx.fillRect(this.x - 8, this.y - 35, 4, 7);
+        ctx.fillRect(this.x - 2, this.y - 35, 4, 7);
+        ctx.fillRect(this.x + 4, this.y - 35, 4, 7);
+      }
+      
+      drawRocketTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 20, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Metal base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 22);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tower body (orange)
+        const gradient2 = ctx.createLinearGradient(this.x - 14, this.y, this.x + 14, this.y);
+        gradient2.addColorStop(0, '#c2410c');
+        gradient2.addColorStop(0.5, '#f97316');
+        gradient2.addColorStop(1, '#c2410c');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 14, this.y - 25, 28, 25);
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 14, this.y - 25, 28, 25);
+        
+        // Rocket launcher
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(this.x - 10, this.y - 30, 8, 8);
+        ctx.fillRect(this.x + 2, this.y - 30, 8, 8);
+        // Rockets
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(this.x - 8, this.y - 38, 4, 8);
+        ctx.fillRect(this.x + 4, this.y - 38, 4, 8);
+      }
+      
+      drawLaserTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 18, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Metal base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 20);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tower body (cyan)
+        const gradient2 = ctx.createLinearGradient(this.x - 12, this.y, this.x + 12, this.y);
+        gradient2.addColorStop(0, '#0891b2');
+        gradient2.addColorStop(0.5, '#06b6d4');
+        gradient2.addColorStop(1, '#0891b2');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 12, this.y - 28, 24, 28);
+        ctx.strokeStyle = '#0e7490';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 12, this.y - 28, 24, 28);
+        
+        // Laser emitter
+        ctx.fillStyle = '#00d9ff';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00d9ff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 32, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      
+      drawPlasmaTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 20, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Metal base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 22);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tower body (purple)
+        const gradient2 = ctx.createLinearGradient(this.x - 14, this.y, this.x + 14, this.y);
+        gradient2.addColorStop(0, '#7c3aed');
+        gradient2.addColorStop(0.5, '#a855f7');
+        gradient2.addColorStop(1, '#7c3aed');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 14, this.y - 30, 28, 30);
+        ctx.strokeStyle = '#6d28d9';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 14, this.y - 30, 28, 30);
+        
+        // Plasma cannon
+        ctx.fillStyle = '#a855f7';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#a855f7';
+        ctx.fillRect(this.x - 6, this.y - 35, 12, 8);
+        ctx.shadowBlur = 0;
+      }
+      
+      drawBasicTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 18, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Stone base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 20);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tower body (blue cylinder)
+        const gradient2 = ctx.createLinearGradient(this.x - 12, this.y, this.x + 12, this.y);
+        gradient2.addColorStop(0, '#0369a1');
+        gradient2.addColorStop(0.5, '#0ea5e9');
+        gradient2.addColorStop(1, '#0369a1');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 12, this.y - 25, 24, 25);
+        ctx.strokeStyle = '#075985';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 12, this.y - 25, 24, 25);
+        
+        // Gun turret
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(this.x - 4, this.y - 30, 8, 10);
+        ctx.fillRect(this.x - 2, this.y - 35, 15, 4);
+      }
+      
+      drawSniperTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 18, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Stone base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 20);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Tall tower (purple)
+        const gradient2 = ctx.createLinearGradient(this.x - 10, this.y, this.x + 10, this.y);
+        gradient2.addColorStop(0, '#6b21a8');
+        gradient2.addColorStop(0.5, '#8b5cf6');
+        gradient2.addColorStop(1, '#6b21a8');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 10, this.y - 35, 20, 35);
+        ctx.strokeStyle = '#581c87';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 10, this.y - 35, 20, 35);
+        
+        // Long sniper barrel
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(this.x - 3, this.y - 40, 6, 8);
+        ctx.fillRect(this.x - 2, this.y - 50, 25, 3);
+      }
+      
+      drawCannonTower() {
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 20, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Wide stone base
+        const gradient1 = ctx.createRadialGradient(this.x - 5, this.y - 5, 5, this.x, this.y, 22);
+        gradient1.addColorStop(0, '#888');
+        gradient1.addColorStop(1, '#444');
+        ctx.fillStyle = gradient1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Cannon platform (red)
+        const gradient2 = ctx.createLinearGradient(this.x - 15, this.y, this.x + 15, this.y);
+        gradient2.addColorStop(0, '#b91c1c');
+        gradient2.addColorStop(0.5, '#ef4444');
+        gradient2.addColorStop(1, '#b91c1c');
+        ctx.fillStyle = gradient2;
+        ctx.fillRect(this.x - 15, this.y - 20, 30, 20);
+        ctx.strokeStyle = '#991b1b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 15, this.y - 20, 30, 20);
+        
+        // Cannon barrel
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(this.x - 6, this.y - 25, 12, 10);
+        ctx.fillRect(this.x - 4, this.y - 32, 18, 6);
+      }
+      
+      update(timestamp) {
+        // Find target
+        if (!this.target || this.target.dead || this.getDistance(this.target) > this.stats.range) {
+          this.target = this.findTarget();
+        }
+        
+        // Fire at target
+        if (this.target && timestamp - this.lastFire > this.stats.fireRate) {
+          this.fire();
+          this.lastFire = timestamp;
+        }
+      }
+      
+      findTarget() {
+        let closest = null;
+        let minDist = Infinity;
+        
+        for (let enemy of enemies) {
+          if (!enemy.dead) {
+            const dist = this.getDistance(enemy);
+            if (dist < this.stats.range && dist < minDist) {
+              closest = enemy;
+              minDist = dist;
+            }
+          }
+        }
+        
+        return closest;
+      }
+      
+      fire() {
+        projectiles.push(new Projectile(
+          this.x,
+          this.y,
+          this.target,
+          this.stats.damage,
+          this.stats.projectileColor,
+          this.stats.splash
+        ));
+      }
+      
+      getDistance(enemy) {
+        const dx = this.x - enemy.x;
+        const dy = this.y - enemy.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    
+    // Enemy class
+    class Enemy {
+      constructor(level, wave, isFinal = false) {
+        this.pathIndex = 0;
+        // Randomly choose which path to follow
+        this.pathChoice = Math.floor(Math.random() * allPaths.length);
+        this.path = allPaths[this.pathChoice];
+        this.x = this.path[0].x;
+        this.y = this.path[0].y;
+        this.level = level;
+        this.wave = wave;
+        this.isFinal = isFinal;
+        
+        // Calculate stats based on level and wave
+        const totalProgress = (level - 1) * 5 + wave;
+        this.speed = 1.5 + totalProgress * 0.1;
+        this.maxHealth = 150 + totalProgress * 25;
+        
+        // Final wave enemies are much stronger
+        if (isFinal) {
+          this.maxHealth *= 2;
+          this.speed *= 1.3;
+          this.size = 18;
+        } else {
+          this.size = 12 + Math.min(level, 3) * 2;
+        }
+        
+        this.health = this.maxHealth;
+        this.dead = false;
+        this.reward = 10 + totalProgress * 2 + (isFinal ? 50 : 0);
+        
+        // Different enemy types based on level (cycle through types for levels 5+)
+        this.type = ((level - 1) % 8) + 1;
+      }
+      
+      draw() {
+        if (this.dead) return;
+        
+        // Different colors for different monster types
+        const colors = [
+          { body: '#8b0000', dark: '#4a0000', accent: '#ff0000' }, // Level 1 - Dark red demon
+          { body: '#ff4500', dark: '#8b2500', accent: '#ff8c00' }, // Level 2 - Orange beast
+          { body: '#4b0082', dark: '#2d004e', accent: '#8b00ff' }, // Level 3 - Purple demon
+          { body: '#000000', dark: '#1a1a1a', accent: '#ff0000' }, // Level 4 - Shadow demon
+          { body: '#006400', dark: '#003300', accent: '#00ff00' }, // Level 5 - Toxic beast
+          { body: '#00008b', dark: '#000033', accent: '#0000ff' }, // Level 6 - Ice demon
+          { body: '#8b4513', dark: '#4a2511', accent: '#ff6347' }, // Level 7 - Lava monster
+          { body: '#2f4f4f', dark: '#1a1a1a', accent: '#00ffff' }  // Level 8 - Steel golem
+        ];
+        
+        const colorSet = colors[this.type - 1];
+        
+        // Draw glow for final wave
+        if (this.isFinal) {
+          ctx.shadowBlur = 30;
+          ctx.shadowColor = colorSet.accent;
+        }
+        
+        // Monster body (menacing shape)
+        const bodyGradient = ctx.createRadialGradient(
+          this.x, this.y - this.size/2, this.size/4,
+          this.x, this.y, this.size
+        );
+        bodyGradient.addColorStop(0, colorSet.accent);
+        bodyGradient.addColorStop(0.4, colorSet.body);
+        bodyGradient.addColorStop(1, colorSet.dark);
+        
+        ctx.fillStyle = bodyGradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        
+        // Horns (all levels have horns)
+        ctx.fillStyle = colorSet.dark;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        
+        // Left horn - curved and menacing
+        ctx.beginPath();
+        ctx.moveTo(this.x - this.size * 0.5, this.y - this.size * 0.6);
+        ctx.quadraticCurveTo(
+          this.x - this.size * 0.8, this.y - this.size * 1.5,
+          this.x - this.size * 0.6, this.y - this.size * 1.3
+        );
+        ctx.lineTo(this.x - this.size * 0.3, this.y - this.size * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Right horn - curved and menacing
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.size * 0.5, this.y - this.size * 0.6);
+        ctx.quadraticCurveTo(
+          this.x + this.size * 0.8, this.y - this.size * 1.5,
+          this.x + this.size * 0.6, this.y - this.size * 1.3
+        );
+        ctx.lineTo(this.x + this.size * 0.3, this.y - this.size * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Scary glowing eyes
+        const eyeSize = this.size * 0.2;
+        const eyeOffset = this.size * 0.35;
+        
+        // Eye glow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.isFinal ? '#facc15' : '#ff0000';
+        
+        // Left eye (menacing slit)
+        ctx.fillStyle = this.isFinal ? '#facc15' : '#ff0000';
+        ctx.beginPath();
+        ctx.ellipse(this.x - eyeOffset, this.y - eyeOffset/3, eyeSize * 0.4, eyeSize, Math.PI/4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Right eye (menacing slit)
+        ctx.beginPath();
+        ctx.ellipse(this.x + eyeOffset, this.y - eyeOffset/3, eyeSize * 0.4, eyeSize, -Math.PI/4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        
+        // Jagged mouth with fangs
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.x - this.size * 0.5, this.y + this.size * 0.2);
+        ctx.quadraticCurveTo(this.x, this.y + this.size * 0.6, this.x + this.size * 0.5, this.y + this.size * 0.2);
+        ctx.stroke();
+        
+        // Large fangs
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        
+        const numFangs = this.type + 2;
+        for (let i = 0; i < numFangs; i++) {
+          const t = i / (numFangs - 1);
+          const mx = this.x - this.size * 0.5 + t * this.size;
+          const my = this.y + this.size * 0.2 + Math.sin(t * Math.PI) * this.size * 0.4;
+          
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx - 4, my - 10);
+          ctx.lineTo(mx + 4, my - 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        
+        // Spikes on back for all levels
+        ctx.fillStyle = colorSet.dark;
+        const numSpikes = 3 + this.type;
+        for (let i = 0; i < numSpikes; i++) {
+          const angle = Math.PI * 0.6 + (Math.PI * 0.8) * (i / (numSpikes - 1));
+          const x1 = this.x + Math.cos(angle) * this.size * 0.9;
+          const y1 = this.y + Math.sin(angle) * this.size * 0.9;
+          const spikeLength = 8 + this.type * 2;
+          const x2 = this.x + Math.cos(angle) * (this.size + spikeLength);
+          const y2 = this.y + Math.sin(angle) * (this.size + spikeLength);
+          
+          ctx.beginPath();
+          ctx.moveTo(x1 - 3, y1);
+          ctx.lineTo(x2, y2);
+          ctx.lineTo(x1 + 3, y1);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        
+        // Claws for level 3+
+        if (this.type >= 3) {
+          ctx.fillStyle = '#333';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1.5;
+          
+          // Left claw
+          for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(this.x - this.size * 0.7, this.y + this.size * 0.3 + i * 5);
+            ctx.lineTo(this.x - this.size * 1.1, this.y + this.size * 0.4 + i * 5);
+            ctx.lineTo(this.x - this.size * 0.7, this.y + this.size * 0.35 + i * 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          
+          // Right claw
+          for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.size * 0.7, this.y + this.size * 0.3 + i * 5);
+            ctx.lineTo(this.x + this.size * 1.1, this.y + this.size * 0.4 + i * 5);
+            ctx.lineTo(this.x + this.size * 0.7, this.y + this.size * 0.35 + i * 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+        
+        // Smoke/aura effect for level 4
+        if (this.type >= 4) {
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = colorSet.accent;
+          for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(this.x + (Math.random() - 0.5) * this.size, 
+                   this.y + (Math.random() - 0.5) * this.size, 
+                   this.size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+        
+        // Health bar
+        const barWidth = 50;
+        const barHeight = 6;
+        const healthPercent = this.health / this.maxHealth;
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth, barHeight);
+        
+        const healthGradient = ctx.createLinearGradient(
+          this.x - barWidth/2, 0,
+          this.x + barWidth/2, 0
+        );
+        healthGradient.addColorStop(0, '#ff0000');
+        healthGradient.addColorStop(1, '#8b0000');
+        ctx.fillStyle = healthGradient;
+        ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth * healthPercent, barHeight);
+        
+        // HP number
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(Math.ceil(this.health), this.x, this.y - this.size - 19);
+        ctx.fillText(Math.ceil(this.health), this.x, this.y - this.size - 19);
+        
+        // Final wave skull indicator
+        if (this.isFinal) {
+          ctx.fillStyle = '#facc15';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.font = 'bold 18px Arial';
+          ctx.textAlign = 'center';
+          ctx.strokeText('💀', this.x, this.y - this.size - 32);
+          ctx.fillText('💀', this.x, this.y - this.size - 32);
+        }
+      }
+      
+      update() {
+        if (this.dead) return;
+        
+        // Check for nearby soldiers to fight
+        let nearestSoldier = null;
+        let nearestSoldierDist = 100; // Detection range
+        
+        for (let soldier of soldiers) {
+          if (soldier.dead) continue;
+          const dx = soldier.x - this.x;
+          const dy = soldier.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < nearestSoldierDist) {
+            nearestSoldierDist = dist;
+            nearestSoldier = soldier;
+          }
+        }
+        
+        // If soldier nearby, stop and fight
+        if (nearestSoldier) {
+          const dx = nearestSoldier.x - this.x;
+          const dy = nearestSoldier.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          // Move towards soldier if not in melee range
+          if (dist > 25) {
+            this.x += (dx / dist) * this.speed;
+            this.y += (dy / dist) * this.speed;
+          }
+          // In melee range - soldier takes damage (handled in Soldier class)
+          return; // Don't continue on path while fighting
+        }
+        
+        // Normal path following
+        const target = this.path[this.pathIndex + 1];
+        if (!target) {
+          // Reached end
+          lives--;
+          this.dead = true;
+          updateUI();
+          if (lives <= 0) {
+            gameOver();
+          }
+          return;
+        }
+        
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < this.speed) {
+          this.pathIndex++;
+        } else {
+          this.x += (dx / dist) * this.speed;
+          this.y += (dy / dist) * this.speed;
+        }
+      }
+      
+      takeDamage(damage) {
+        this.health -= damage;
+        if (this.health <= 0) {
+          this.dead = true;
+          gold += this.reward;
+          totalKills++;
+          createDeathEffect(this.x, this.y);
+          updateUI();
+        }
+      }
+    }
+    
+    // Soldier class
+    class Soldier {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.dead = false;
+        this.target = null;
+        this.lastAttack = 0;
+        this.selected = false;
+        this.moveTarget = null; // {x, y} for manual movement
+        this.teamId = Math.random(); // Unique ID for team selection
+        
+        // Soldier stats based on type
+        const soldierTypes = {
+          policeTeam: { health: 80, damage: 18, speed: 1.5, range: 70, attackSpeed: 1000, count: 3, icon: '👮' },
+          swatTeam: { health: 120, damage: 25, speed: 2, range: 90, attackSpeed: 900, count: 4, icon: '🚔' },
+          military: { health: 160, damage: 35, speed: 2.5, range: 110, attackSpeed: 750, count: 5, icon: '🎖️' },
+          cyborg: { health: 250, damage: 55, speed: 2, range: 130, attackSpeed: 650, count: 2, icon: '🤖' }
+        };
+        
+        const stats = soldierTypes[type];
+        this.maxHealth = stats.health;
+        this.health = this.maxHealth;
+        this.damage = stats.damage;
+        this.speed = stats.speed;
+        this.range = stats.range;
+        this.attackSpeed = stats.attackSpeed;
+        this.icon = stats.icon;
+      }
+      
+      draw() {
+        if (this.dead) return;
+        
+        // Draw soldier as a circle with icon
+        ctx.save();
+        
+        // Selection ring
+        if (this.selected) {
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x + 2, this.y + 2, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Body (green circle)
+        ctx.fillStyle = this.selected ? '#facc15' : '#22c55e';
+        ctx.strokeStyle = this.selected ? '#f59e0b' : '#16a34a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Icon
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.icon, this.x, this.y);
+        
+        // Health bar
+        const barWidth = 30;
+        const barHeight = 4;
+        const barX = this.x - barWidth / 2;
+        const barY = this.y - 25;
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        const healthPercent = this.health / this.maxHealth;
+        ctx.fillStyle = healthPercent > 0.5 ? '#22c55e' : healthPercent > 0.25 ? '#facc15' : '#ef4444';
+        ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+        
+        // HP number
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.font = 'bold 10px Arial';
+        ctx.strokeText(Math.ceil(this.health), this.x, this.y - 30);
+        ctx.fillText(Math.ceil(this.health), this.x, this.y - 30);
+        
+        ctx.restore();
+      }
+      
+      update(timestamp) {
+        if (this.dead) return;
+        
+        // Check if any enemy is touching this soldier (melee combat)
+        for (let enemy of enemies) {
+          if (enemy.dead) continue;
+          const dx = enemy.x - this.x;
+          const dy = enemy.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          // If enemy is very close, soldier takes damage
+          if (dist < 25) {
+            this.health -= 0.5; // Damage per frame when in melee
+            if (this.health <= 0) {
+              this.dead = true;
+              return;
+            }
+          }
+        }
+        
+        // Manual movement takes priority
+        if (this.moveTarget) {
+          const dx = this.moveTarget.x - this.x;
+          const dy = this.moveTarget.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist > 5) {
+            // Move towards target
+            this.x += (dx / dist) * this.speed;
+            this.y += (dy / dist) * this.speed;
+          } else {
+            // Reached destination
+            this.moveTarget = null;
+          }
+        }
+        
+        // Find nearest enemy
+        let nearestEnemy = null;
+        let nearestDist = this.range;
+        
+        for (let enemy of enemies) {
+          if (enemy.dead) continue;
+          const dx = enemy.x - this.x;
+          const dy = enemy.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestEnemy = enemy;
+          }
+        }
+        
+        this.target = nearestEnemy;
+        
+        // Only auto-move if no manual move target
+        if (this.target && !this.moveTarget) {
+          // Move towards enemy
+          const dx = this.target.x - this.x;
+          const dy = this.target.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist > this.range * 0.7) {
+            // Move closer
+            this.x += (dx / dist) * this.speed;
+            this.y += (dy / dist) * this.speed;
+          }
+        }
+        
+        // Attack if in range and cooldown ready
+        if (this.target) {
+          const dx = this.target.x - this.x;
+          const dy = this.target.y - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist <= this.range && timestamp - this.lastAttack > this.attackSpeed) {
+            this.attack(this.target);
+            this.lastAttack = timestamp;
+          }
+        }
+      }
+      
+      attack(enemy) {
+        enemy.health -= this.damage;
+        
+        // Visual attack effect
+        ctx.save();
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(enemy.x, enemy.y);
+        ctx.stroke();
+        ctx.restore();
+        
+        if (enemy.health <= 0) {
+          enemy.dead = true;
+          gold += enemy.reward;
+          totalKills++;
+          createDeathEffect(enemy.x, enemy.y);
+          updateUI();
+        }
+      }
+    }
+    
+    // Projectile class
+    class Projectile {
+      constructor(x, y, target, damage, color, splash) {
+        this.x = x;
+        this.y = y;
+        this.target = target;
+        this.damage = damage;
+        this.color = color;
+        this.splash = splash;
+        this.speed = 5;
+        this.dead = false;
+      }
+      
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      
+      update() {
+        if (this.dead || !this.target || this.target.dead) {
+          this.dead = true;
+          return;
+        }
+        
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < this.speed) {
+          // Hit target
+          if (this.splash) {
+            // Splash damage
+            for (let enemy of enemies) {
+              if (!enemy.dead) {
+                const edx = enemy.x - this.target.x;
+                const edy = enemy.y - this.target.y;
+                const edist = Math.sqrt(edx * edx + edy * edy);
+                if (edist < this.splash) {
+                  enemy.takeDamage(this.damage);
+                }
+              }
+            }
+          } else {
+            this.target.takeDamage(this.damage);
+          }
+          this.dead = true;
+        } else {
+          this.x += (dx / dist) * this.speed;
+          this.y += (dy / dist) * this.speed;
+        }
+      }
+    }
+    
+    // Draw paths - enhanced with better visuals
+    function drawPaths() {
+      allPaths.forEach((path, index) => {
+        // Draw path shadow
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 48;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(path[0].x + 3, path[0].y + 3);
+        for (let i = 1; i < path.length; i++) {
+          ctx.lineTo(path[i].x + 3, path[i].y + 3);
+        }
+        ctx.stroke();
+        
+        // Path border (dark)
+        ctx.strokeStyle = '#4a3520';
+        ctx.lineWidth = 46;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) {
+          ctx.lineTo(path[i].x, path[i].y);
+        }
+        ctx.stroke();
+        
+        // Path main color with gradient effect
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#8b7355');
+        gradient.addColorStop(0.5, '#a0826d');
+        gradient.addColorStop(1, '#8b7355');
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 40;
+        ctx.stroke();
+        
+        // Path center line (lighter)
+        ctx.strokeStyle = 'rgba(160, 130, 109, 0.3)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) {
+          ctx.lineTo(path[i].x, path[i].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Draw path markers at start
+        ctx.fillStyle = index === 0 ? '#ef4444' : '#f97316';
+        ctx.beginPath();
+        ctx.arc(path[0].x, path[0].y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Path number
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(index + 1, path[0].x, path[0].y);
+      });
+    }
+    
+    // Update UI
+    function updateUI() {
+      // Safety check for NaN
+      if (isNaN(gold) || gold === undefined || gold === null) {
+        gold = 200;
+      }
+      
+      document.getElementById('gold').textContent = Math.floor(gold);
+      document.getElementById('lives').textContent = lives;
+      document.getElementById('level').textContent = currentLevel;
+      document.getElementById('wave').textContent = currentWave;
+      document.getElementById('kills').textContent = totalKills;
+      document.getElementById('soldierCount').textContent = soldiers.filter(s => !s.dead).length;
+      
+      // Update tower buttons
+      document.querySelectorAll('.tower-btn').forEach(btn => {
+        const cost = parseInt(btn.dataset.cost);
+        btn.disabled = gold < cost;
+      });
+    }
+    
+    // Start wave
+    function startWave() {
+      if (waveInProgress) return;
+      
+      waveInProgress = true;
+      const isFinalWave = currentWave === 5;
+      enemiesInWave = 5 + currentLevel * 2 + currentWave;
+      enemiesSpawned = 0;
+      document.getElementById('startWave').disabled = true;
+      
+      // Show final wave notification
+      if (isFinalWave) {
+        const notification = document.getElementById('finalWaveNotification');
+        notification.classList.remove('show');
+        void notification.offsetWidth; // Force reflow
+        notification.classList.add('show');
+        document.getElementById('message').textContent = `FINAL WAVE of Level ${currentLevel}!`;
+      } else {
+        document.getElementById('message').textContent = `Level ${currentLevel} - Wave ${currentWave} starting!`;
+      }
+      
+      const spawnInterval = setInterval(() => {
+        if (enemiesSpawned < enemiesInWave) {
+          enemies.push(new Enemy(currentLevel, currentWave, isFinalWave));
+          enemiesSpawned++;
+        } else {
+          clearInterval(spawnInterval);
+        }
+      }, 1000);
+    }
+    
+    // Check wave complete
+    function checkWaveComplete() {
+      if (waveInProgress && enemiesSpawned === enemiesInWave) {
+        const allDead = enemies.every(e => e.dead);
+        if (allDead) {
+          waveInProgress = false;
+          const goldReward = 50 + (currentWave === 5 ? 100 : 0); // Bonus for completing final wave
+          gold += goldReward;
+          
+          // Check if level complete (wave 5 done)
+          if (currentWave === 5) {
+            // Calculate tower refund (half value)
+            let towerRefund = 0;
+            towers.forEach(tower => {
+              const towerCost = towerTypes[tower.type].cost;
+              towerRefund += Math.floor(towerCost / 2);
+            });
+            
+            // Clear soldiers and towers between levels
+            soldiers = [];
+            towers = [];
+            
+            // Add refund to gold
+            gold += towerRefund;
+            
+            // Show level complete screen
+            gameRunning = false;
+            document.getElementById('completeLevel').textContent = currentLevel;
+            document.getElementById('completeGold').textContent = gold;
+            document.getElementById('completeLives').textContent = lives;
+            document.getElementById('levelCompleteScreen').style.display = 'block';
+            
+            // Show refund message
+            if (towerRefund > 0) {
+              document.getElementById('message').textContent = `💰 Towers refunded: +${towerRefund} gold (50% value)`;
+              document.getElementById('message').style.color = '#22c55e';
+            }
+            
+            // Auto-save
+            autoSave();
+            
+            // Setup next level button
+            document.getElementById('nextLevelBtn').onclick = () => {
+              currentLevel++;
+              currentWave = 1;
+              waveInProgress = false;
+              enemiesSpawned = 0;
+              enemiesInWave = 0;
+              enemies = [];
+              projectiles = [];
+              spellEffects = [];
+              deathEffects = [];
+              paths = getPaths();
+              allPaths = [paths.path1, paths.path2];
+              document.getElementById('levelCompleteScreen').style.display = 'none';
+              document.getElementById('startWave').disabled = false;
+              document.getElementById('message').textContent = `🎯 Level ${currentLevel} - New map loaded!`;
+              document.getElementById('message').style.color = '#22c55e';
+              setTimeout(() => {
+                document.getElementById('message').textContent = '';
+                document.getElementById('message').style.color = '#fff';
+              }, 2000);
+              gameRunning = true;
+              updateUI();
+              requestAnimationFrame(gameLoop);
+            };
+          } else {
+            currentWave++;
+            document.getElementById('message').textContent = `Wave complete! +${goldReward} gold`;
+            document.getElementById('startWave').disabled = false;
+          }
+          
+          updateUI();
+        }
+      }
+    }
+    
+    // Game over
+    function gameOver() {
+      gameRunning = false;
+      
+      // Show game over screen
+      document.getElementById('finalLevel').textContent = currentLevel;
+      document.getElementById('finalWave').textContent = currentWave;
+      document.getElementById('finalGold').textContent = gold;
+      document.getElementById('gameOverScreen').style.display = 'block';
+    }
+    
+    // Store Functions
+    function openStore() {
+      document.getElementById('storeModal').classList.add('show');
+      renderStoreItems('towers');
+    }
+    
+    function closeStore() {
+      document.getElementById('storeModal').classList.remove('show');
+    }
+    
+    function renderStoreItems(category) {
+      const container = document.getElementById('storeItemsContainer');
+      container.innerHTML = '';
+      
+      storeItems[category].forEach(item => {
+        const isOwned = ownedItems[category].includes(item.id);
+        const div = document.createElement('div');
+        div.className = `store-item ${isOwned ? 'owned' : ''}`;
+        div.innerHTML = `
+          <div class="item-icon">${item.icon}</div>
+          <div class="item-name">${item.name}</div>
+          <div class="item-desc">${item.desc}</div>
+          <div class="item-cost">${isOwned ? '✓ Owned' : '💰 ' + item.cost}</div>
+        `;
+        
+        if (!isOwned) {
+          div.onclick = () => purchaseItem(category, item);
+        }
+        
+        container.appendChild(div);
+      });
+    }
+    
+    function purchaseItem(category, item) {
+      if (gold >= item.cost && !ownedItems[category].includes(item.id)) {
+        // Check deck limit (6 items max)
+        if (playerDeck.length >= 6) {
+          document.getElementById('message').textContent = `⚠️ Deck full! Maximum 6 items. Remove items in home screen.`;
+          document.getElementById('message').style.color = '#ef4444';
+          setTimeout(() => {
+            document.getElementById('message').textContent = '';
+            document.getElementById('message').style.color = '#fff';
+          }, 3000);
+          return;
+        }
+        
+        gold -= item.cost;
+        ownedItems[category].push(item.id);
+        
+        // Add to player deck based on category
+        if (category === 'towers') {
+          // Add tower to deck
+          const deckItem = {...item, type: 'tower'};
+          playerDeck.push(deckItem);
+          updateDeckDisplay();
+        } else if (category === 'spells') {
+          const deckItem = {...item, type: 'spell'};
+          playerDeck.push(deckItem);
+          updateDeckDisplay();
+        } else if (category === 'soldiers') {
+          const deckItem = {...item, type: 'soldier'};
+          playerDeck.push(deckItem);
+          updateDeckDisplay();
+        }
+        
+        updateUI();
+        renderStoreItems(category);
+        document.getElementById('message').textContent = `✅ Purchased ${item.name}! (${playerDeck.length}/6) ⚠️ SAVE to keep it!`;
+        document.getElementById('message').style.color = '#22c55e';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 3000);
+      } else if (ownedItems[category].includes(item.id)) {
+        document.getElementById('message').textContent = `Already owned: ${item.name}`;
+        document.getElementById('message').style.color = '#facc15';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 2000);
+      } else {
+        document.getElementById('message').textContent = `Not enough gold! Need ${item.cost - gold} more.`;
+        document.getElementById('message').style.color = '#ef4444';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 2000);
+      }
+    }
+    
+    function removeFromDeck(index) {
+      if (index < 0 || index >= playerDeck.length) return;
+      
+      const removedItem = playerDeck[index];
+      const category = removedItem.type === 'tower' ? 'towers' : removedItem.type === 'soldier' ? 'soldiers' : 'spells';
+      
+      // Remove from deck
+      playerDeck.splice(index, 1);
+      
+      // Remove from owned items
+      const itemIndex = ownedItems[category].indexOf(removedItem.id);
+      if (itemIndex > -1) {
+        ownedItems[category].splice(itemIndex, 1);
+      }
+      
+      // Refund gold
+      gold += removedItem.cost;
+      
+      // Clear selection if this item was selected
+      if (selectedTower === removedItem.id) selectedTower = null;
+      if (selectedSpell === removedItem.id) selectedSpell = null;
+      if (selectedSoldier === removedItem.id) selectedSoldier = null;
+      
+      updateDeckDisplay();
+      updateUI();
+      renderStoreItems(category);
+      
+      document.getElementById('message').textContent = `✅ Removed ${removedItem.name} from deck! Refunded ${removedItem.cost} gold.`;
+      document.getElementById('message').style.color = '#22c55e';
+      setTimeout(() => {
+        document.getElementById('message').textContent = '';
+        document.getElementById('message').style.color = '#fff';
+      }, 2000);
+    }
+    
+    function updateDeckDisplay() {
+      const container = document.getElementById('deckItems');
+      if (!container) {
+        console.error('Deck container not found!');
+        return;
+      }
+      container.innerHTML = '';
+      
+      // Update deck counter
+      const counter = document.getElementById('deckCounter');
+      if (counter) {
+        counter.textContent = `${playerDeck.length}/6`;
+        counter.style.color = playerDeck.length >= 6 ? '#ef4444' : '#94a3b8';
+      }
+      
+      console.log('Updating deck with items:', playerDeck);
+      
+      playerDeck.forEach((item, index) => {
+        const div = document.createElement('div');
+        
+        // Determine if this is a tower, spell, or soldier
+        let isSelected = false;
+        let itemType = item.type || 'spell';
+        
+        // Check if it's a tower (has tower stats)
+        if (towerTypes[item.id]) {
+          itemType = 'tower';
+          isSelected = selectedTower === item.id;
+        } else if (item.type === 'soldier') {
+          isSelected = selectedSoldier === item.id;
+        } else {
+          isSelected = selectedSpell === item.id;
+        }
+        
+        div.className = `deck-card ${isSelected ? 'selected' : ''}`;
+        const cooldown = spellCooldowns[item.id] || 0;
+        const isReady = cooldown <= 0;
+        
+        // Get cost for towers
+        let costDisplay = '';
+        if (itemType === 'tower' && towerTypes[item.id]) {
+          costDisplay = `<div style="color: #facc15; font-size: 0.8em; margin-top: 5px;">💰${towerTypes[item.id].cost}</div>`;
+        }
+        
+        div.innerHTML = `
+          <div class="card-icon">${item.icon}</div>
+          <div class="card-info">
+            <div class="card-name">${item.name}</div>
+            ${costDisplay}
+            ${!isReady ? `<div class="card-cooldown">${Math.ceil(cooldown)}s</div>` : ''}
+          </div>
+          <button class="remove-from-deck" onclick="removeFromDeck(${index}); event.stopPropagation();" style="position: absolute; top: 5px; right: 5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">✕</button>
+        `;
+        
+        if (isReady) {
+          div.onclick = () => {
+            if (itemType === 'tower') {
+              selectedTower = selectedTower === item.id ? null : item.id;
+              selectedSpell = null;
+              selectedSoldier = null;
+              updateDeckDisplay();
+              document.getElementById('message').textContent = selectedTower ? `${item.name} selected - Click to place (💰${towerTypes[item.id].cost})` : '';
+            } else if (item.type === 'soldier') {
+              selectedSoldier = selectedSoldier === item.id ? null : item.id;
+              selectedSpell = null;
+              selectedTower = null;
+              updateDeckDisplay();
+              document.getElementById('message').textContent = selectedSoldier ? `${item.name} selected - Click on map to deploy` : '';
+            } else {
+              selectedSpell = selectedSpell === item.id ? null : item.id;
+              selectedSoldier = null;
+              selectedTower = null;
+              updateDeckDisplay();
+              document.getElementById('message').textContent = selectedSpell ? `${item.name} selected - Click on map to cast` : '';
+            }
+          };
+        }
+        
+        container.appendChild(div);
+      });
+    }
+    
+    // Soldier Deployment
+    function deploySoldier(soldierId, x, y) {
+      const soldier = playerDeck.find(s => s.id === soldierId);
+      if (!soldier || (spellCooldowns[soldierId] || 0) > 0) return;
+      
+      spellCooldowns[soldierId] = soldier.cooldown;
+      
+      // Get soldier count based on type
+      const soldierCounts = {
+        policeTeam: 3,
+        swatTeam: 4,
+        military: 5,
+        cyborg: 2
+      };
+      
+      const count = soldierCounts[soldierId] || 1;
+      const teamId = Math.random(); // Same team ID for all soldiers deployed together
+      
+      // Spawn multiple soldiers in a formation
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count;
+        const offsetX = Math.cos(angle) * 30;
+        const offsetY = Math.sin(angle) * 30;
+        const newSoldier = new Soldier(x + offsetX, y + offsetY, soldierId);
+        newSoldier.teamId = teamId; // Assign same team ID
+        soldiers.push(newSoldier);
+      }
+      
+      // Create visual indicator
+      spellEffects.push({
+        type: 'soldierDeploy',
+        x, y,
+        radius: 30,
+        duration: 30,
+        frame: 0,
+        icon: soldier.icon
+      });
+      
+      document.getElementById('message').textContent = `${soldier.name} deployed! (${count} units)`;
+      setTimeout(() => document.getElementById('message').textContent = '', 2000);
+      
+      selectedSoldier = null;
+      updateUI();
+      updateDeckDisplay();
+    }
+    
+    // Spell Casting
+    function castSpell(spellId, x, y) {
+      const spell = playerDeck.find(s => s.id === spellId);
+      if (!spell || (spellCooldowns[spellId] || 0) > 0) return;
+      
+      spellCooldowns[spellId] = spell.cooldown;
+      
+      switch(spellId) {
+        case 'bomb':
+          createBomb(x, y);
+          break;
+        case 'fireball':
+          createFireball(x, y);
+          break;
+        case 'airstrike':
+          createAirstrike(x, y);
+          break;
+        case 'emp':
+          createEMP(x, y);
+          break;
+        case 'nuke':
+          createNuke(x, y);
+          break;
+        case 'heal':
+          lives = Math.min(lives + 5, 20);
+          break;
+        case 'goldRush':
+          gold += 300;
+          break;
+      }
+      
+      selectedSpell = null;
+      updateUI();
+      updateDeckDisplay();
+    }
+    
+    function createBomb(x, y) {
+      spellEffects.push({
+        type: 'bomb',
+        x, y,
+        radius: 100,
+        damage: 200,
+        duration: 40,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 100) enemy.takeDamage(200);
+      });
+    }
+    
+    function createFireball(x, y) {
+      spellEffects.push({
+        type: 'fireball',
+        x, y,
+        radius: 80,
+        damage: 100,
+        duration: 30,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 80) enemy.takeDamage(100);
+      });
+    }
+    
+    function createAirstrike(x, y) {
+      spellEffects.push({
+        type: 'airstrike',
+        x, y,
+        width: 150,
+        height: canvas.height,
+        damage: 150,
+        duration: 50,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        if (Math.abs(enemy.x - x) < 75) enemy.takeDamage(150);
+      });
+    }
+    
+    function createEMP(x, y) {
+      spellEffects.push({
+        type: 'emp',
+        x, y,
+        radius: 120,
+        duration: 60,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 120) {
+          enemy.stunned = true;
+          enemy.originalSpeed = enemy.speed;
+          enemy.speed = 0;
+          setTimeout(() => {
+            enemy.stunned = false;
+            enemy.speed = enemy.originalSpeed;
+          }, 3000);
+        }
+      });
+    }
+    
+    function createNuke(x, y) {
+      spellEffects.push({
+        type: 'nuke',
+        x, y,
+        radius: 200,
+        damage: 500,
+        duration: 90, // 3 seconds at 30fps
+        frame: 0,
+        damageInterval: 10, // Damage every 10 frames
+        lastDamage: 0
+      });
+      
+      // Initial damage
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 200) enemy.takeDamage(150);
+      });
+    }
+    
+    function createFreeze(x, y) {
+      spellEffects.push({
+        type: 'freeze',
+        x, y,
+        radius: 100,
+        duration: 60,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 100) {
+          enemy.frozen = true;
+          enemy.originalSpeed = enemy.speed;
+          enemy.speed = 0;
+          setTimeout(() => {
+            enemy.frozen = false;
+            enemy.speed = enemy.originalSpeed;
+          }, 3000);
+        }
+      });
+    }
+    
+    function createMeteor(x, y) {
+      spellEffects.push({
+        type: 'meteor',
+        x, y,
+        radius: 120,
+        damage: 200,
+        duration: 40,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        const dist = Math.sqrt((enemy.x - x) ** 2 + (enemy.y - y) ** 2);
+        if (dist < 120) enemy.takeDamage(200);
+      });
+    }
+    
+    function createTimeWarp() {
+      spellEffects.push({
+        type: 'timeWarp',
+        duration: 180,
+        frame: 0
+      });
+      
+      enemies.forEach(enemy => {
+        if (!enemy.timeWarped) {
+          enemy.timeWarped = true;
+          enemy.originalSpeed = enemy.speed;
+          enemy.speed *= 0.5;
+          setTimeout(() => {
+            enemy.timeWarped = false;
+            enemy.speed = enemy.originalSpeed;
+          }, 6000);
+        }
+      });
+    }
+    
+    function drawSpellEffects() {
+      spellEffects = spellEffects.filter(effect => effect.frame < effect.duration);
+      
+      spellEffects.forEach(effect => {
+        effect.frame++;
+        const alpha = 1 - (effect.frame / effect.duration);
+        
+        // Continuous damage for nuke
+        if (effect.type === 'nuke' && effect.frame % effect.damageInterval === 0) {
+          enemies.forEach(enemy => {
+            const dist = Math.sqrt((enemy.x - effect.x) ** 2 + (enemy.y - effect.y) ** 2);
+            if (dist < effect.radius) {
+              enemy.takeDamage(50); // 50 damage every 10 frames
+            }
+          });
+        }
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        
+        switch(effect.type) {
+          case 'soldierDeploy':
+            ctx.fillStyle = '#22c55e';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#22c55e';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 + effect.frame / 15), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            // Show icon
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(effect.icon, effect.x, effect.y);
+            break;
+            
+          case 'bomb':
+            ctx.fillStyle = '#ff6b00';
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ff6b00';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 - alpha * 0.6), 0, Math.PI * 2);
+            ctx.fill();
+            // Shockwave
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 + effect.frame / 20), 0, Math.PI * 2);
+            ctx.stroke();
+            break;
+            
+          case 'fireball':
+            ctx.fillStyle = '#ff6b00';
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#ff6b00';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 - alpha * 0.5), 0, Math.PI * 2);
+            ctx.fill();
+            break;
+            
+          case 'airstrike':
+            ctx.fillStyle = 'rgba(255, 107, 0, 0.6)';
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#ff6b00';
+            ctx.fillRect(effect.x - effect.width/2, 0, effect.width, effect.height);
+            break;
+            
+          case 'emp':
+            ctx.strokeStyle = '#00d9ff';
+            ctx.lineWidth = 5;
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#00d9ff';
+            for (let i = 0; i < 3; i++) {
+              ctx.beginPath();
+              ctx.arc(effect.x, effect.y, effect.radius * (0.5 + i * 0.3), 0, Math.PI * 2);
+              ctx.stroke();
+            }
+            break;
+            
+          case 'nuke':
+            ctx.fillStyle = '#ff0000';
+            ctx.shadowBlur = 60;
+            ctx.shadowColor = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 - alpha * 0.8), 0, Math.PI * 2);
+            ctx.fill();
+            // Mushroom cloud effect
+            ctx.fillStyle = 'rgba(139, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y - effect.radius * 0.5, effect.radius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+            
+          case 'freeze':
+            ctx.strokeStyle = '#00d9ff';
+            ctx.lineWidth = 5;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00d9ff';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            break;
+            
+          case 'meteor':
+            ctx.fillStyle = '#ff4500';
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ff4500';
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.radius * (1 - alpha * 0.7), 0, Math.PI * 2);
+            ctx.fill();
+            break;
+        }
+        
+        ctx.restore();
+      });
+    }
+    
+    // Update spell cooldowns
+    let lastCooldownUpdate = 0;
+    function updateSpellCooldowns() {
+      Object.keys(spellCooldowns).forEach(spellId => {
+        if (spellCooldowns[spellId] > 0) {
+          spellCooldowns[spellId] -= 1/60; // Decrease by 1 second per 60 frames
+        }
+      });
+      
+      // Only update display once per second to avoid spam
+      const now = Date.now();
+      if (now - lastCooldownUpdate > 1000) {
+        updateDeckDisplay();
+        lastCooldownUpdate = now;
+      }
+    }
+    
+    // Save/Load System
+    function saveGame() {
+      const saveData = {
+        gold: gold,
+        lives: lives,
+        currentLevel: currentLevel,
+        currentWave: currentWave,
+        ownedItems: ownedItems,
+        playerDeck: playerDeck,
+        towers: towers.map(t => ({
+          x: t.x,
+          y: t.y,
+          type: t.type
+        })),
+        timestamp: new Date().toISOString()
+      };
+      
+      localStorage.setItem('towerDefenseSave', JSON.stringify(saveData));
+      document.getElementById('message').textContent = '💾 Game Saved Successfully!';
+      document.getElementById('message').style.color = '#22c55e';
+      setTimeout(() => {
+        document.getElementById('message').textContent = '';
+        document.getElementById('message').style.color = '#000';
+      }, 2000);
+    }
+    
+    function loadGame() {
+      const savedData = localStorage.getItem('towerDefenseSave');
+      
+      if (!savedData) {
+        document.getElementById('message').textContent = '❌ No saved game found!';
+        document.getElementById('message').style.color = '#ef4444';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#000';
+        }, 2000);
+        return;
+      }
+      
+      try {
+        const saveData = JSON.parse(savedData);
+        
+        // Restore game state
+        gold = saveData.gold;
+        lives = saveData.lives;
+        currentLevel = saveData.currentLevel;
+        currentWave = saveData.currentWave;
+        ownedItems = saveData.ownedItems;
+        playerDeck = saveData.playerDeck;
+        
+        // Restore towers
+        towers = [];
+        saveData.towers.forEach(towerData => {
+          towers.push(new Tower(towerData.x, towerData.y, towerData.type));
+        });
+        
+        // Update paths for current level
+        paths = getPaths();
+        allPaths = [paths.path1, paths.path2];
+        
+        // Clear enemies and projectiles
+        enemies = [];
+        projectiles = [];
+        spellEffects = [];
+        waveInProgress = false;
+        enemiesSpawned = 0;
+        
+        // Update UI
+        updateUI();
+        updateDeckDisplay();
+        
+        const saveDate = new Date(saveData.timestamp);
+        document.getElementById('message').textContent = `📂 Game Loaded! (Saved: ${saveDate.toLocaleString()})`;
+        document.getElementById('message').style.color = '#22c55e';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#000';
+        }, 3000);
+        
+      } catch (error) {
+        document.getElementById('message').textContent = '❌ Error loading save file!';
+        document.getElementById('message').style.color = '#ef4444';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#000';
+        }, 2000);
+      }
+    }
+    
+    // Auto-save on wave complete
+    function autoSave() {
+      if (currentWave === 1 && currentLevel > 1) {
+        // Auto-save when completing a level
+        saveGame();
+      }
+    }
+    
+    // Try to load save on startup
+    function loadSaveOnStartup() {
+      const savedData = localStorage.getItem('towerDefenseSave');
+      if (savedData) {
+        // Show notification that save exists
+        document.getElementById('message').textContent = '📂 Save file found! Click "Load" to continue.';
+        document.getElementById('message').style.color = '#0ea5e9';
+      }
+    }
+    
+    // Create death effect
+    function createDeathEffect(x, y) {
+      deathEffects.push({
+        x, y,
+        particles: Array.from({length: 12}, () => ({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          life: 30
+        }))
+      });
+    }
+    
+    // Draw death effects
+    function drawDeathEffects() {
+      deathEffects = deathEffects.filter(effect => {
+        effect.particles = effect.particles.filter(p => p.life > 0);
+        return effect.particles.length > 0;
+      });
+      
+      deathEffects.forEach(effect => {
+        effect.particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3; // Gravity
+          p.life--;
+          
+          const alpha = p.life / 30;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#ff0000';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+      });
+    }
+    
+    // Game loop
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      if (!gameRunning) return;
+      
+      // Clear canvas with level-appropriate background
+      ctx.fillStyle = getMapBackground();
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add wasteland texture - cracks and debris
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let i = 0; i < canvas.width; i += 30) {
+        for (let j = 0; j < canvas.height; j += 30) {
+          if (Math.random() > 0.7) {
+            // Random debris spots
+            ctx.fillRect(i + Math.random() * 10, j + Math.random() * 10, 5, 5);
+          }
+        }
+      }
+      
+      // Add cracks
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 10; i++) {
+        ctx.beginPath();
+        const startX = Math.random() * canvas.width;
+        const startY = Math.random() * canvas.height;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + (Math.random() - 0.5) * 100, startY + (Math.random() - 0.5) * 100);
+        ctx.stroke();
+      }
+      
+      // Draw paths
+      drawPaths();
+      
+      // Update and draw towers
+      for (let tower of towers) {
+        tower.update(timestamp);
+        tower.draw();
+      }
+      
+      // Update and draw enemies
+      for (let enemy of enemies) {
+        enemy.update();
+        enemy.draw();
+      }
+      
+      // Update and draw projectiles
+      projectiles = projectiles.filter(p => !p.dead);
+      for (let projectile of projectiles) {
+        projectile.update();
+        projectile.draw();
+      }
+      
+      // Update and draw soldiers
+      soldiers = soldiers.filter(s => !s.dead);
+      for (let soldier of soldiers) {
+        soldier.update(timestamp);
+        soldier.draw();
+      }
+      
+      // Draw death effects
+      drawDeathEffects();
+      
+      // Draw spell effects
+      drawSpellEffects();
+      
+      // Draw tower shadow preview only when tower is selected
+      if (selectedTower && !selectedSpell) {
+        drawTowerShadow(mouseX, mouseY, selectedTower);
+      }
+      
+      // Draw spell preview
+      if (selectedSpell) {
+        const spell = playerDeck.find(s => s.id === selectedSpell);
+        if (spell) {
+          ctx.save();
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#ff6b00';
+          ctx.beginPath();
+          ctx.arc(mouseX, mouseY, 80, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      
+      // Draw soldier preview
+      if (selectedSoldier) {
+        const soldier = playerDeck.find(s => s.id === selectedSoldier);
+        if (soldier) {
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(mouseX, mouseY, 30, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#16a34a';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          // Show icon
+          ctx.globalAlpha = 1;
+          ctx.font = 'bold 24px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(soldier.icon, mouseX, mouseY);
+          ctx.restore();
+        }
+      }
+      
+      // Update spell cooldowns
+      updateSpellCooldowns();
+      
+      // Check wave complete
+      checkWaveComplete();
+      
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // Draw tower shadow preview
+    function drawTowerShadow(x, y, type) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      
+      // Check if placement is valid
+      let isValid = true;
+      
+      // Check all paths
+      for (let path of allPaths) {
+        for (let i = 0; i < path.length - 1; i++) {
+          const p1 = path[i];
+          const p2 = path[i + 1];
+          const dist = distanceToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+          if (dist < 30) {
+            isValid = false;
+            break;
+          }
+        }
+        if (!isValid) break;
+      }
+      
+      // Check other towers
+      for (let tower of towers) {
+        const dx = tower.x - x;
+        const dy = tower.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 35) {
+          isValid = false;
+          break;
+        }
+      }
+      
+      // Draw shadow with color indicating validity
+      if (isValid) {
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+      } else {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+      }
+      
+      // Draw preview based on tower type
+      if (type === 'basic') {
+        ctx.fillRect(x - 12, y - 25, 24, 25);
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'sniper') {
+        ctx.fillRect(x - 10, y - 35, 20, 35);
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'cannon') {
+        ctx.fillRect(x - 15, y - 20, 30, 20);
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Draw range circle
+      ctx.strokeStyle = isValid ? 'rgba(0, 255, 0, 0.4)' : 'rgba(255, 0, 0, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, towerTypes[type].range, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    // Right-click handler for soldier movement
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Move selected soldiers
+      const selectedSoldiers = soldiers.filter(s => s.selected && !s.dead);
+      if (selectedSoldiers.length > 0) {
+        selectedSoldiers.forEach(soldier => {
+          soldier.moveTarget = {x, y};
+        });
+        document.getElementById('message').textContent = `🎯 Moving ${selectedSoldiers.length} soldiers!`;
+        document.getElementById('message').style.color = '#22c55e';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 1500);
+      }
+    });
+    
+    // Canvas click handler
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Check if clicking on a soldier to select
+      let clickedSoldier = null;
+      for (let soldier of soldiers) {
+        if (soldier.dead) continue;
+        const dx = soldier.x - x;
+        const dy = soldier.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 20) {
+          clickedSoldier = soldier;
+          break;
+        }
+      }
+      
+      if (clickedSoldier) {
+        // Select all soldiers of the same team (deployed together)
+        const teamId = clickedSoldier.teamId;
+        soldiers.forEach(s => {
+          s.selected = (s.teamId === teamId);
+        });
+        document.getElementById('message').textContent = `✅ Soldier team selected! Right-click to move.`;
+        document.getElementById('message').style.color = '#facc15';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 2000);
+        return;
+      }
+      
+      // Handle spell casting
+      if (selectedSpell) {
+        if (!waveInProgress) {
+          document.getElementById('message').textContent = '⚠️ Start wave first to use spells!';
+          document.getElementById('message').style.color = '#facc15';
+          setTimeout(() => {
+            document.getElementById('message').textContent = '';
+            document.getElementById('message').style.color = '#fff';
+          }, 2000);
+          return;
+        }
+        castSpell(selectedSpell, x, y);
+        return;
+      }
+      
+      // Handle soldier deployment
+      if (selectedSoldier) {
+        if (!waveInProgress) {
+          document.getElementById('message').textContent = '⚠️ Start wave first to deploy soldiers!';
+          document.getElementById('message').style.color = '#facc15';
+          setTimeout(() => {
+            document.getElementById('message').textContent = '';
+            document.getElementById('message').style.color = '#fff';
+          }, 2000);
+          return;
+        }
+        deploySoldier(selectedSoldier, x, y);
+        return;
+      }
+      
+      if (!selectedTower) return;
+      
+      // Check if on any path
+      for (let path of allPaths) {
+        for (let i = 0; i < path.length - 1; i++) {
+          const p1 = path[i];
+          const p2 = path[i + 1];
+          const dist = distanceToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+          if (dist < 30) {
+            document.getElementById('message').textContent = "Can't place tower on path!";
+            setTimeout(() => document.getElementById('message').textContent = '', 2000);
+            return;
+          }
+        }
+      }
+      
+      // Check if too close to other towers
+      for (let tower of towers) {
+        const dx = tower.x - x;
+        const dy = tower.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 35) {
+          document.getElementById('message').textContent = "Too close to another tower!";
+          setTimeout(() => document.getElementById('message').textContent = '', 2000);
+          return;
+        }
+      }
+      
+      // Place tower
+      const cost = towerTypes[selectedTower].cost;
+      if (gold >= cost) {
+        towers.push(new Tower(x, y, selectedTower));
+        gold -= cost;
+        updateUI();
+        document.getElementById('message').textContent = `${selectedTower} tower placed!`;
+        setTimeout(() => document.getElementById('message').textContent = '', 2000);
+      }
+    });
+    
+    // Distance to line segment
+    function distanceToSegment(px, py, x1, y1, x2, y2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+      const nearestX = x1 + t * dx;
+      const nearestY = y1 + t * dy;
+      return Math.sqrt((px - nearestX) ** 2 + (py - nearestY) ** 2);
+    }
+    
+    // Tower selection is now handled by deck display
+    // Start wave button
+    document.getElementById('startWave').addEventListener('click', startWave);
+    
+    // Restart button (restart current level)
+    document.getElementById('restart').addEventListener('click', () => {
+      gold = 200;
+      lives = 20;
+      currentLevel = 1;
+      currentWave = 1;
+      paths = getPaths();
+      allPaths = [paths.path1, paths.path2];
+      towers = [];
+      enemies = [];
+      projectiles = [];
+      soldiers = [];
+      totalKills = 0;
+      selectedTower = null;
+      selectedSpell = null;
+      selectedSoldier = null;
+      waveInProgress = false;
+      document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('startWave').disabled = false;
+      document.getElementById('message').textContent = ' Game restarted!';
+      document.getElementById('message').style.color = '#22c55e';
+      setTimeout(() => {
+        document.getElementById('message').textContent = '';
+        document.getElementById('message').style.color = '#fff';
+      }, 2000);
+      updateUI();
+      updateDeckDisplay();
+      gameRunning = true;
+      requestAnimationFrame(gameLoop);
+    });
+    
+    // Reset All button (complete reset including purchases)
+    document.getElementById('resetAll').addEventListener('click', () => {
+      const confirmed = confirm(' RESET EVERYTHING?\n\nThis will:\n• Delete all saved progress\n• Remove all purchased items\n• Reset to default deck\n• Clear all game data\n\nThis cannot be undone!');
+      
+      if (confirmed) {
+        // Clear all localStorage
+        localStorage.removeItem('towerDefenseSave');
+        localStorage.removeItem('playerDeck');
+        
+        // Reset to defaults
+        gold = 200;
+        lives = 20;
+        currentLevel = 1;
+        currentWave = 1;
+        totalKills = 0;
+        
+        // Reset owned items to defaults
+        ownedItems = {
+          towers: ['machineGun'],
+          spells: ['bomb'],
+          soldiers: ['policeTeam'],
+          upgrades: []
+        };
+        
+        // Reset deck to defaults
+        playerDeck = [
+          { id: 'machineGun', name: 'Machine Gun', icon: ' ', desc: '3x5 DMG, 120 range', type: 'tower' },
+          { id: 'bomb', name: 'Bomb', icon: ' ', cost: 0, desc: '200 area damage', cooldown: 10, type: 'spell' },
+          { id: 'policeTeam', name: 'Police Team', icon: ' ', cost: 0, desc: '3 units, 80HP, 18 DMG', cooldown: 15, type: 'soldier' }
+        ];
+        
+        // Clear game state
+        towers = [];
+        enemies = [];
+        projectiles = [];
+        soldiers = [];
+        spellCooldowns = {};
+        selectedTower = null;
+        selectedSpell = null;
+        selectedSoldier = null;
+        waveInProgress = false;
+        
+        // Reset paths
+        paths = getPaths();
+        allPaths = [paths.path1, paths.path2];
+        
+        // Update UI
+        updateUI();
+        updateDeckDisplay();
+        
+        document.getElementById('message').textContent = 'Everything reset! Fresh start.';
+        document.getElementById('message').style.color = '#ef4444';
+        setTimeout(() => {
+          document.getElementById('message').textContent = '';
+          document.getElementById('message').style.color = '#fff';
+        }, 3000);
+        
+        gameRunning = true;
+        requestAnimationFrame(gameLoop);
+      }
+    });
+    
+    // Save/Load event listeners
+    document.getElementById('saveGame').addEventListener('click', () => {
+      saveGame();
+      document.getElementById('message').textContent = 'Game saved!';
+      document.getElementById('message').style.color = '#22c55e';
+      setTimeout(() => {
+        document.getElementById('message').textContent = '';
+        document.getElementById('message').style.color = '#fff';
+      }, 2000);
+    });
+    document.getElementById('loadGame').addEventListener('click', loadGame);
+    
+    // Store event listeners
+    document.getElementById('openStore').addEventListener('click', openStore);
+    document.getElementById('closeStore').addEventListener('click', closeStore);
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderStoreItems(btn.dataset.tab);
+      });
+    });
+    
+    // Deck toggle functionality
+    document.getElementById('toggleDeck').addEventListener('click', () => {
+      document.getElementById('deckDisplay').style.display = 'none';
+      document.getElementById('showDeck').style.display = 'block';
+      document.getElementById('showDeck').textContent = `⚔️ DECK (${playerDeck.length})`;
+    });
+    
+    document.getElementById('showDeck').addEventListener('click', () => {
+      document.getElementById('deckDisplay').style.display = 'block';
+      document.getElementById('showDeck').style.display = 'none';
+    });
+    
+    // Back button with JavaScript navigation
+    document.getElementById('backButton').addEventListener('click', () => {
+      window.location.href = 'home.html';
+    });
+    
+    // Load deck from home screen
+    function loadDeckFromHome() {
+      const savedDeck = localStorage.getItem('playerDeck');
+      if (savedDeck) {
+        try {
+          const loaded = JSON.parse(savedDeck);
+          // Only load if it has items
+          if (loaded && loaded.length > 0) {
+            playerDeck = loaded;
+            console.log('Loaded deck from localStorage:', playerDeck);
+          }
+        } catch(e) {
+          console.error('Error loading deck:', e);
+        }
+      }
+      
+      // Ensure we have at least the default items
+      if (playerDeck.length === 0) {
+        playerDeck = [
+          { id: 'machineGun', name: 'Machine Gun', icon: '🔫', desc: '3 bullets, 5 dmg each', type: 'tower' },
+          { id: 'bomb', name: 'Bomb', icon: '💣', cost: 0, desc: '200 area damage', cooldown: 10, type: 'spell' },
+          { id: 'policeTeam', name: 'Police Team', icon: '👮', cost: 0, desc: '3 police units', cooldown: 15, type: 'soldier' }
+        ];
+      }
+    }
+    
+    // Initialize
+    loadDeckFromHome();
+    loadSaveOnStartup();
+    updateUI();
+    updateDeckDisplay();
+    gameRunning = true;
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

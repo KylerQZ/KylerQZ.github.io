@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Parkour</title>
+  <style>
+    body {
+      background: #eee;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* 防止出现滚动条 */
+      text-align: center;
+    }
+    canvas#game {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(
+        135deg,
+        #ef4444 0%,   /* red */
+        #ef4444 25%,
+        #1d4ed8 25%,  /* blue */
+        #1d4ed8 50%,
+        #ffffff 50%,  /* white */
+        #ffffff 75%,
+        #0a0a0a 75%,  /* black */
+        #0a0a0a 100%
+      );
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="margin:10px; font-family:sans-serif;">Parkour: Arrows/WASD to move, Space to jump, R to restart</h2>
+  <canvas id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Input
+    const keys = new Set();
+    window.addEventListener('keydown', (e) => {
+      keys.add(e.key.toLowerCase());
+      if ([' ', 'arrowup'].includes(e.key.toLowerCase())) e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+    // World
+    const gravity = 2000; // px/s^2 (harder)
+    const moveAccel = 2200; // px/s^2
+    const maxSpeedX = 400; // px/s
+    const frictionGround = 1400; // px/s^2
+    const jumpSpeed = 660; // px/s (slightly lower, harder)
+
+    const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
+    let jumpsLeft = 1;
+    let hasDoubleJump = false;
+    let doubleJumpTimer = 0; // seconds remaining when active
+    let jumpHeld = false; // for edge detection
+
+    // Procedural infinite level
+    function ground(y) { return { x: -1e6, y, w: 2e6, h: 40, type: 'ground' }; }
+    let platforms = [];
+    let hazards = [];
+    let checkpoints = [];
+    let powerups = []; // double-jump powerups
+    let nextSpawnX = 0;
+    let lastCheckpoint = { x: 60, y: 0 };
+    let maxReachedX = 0;
+    let chunksSpawned = 0;
+    let checkpointFlashTime = 0; // seconds for 'checkpoint saved' flash
+
+    function resetWorld() {
+      platforms = [];
+      hazards = [];
+      checkpoints = [];
+      powerups = [];
+      nextSpawnX = 0;
+      chunksSpawned = 0;
+      const h = canvas.height;
+      // Infinite ground band
+      platforms.push(ground(h - 40));
+      // Seed a few starting platforms
+      spawnChunk();
+      spawnChunk();
+    }
+
+    function difficultyAt(x) {
+      // Increase from 0 -> 1 as distance grows (faster ramp)
+      return Math.min(1, x / 3000);
+    }
+
+    function spawnChunk() {
+      const h = canvas.height;
+      const baseY = h - 40;
+      const d = difficultyAt(nextSpawnX);
+      const chunkW = 800; // generate about one screen at a time
+      let x = nextSpawnX + 100;
+      let cursorY = baseY - 140;
+      while (x < nextSpawnX + chunkW) {
+        // Platform sizes/gaps scale with difficulty
+        const platW = Math.max(70, 210 - Math.floor(150 * d) + Math.floor(Math.random() * 40));
+        const gap = Math.min(520, 260 + Math.floor(260 * d) + Math.floor(Math.random() * 160));
+        // Vary height a bit
+        const dy = (Math.random() - 0.5) * (120 + 120 * d);
+        cursorY = Math.min(baseY - 80, Math.max(baseY - 360, cursorY + dy));
+        const plat = { x, y: cursorY, w: platW, h: 20, type: 'plat' };
+        platforms.push(plat);
+        // Occasionally add a hazard between platforms on ground
+        if (Math.random() < 0.5 + 0.5 * d) {
+          const hzW = 40 + Math.floor(Math.random() * 60);
+          hazards.push({ x: x + platW + (gap - hzW) / 2, y: baseY - 20, w: hzW, h: 20 });
+        }
+        // Occasionally add a powerup on top of a platform
+        if (Math.random() < 0.18 + 0.25 * d) {
+          powerups.push({ x: plat.x + Math.floor(plat.w/2) - 10, y: plat.y - 20, w: 20, h: 20, type: 'double' });
+        }
+        x += platW + gap;
+      }
+      // Add a checkpoint less frequently (every 3 chunks)
+      const cpX = nextSpawnX + chunkW - 60;
+      chunksSpawned++;
+      if (chunksSpawned % 3 === 0) {
+        checkpoints.push({ x: cpX, y: baseY - 100, w: 16, h: 60 });
+      }
+      nextSpawnX += chunkW;
+    }
+
+    function ensureWorldAhead() {
+      while (nextSpawnX < camera.x + canvas.width * 2) {
+        spawnChunk();
+      }
+    }
+
+    // Camera
+    const camera = { x: 0, y: 0 };
+
+    function rectsOverlap(a, b) {
+      return !(a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h);
+    }
+
+    function resolveCollisions(p, dt) {
+      p.onGround = false;
+      // Sweep horizontally then vertically
+      p.x += p.vx * dt;
+      for (const s of platforms) {
+        if (!rectsOverlap(p, s)) continue;
+        if (p.vx > 0) {
+          p.x = s.x - p.w;
+        } else if (p.vx < 0) {
+          p.x = s.x + s.w;
+        }
+        p.vx = 0;
+      }
+      p.y += p.vy * dt;
+      for (const s of platforms) {
+        if (!rectsOverlap(p, s)) continue;
+        if (p.vy > 0) {
+          p.y = s.y - p.h;
+          p.vy = 0;
+          p.onGround = true;
+        } else if (p.vy < 0) {
+          p.y = s.y + s.h;
+          p.vy = 0;
+        }
+      }
+    }
+
+    let gameOver = false;
+
+    function hardReset() {
+      // Full reset back to start
+      lastCheckpoint = { x: 60, y: 0 };
+      maxReachedX = 0;
+      player.x = lastCheckpoint.x; player.y = lastCheckpoint.y; player.vx = 0; player.vy = 0; player.onGround = false;
+      gameOver = false;
+      hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
+      resetWorld();
+    }
+
+    function respawnAtCheckpoint() {
+      player.x = lastCheckpoint.x;
+      player.y = lastCheckpoint.y;
+      player.vx = 0; player.vy = 0; player.onGround = false;
+      gameOver = false; jumpHeld = false; // don't trigger jump immediately
+    }
+
+    function update(dt) {
+      if (gameOver) return;
+      // Input: left/right
+      const left = keys.has('a') || keys.has('arrowleft');
+      const right = keys.has('d') || keys.has('arrowright');
+      const jumpPressed = keys.has(' ') || keys.has('arrowup') || keys.has('w');
+      const jumpEdge = jumpPressed && !jumpHeld; // only on press, not hold
+      jumpHeld = jumpPressed;
+
+      // Horizontal accel
+      if (left && !right) {
+        player.vx -= moveAccel * dt;
+      } else if (right && !left) {
+        player.vx += moveAccel * dt;
+      } else {
+        // apply ground friction when no input
+        if (player.onGround) {
+          if (Math.abs(player.vx) < frictionGround * dt) player.vx = 0;
+          else player.vx -= Math.sign(player.vx) * frictionGround * dt;
+        }
+      }
+      // Clamp speed
+      player.vx = Math.max(-maxSpeedX, Math.min(maxSpeedX, player.vx));
+
+      // Timers
+      if (doubleJumpTimer > 0) {
+        doubleJumpTimer -= dt;
+        if (doubleJumpTimer <= 0) { doubleJumpTimer = 0; hasDoubleJump = false; if (jumpsLeft > 1) jumpsLeft = 1; }
+      }
+
+      // Jump logic with double-jump
+      if (jumpEdge && jumpsLeft > 0) {
+        player.vy = -jumpSpeed;
+        player.onGround = false;
+        jumpsLeft -= 1;
+      }
+
+      // Gravity
+      player.vy += gravity * dt;
+
+      // Integrate and collide
+      const wasOnGround = player.onGround;
+      resolveCollisions(player, dt);
+      if (player.onGround && !wasOnGround) {
+        jumpsLeft = hasDoubleJump ? 2 : 1;
+      }
+
+      // Hazards
+      for (const hz of hazards) {
+        if (rectsOverlap(player, hz)) {
+          gameOver = true;
+        }
+      }
+      // Powerups
+      for (let i = powerups.length - 1; i >= 0; i--) {
+        const pu = powerups[i];
+        if (rectsOverlap(player, pu)) {
+          if (pu.type === 'double') {
+            hasDoubleJump = true;
+            doubleJumpTimer = 20; // seconds
+            jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+          }
+          powerups.splice(i, 1);
+        }
+      }
+      // Bounds fall
+      if (player.y > canvas.height + 200) { gameOver = true; }
+
+      // Update max distance and checkpoints
+      if (player.x > maxReachedX) maxReachedX = player.x;
+      for (const cp of checkpoints) {
+        if (rectsOverlap(player, cp)) {
+          // Place checkpoint spawn on top of nearest platform below this cp
+          let spawnY = canvas.height - 40 - player.h;
+          for (const s of platforms) {
+            if (s.x <= cp.x && cp.x <= s.x + s.w) {
+              spawnY = Math.min(spawnY, s.y - player.h);
+            }
+          }
+          lastCheckpoint.x = cp.x;
+          lastCheckpoint.y = spawnY;
+          checkpointFlashTime = 1.2;
+        }
+      }
+
+      // Generate world ahead and move camera
+      ensureWorldAhead();
+      // Camera follows player
+      camera.x = player.x - canvas.width * 0.4;
+      camera.y = Math.max(0, player.y - canvas.height * 0.5);
+      if (camera.x < 0) camera.x = 0;
+    }
+
+    function draw() {
+      // Clear to sky gradient (already via CSS background). Draw world elements.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Helper to draw rect in world coords
+      function drawRect(x, y, w, h, fill, stroke) {
+        ctx.fillStyle = fill;
+        ctx.fillRect(Math.floor(x - camera.x), Math.floor(y - camera.y), w, h);
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.strokeRect(Math.floor(x - camera.x), Math.floor(y - camera.y), w, h);
+        }
+      }
+
+      // Draw platforms
+      for (const s of platforms) {
+        const color = s.type === 'ground' ? '#4b5563' : '#6b7280';
+        drawRect(s.x, s.y, s.w, s.h, color);
+      }
+      // Draw hazards (spikes as red bars)
+      for (const hz of hazards) {
+        drawRect(hz.x, hz.y, hz.w, hz.h, '#ef4444');
+      }
+      // Draw powerups (double-jump = cyan diamond)
+      for (const pu of powerups) {
+        const cx = pu.x - camera.x, cy = pu.y - camera.y;
+        ctx.save();
+        ctx.translate(Math.floor(cx + pu.w/2), Math.floor(cy + pu.h/2));
+        ctx.rotate(Math.PI/4);
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(-pu.w/2, -pu.h/2, pu.w, pu.h);
+        ctx.restore();
+      }
+      // Draw checkpoints
+      for (const cp of checkpoints) {
+        drawRect(cp.x, cp.y, cp.w, cp.h, '#22c55e');
+      }
+
+      // Draw player
+      drawRect(player.x, player.y, player.w, player.h, '#111', '#000');
+
+      // UI overlays
+      ctx.font = '16px sans-serif';
+      ctx.fillStyle = '#111';
+      ctx.fillText('Touch green posts to set checkpoint | R respawn | Shift+R restart', 16, 24);
+      ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px`, 16, 44);
+      if (hasDoubleJump) {
+        ctx.fillStyle = '#0f766e';
+        ctx.fillText(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`, 16, 64);
+        ctx.fillStyle = '#111';
+      }
+
+      // Checkpoint flash
+      if (checkpointFlashTime > 0) {
+        checkpointFlashTime -= Math.min(checkpointFlashTime, 1/60);
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, checkpointFlashTime / 1.2 * 1.5);
+        ctx.fillStyle = '#22c55e';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillText('Checkpoint saved!', canvas.width/2, 80);
+        ctx.restore();
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.font = '28px sans-serif';
+        ctx.fillText('You fell or hit spikes!', canvas.width/2, canvas.height/2 - 10);
+        ctx.font = '20px sans-serif';
+        ctx.fillText('Press R to respawn at last checkpoint', canvas.width/2, canvas.height/2 + 24);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    let last = performance.now();
+    function loop(ts) {
+      const dt = Math.min(1/30, (ts - last) / 1000);
+      last = ts;
+      if (keys.has('r')) {
+        if (keys.has('shift')) hardReset(); else respawnAtCheckpoint();
+      }
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+    hardReset();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> WARZONE SURVIVAL - Military Combat Simulator</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 250px;
+            border: 2px solid #FF0000;
+        }
+        
+        #ui div {
+            margin: 8px 0;
+        }
+        
+        #health {
+            font-size: 24px;
+            color: #FF0000;
+            font-weight: bold;
+        }
+        
+        #ammo {
+            font-size: 32px;
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        #kills {
+            font-size: 20px;
+            color: #00FF00;
+        }
+        
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 100;
+            transition: all 0.2s ease;
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #FF0000;
+            box-shadow: 0 0 5px #FF0000;
+        }
+        
+        #crosshair::before {
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+        
+        #crosshair.aiming {
+            width: 8px;
+            height: 8px;
+            border: 2px solid rgba(255, 255, 0, 0.9);
+            border-radius: 50%;
+        }
+        
+        #crosshair.aiming::before,
+        #crosshair.aiming::after {
+            display: none;
+        }
+        
+        #scopeOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99;
+            display: none;
+        }
+        
+        #scopeOverlay.active {
+            display: block;
+        }
+        
+        #scopeOverlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            border: 3px solid #1a1a1a;
+            border-radius: 50%;
+            box-shadow: 
+                0 0 0 2000px rgba(0, 0, 0, 0.8),
+                inset 0 0 20px rgba(0, 0, 0, 0.5);
+            background: radial-gradient(circle, transparent 45%, rgba(0, 0, 0, 0.3) 45%, rgba(0, 0, 0, 0.3) 48%, transparent 48%);
+        }
+        
+        #scopeOverlay::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 400px;
+            background: linear-gradient(to bottom, transparent 0%, #000 48%, #000 52%, transparent 100%);
+        }
+        
+        #scopeReticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 2px;
+            background: linear-gradient(to right, transparent 0%, #000 48%, #000 52%, transparent 100%);
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            border: 2px solid #FF0000;
+        }
+        
+        #mainMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%),
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23000" width="100" height="100"/><path d="M0 0L50 50M50 50L100 0M0 100L50 50M50 50L100 100" stroke="%23333" stroke-width="0.5"/></svg>');
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            border: 5px solid #4a4a4a;
+        }
+        
+        #mainMenu h1 {
+            font-size: 84px;
+            margin: 0 0 10px 0;
+            color: #FF0000;
+            text-shadow: 0 0 20px #FF0000, 4px 4px 8px rgba(0,0,0,0.9);
+            font-weight: bold;
+            letter-spacing: 8px;
+            font-family: 'Impact', sans-serif;
+            text-transform: uppercase;
+        }
+        
+        #mainMenu .subtitle {
+            font-size: 24px;
+            color: #888;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+        
+        #mainMenu .tagline {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 50px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            font-style: italic;
+        }
+        
+        #mainMenu button {
+            padding: 20px 60px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border: 3px solid #4a4a4a;
+            color: #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            min-width: 350px;
+            margin: 10px;
+            letter-spacing: 2px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        
+        #mainMenu button:hover {
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            border-color: #FF0000;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
+            padding: 30px 60px;
+            border-radius: 15px;
+            border: 2px solid #FF0000;
+        }
+        
+        #hitmarker {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 999;
+            display: none;
+        }
+        
+        #hitmarker::before,
+        #hitmarker::after {
+            content: '';
+            position: absolute;
+            background: white;
+            box-shadow: 0 0 10px white;
+        }
+        
+        #hitmarker::before {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%) rotate(45deg);
+        }
+        
+        #hitmarker::after {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%) rotate(-45deg);
+        }
+        
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            display: none;
+            z-index: 4000;
+            border: 3px solid #FF0000;
+        }
+        
+        #gameOver h2 {
+            font-size: 48px;
+            color: #FF0000;
+            margin-bottom: 20px;
+        }
+        
+        #gameOver button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            background: #FF0000;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #gameOver button:hover {
+            background: #CC0000;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">⚠️ LOADING WARZONE...</div>
+    
+    <div id="mainMenu">
+        <h1>⚠️ WARZONE SURVIVAL</h1>
+        <div class="subtitle">MILITARY COMBAT SIMULATOR</div>
+        <div class="tagline">"Survive or Die Trying"</div>
+        <button id="startGame">🎯 DEPLOY TO COMBAT ZONE</button>
+        <button id="greatWarMode" onclick="window.location.href='great-war.html'" style="background: linear-gradient(135deg, #FFD700 0%, #FF8800 100%); border-color: #FFD700; color: #000;">⚔️ GREAT WAR MODE</button>
+        <button id="masterMode" onclick="window.location.href='master-mode.html'" style="background: linear-gradient(135deg, #9D00FF 0%, #5500FF 100%); border-color: #9D00FF; color: #FFF;">👑 MASTER MODE</button>
+        <button id="howToPlay">📋 MISSION BRIEFING</button>
+        <button id="settings">⚙️ SETTINGS</button>
+        <button onclick="window.location.href='../../game centre /index.html'" style="background: linear-gradient(135deg, #667eea, #764ba2);">🎮 GAME CENTRE</button>
+    </div>
+    
+    <div id="ui" style="display: none;">
+        <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #00FF00;">⏱️ Prep Time: <span id="prepTime">20</span>s</div>
+        <div style="font-size: 22px; font-weight: bold; color: #FFD700; margin-bottom: 5px;">💰 Gold: <span id="gold">0</span></div>
+        <div style="font-size: 16px; color: #00BFFF; margin-bottom: 10px;">🏠 Base Level: <span id="baseLevel">1</span></div>
+        <div id="health">❤️ Health: 100/100</div>
+        <div id="ammo">🔫 Ammo: 50 / 450</div>
+        <div style="color: #00FF00;">👥 Teammates: <span id="teammates">10</span>/10</div>
+        <div>💀 Kills: <span id="kills">0</span></div>
+        <div>Wave: <span id="wave">1</span></div>
+        <div style="color: #FF4444;">🎯 Enemies: <span id="enemies">0</span>/50</div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #666;">
+            <div id="buildInfo" style="font-size: 14px; color: #FFD700; display: none;">
+                🏗️ <span id="buildModeText">Build: OFF</span><br>
+                <span id="wallTypeText">Wood Wall (10g)</span>
+            </div>
+            <div id="shopInfo" style="font-size: 12px; color: #888; margin-top: 5px;">
+                <div>B - Build | U - Upgrade Base</div>
+                <div id="shopOptions"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="crosshair"></div>
+    <div id="hitmarker"></div>
+    
+    <div id="scopeOverlay">
+        <div id="scopeReticle"></div>
+    </div>
+    
+    <div id="minimap" style="display: none; position: fixed; top: 20px; right: 20px; width: 120px; height: 120px; background: rgba(0,0,0,0.8); border: 3px solid #FFD700; border-radius: 10px;">
+        <canvas id="minimapCanvas" width="120" height="120"></canvas>
+    </div>
+    
+    <div id="instructions" style="display: none;">
+        <strong>🔫 CONTROLS:</strong><br>
+        WASD - Move | SPACE - Jump | SHIFT - Sprint | <strong style="color: #00BFFF;">Right Click - AIM</strong><br>
+        Left Click - Shoot/Build | R - Reload | <strong style="color: #FF4444;">ESC - Pause Menu</strong><br>
+        <strong style="color: #FFD700;">C - Build Mode | Q - Cycle Walls | U - Upgrade Base</strong><br>
+        <strong style="color: #00BFFF;">In Build: M - Medicine (30g) | R - Ammo | T - Teammate</strong><br>
+        <strong style="color: #00FF00;">💰 Kill for gold! Right-click to zoom! +10 enemies/wave!</strong>
+    </div>
+    
+    <div id="pauseMenu" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); padding: 40px; border-radius: 20px; border: 3px solid #FFD700; z-index: 1000; min-width: 500px;">
+        <h2 style="color: #FFD700; text-align: center; margin-bottom: 30px;">⏸️ PAUSED</h2>
+        
+        <div style="background: rgba(255,215,0,0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="color: #00FF00; margin-bottom: 15px;">🔫 GUN UPGRADES</h3>
+            <div style="margin-bottom: 10px;">
+                <strong style="color: #FFD700;">Damage Level: <span id="gunDamageLevel">1</span></strong>
+                <span style="color: #888;"> (Current: <span id="gunDamage">25</span> dmg)</span><br>
+                <button id="upgradeDamage" style="margin-top: 5px; padding: 8px 15px; background: #FF4444; color: white; border: none; border-radius: 5px; cursor: pointer;">Upgrade Damage (50g)</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong style="color: #FFD700;">Fire Rate Level: <span id="gunFireRateLevel">1</span></strong>
+                <span style="color: #888;"> (Current: <span id="gunFireRate">0.10</span>s)</span><br>
+                <button id="upgradeFireRate" style="margin-top: 5px; padding: 8px 15px; background: #FF8800; color: white; border: none; border-radius: 5px; cursor: pointer;">Upgrade Fire Rate (50g)</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong style="color: #FFD700;">Magazine Level: <span id="gunMagLevel">1</span></strong>
+                <span style="color: #888;"> (Current: <span id="gunMag">30</span> rounds)</span><br>
+                <button id="upgradeMagazine" style="margin-top: 5px; padding: 8px 15px; background: #00AA00; color: white; border: none; border-radius: 5px; cursor: pointer;">Upgrade Magazine (50g)</button>
+            </div>
+        </div>
+        
+        <div style="background: rgba(0,191,255,0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="color: #00BFFF; margin-bottom: 15px;">🛒 SHOP - Cost Comparison</h3>
+            <table style="width: 100%; color: white; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #FFD700;">
+                        <th style="text-align: left; padding: 8px; color: #FFD700;">Item</th>
+                        <th style="text-align: center; padding: 8px; color: #FFD700;">Cost</th>
+                        <th style="text-align: left; padding: 8px; color: #FFD700;">Effect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 8px;">💊 Medicine</td>
+                        <td style="text-align: center; padding: 8px; color: #00FF00;">30g</td>
+                        <td style="padding: 8px;">Full heal (100 HP)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 8px;">🔫 Ammo</td>
+                        <td style="text-align: center; padding: 8px; color: #00FF00;">20g</td>
+                        <td style="padding: 8px;">+60 rounds</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 8px;">🪵 Wood Wall</td>
+                        <td style="text-align: center; padding: 8px; color: #00FF00;">10g</td>
+                        <td style="padding: 8px;">100 HP wall</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 8px;">🪨 Stone Wall</td>
+                        <td style="text-align: center; padding: 8px; color: #FFD700;">25g</td>
+                        <td style="padding: 8px;">250 HP wall</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 8px;">🔩 Metal Wall</td>
+                        <td style="text-align: center; padding: 8px; color: #FF8800;">50g</td>
+                        <td style="padding: 8px;">500 HP wall</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">👥 Teammate</td>
+                        <td style="text-align: center; padding: 8px; color: #FF4444;">100g</td>
+                        <td style="padding: 8px;">+1 soldier</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px; font-size: 12px; color: #888;">
+                <strong style="color: #FFD700;">💡 Tip:</strong> Press C in prep phase to enter build mode, then use M/R/T keys to purchase items!
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button id="resumeGame" style="padding: 15px 40px; background: #00FF00; color: black; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 5px;">▶️ RESUME</button>
+            <button id="quitToMenu" style="padding: 15px 40px; background: #FF4444; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 5px;">🚪 QUIT</button>
+        </div>
+    </div>
+    
+    <div id="gameOver">
+        <h2>GAME OVER</h2>
+        <p style="font-size: 24px; margin: 20px 0;">
+            Kills: <span id="finalKills">0</span><br>
+            Wave: <span id="finalWave">1</span><br>
+            Teammates Lost: <span id="teammatesLost">0</span>
+        </p>
+        <button id="restart">Try Again</button>
+        <button id="mainMenuBtn">Main Menu</button>
+        <button id="gameCentreBtn" style="background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px;">🏠 Game Centre</button>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="shooter.js"></script>
+    <script>
+        // Game Centre button handler
+        document.getElementById('gameCentreBtn').addEventListener('click', () => {
+            window.location.href = '../../game centre /index.html';
+        });
+    </script>
+</body>
+</html>

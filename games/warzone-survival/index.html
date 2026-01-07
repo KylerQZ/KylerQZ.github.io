@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warzone Survival</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(0,0,0,0.7);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #FF0000;
+            box-shadow: 0 0 30px rgba(255,0,0,0.3);
+            max-width: 600px;
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #FF0000;
+            text-shadow: 0 0 20px rgba(255,0,0,0.5);
+        }
+        
+        p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            color: #ccc;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            margin: 10px;
+            font-size: 1.2em;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .btn-play {
+            background: linear-gradient(135deg, #FF0000, #CC0000);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255,0,0,0.4);
+        }
+        
+        .btn-play:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255,0,0,0.6);
+        }
+        
+        .btn-back {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .btn-back:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚔️ WARZONE SURVIVAL</h1>
+        <p>Military Combat Simulator</p>
+        <p>Survive waves of enemies in this intense shooter game!</p>
+        <a href="shooter.html" class="btn btn-play">Start Mission</a>
+        <a href="../../games.html" class="btn btn-back">Back to Games</a>
+    </div>
+</body>
+</html>

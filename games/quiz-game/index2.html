@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quiz Game</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        text-align: center;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #ec4899 0%, #f472b6 35%, #60a5fa 100%);
+        color: #0b1020;
+      }
+      h1 {
+        margin-bottom: 20px;
+        color: #0b1020;
+        text-shadow: 0 2px 12px rgba(96,165,250,0.35);
+      }
+      ul { list-style: none; padding: 0; margin: 0; }
+      li { margin: 10px 0; }
+      h2 { margin: 0; }
+      h2 a {
+        display: inline-block;
+        padding: 10px 18px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.65);
+        color: #1e293b;
+        text-decoration: none;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+        transition: transform 0.12s ease, background 0.2s ease, color 0.2s ease;
+      }
+      h2 a:hover {
+        background: rgba(14,165,233,0.85);
+        color: #ffffff;
+        transform: translateY(-2px);
+      }
+      /* Back button style (consistent with other menus) */
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+        margin-top: 16px;
+      }
+      .btn.secondary {
+        background: rgba(255,255,255,0.85);
+        color: #0a0a0a;
+        border: 2px solid rgba(0,0,0,0.08);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+      }
+      .btn.secondary:hover {
+        background: rgba(255,255,255,1);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 18px rgba(0,0,0,0.25);
+      }
+    </style>
+</head>
+ <body>
+    <h1>Quiz Game</h1>
+    <h2><a href="play.html?mode=easy">Easy</a></h2>
+    <h2><a href="play.html?mode=normal">Normal</a></h2>
+    <h2><a href="play.html?mode=hard">Hard</a></h2>
+    <a class="btn secondary" href="index.html">Back to Game Centre</a>
+  </body>
+</html>

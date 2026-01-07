@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>2048</title>
+  <style>
+    :root {
+      --light-brown: #d2b48c;
+      --mid-brown: #a97c50;
+      --dark-brown: #5c4033;
+      --text-dark: #1a1a1a;
+      --text-light: #f7f7f7;
+      --accent: #f59e0b;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-dark);
+      background: linear-gradient(135deg, var(--light-brown) 0%, var(--mid-brown) 50%, var(--dark-brown) 100%);
+    }
+    .card {
+      width: min(92vw, 560px);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 16px;
+      padding: 28px 26px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.25);
+      backdrop-filter: blur(1.5px);
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 2.2rem;
+      letter-spacing: 0.5px;
+    }
+    p.sub {
+      margin: 0 0 18px 0;
+      color: #5b5b5b;
+      font-size: 0.98rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 6px;
+    }
+    a.btn {
+      text-decoration: none;
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 12px;
+      color: var(--text-light);
+      background: linear-gradient(90deg, #b68555, #8c5a3a);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.25), inset 0 -2px 0 rgba(255,255,255,0.15);
+      transition: transform 0.12s ease, filter 0.2s ease, box-shadow 0.2s ease;
+      font-weight: 600;
+    }
+    a.btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+    }
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.65);
+      color: var(--text-dark);
+      border: 2px solid rgba(0, 0, 0, 0.08);
+    }
+    .btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(0,0,0,0.12);
+    }
+    .tips {
+      margin-top: 16px;
+      color: #4a4a4a;
+      font-size: 0.95rem;
+    }
+    .tips b { color: var(--accent); }
+    @media (max-width: 420px) {
+      h1 { font-size: 1.8rem; }
+      a.btn { padding: 10px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>2048</h1>
+    <p class="sub">Join the tiles to reach <b>2048</b>!</p>
+    <div class="actions">
+      <a class="btn" href="index5.html">Play</a>
+      <a class="btn secondary" href="../../games.html">Back to Games</a>
+    </div>
+    <div class="tips">
+      Use arrow keys (or swipe on mobile) to combine tiles with the same number.
+    </div>
+  </div>
+</body>
+</html>

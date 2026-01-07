@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mini Game</title>
+  <style>
+    body {
+      background: #988e8ea5;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* 防止出现滚动条 */
+      text-align: center;
+    }
+    
+#box2 {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 50px;
+    height: 50px;
+    background-color: rgb(248, 4, 4);
+    transition: background-color 0.001s; /* 颜色渐变效果 */
+    z-index: 4;
+}
+    #box {
+      position: absolute;
+      top: 100px;
+      left: 100px;
+      width: 50px;
+      height: 50px;
+      background-color: #15a34a; /* green */
+      transition: background-color 0.001s; /* 颜色渐变效果 */
+      z-index: 5;
+    }
+    .hide-zone {
+      position: absolute;
+      background: #333; /* dark grey hiding blocks */
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+      outline: 0px solid transparent; /* will be toggled in prepare phase */
+      z-index: 2;
+    }
+    .wall {
+      position: absolute;
+      background: #6b7280; /* slate grey walls (impassable) */
+      border-radius: 4px;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.25);
+      z-index: 3;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="margin:10px;">use arrow keys to move the box</h2>
+  <p id="status" style="margin:10px; font-family: sans-serif;">Press start to begin. You have 40s.</p>
+  <div id="box"></div>
+  <div id="box2"></div> 
+  <ul>
+    <li><a href="#" id="start">start</a></li>
+  </ul>
+  <div id="controls" style="margin:8px; font-family:sans-serif; font-size:14px;">
+    Hiding zones: <input type="number" id="coverCount" value="6" min="0" max="20" style="width:60px;"> 
+    Size: <input type="range" id="coverSize" min="0.5" max="2" step="0.1" value="1">
+    <button id="newMap">New map</button>
+  </div>
+  <script>
+    let box = document.getElementById("box");
+    
+    let x = 100;  // 横坐标
+    let y = 400;  // 纵坐标
+    let step =10; // 每次移动的像素
+
+    let box2 = document.getElementById("box2");
+    let x2 = 400;  // 横坐标
+    let y2 = 100;  // 纵坐标
+    let step2 =10; // 每次移动的像素
+    // 游戏状态
+    let gameStarted = false; // overall game started
+    let gamePhase = 'idle'; // 'idle' | 'prepare' | 'hunt' | 'over'
+    // timers
+    let prepareTimerId = null;
+    let huntTimerId = null;
+    let countdownId = null;
+    let timeLeft = 40; // 秒 (used for current phase countdown)
+    const statusEl = document.getElementById('status');
+    const hideZones = [];
+    const walls = [];
+    const coverCountInput = document.getElementById('coverCount');
+    const coverSizeInput = document.getElementById('coverSize');
+
+    function getCoverSettings() {
+      const count = Math.max(0, Math.min(20, parseInt(coverCountInput?.value || '6', 10)));
+      const sizeScaleRaw = parseFloat(coverSizeInput?.value || '1');
+      const sizeScale = isNaN(sizeScaleRaw) ? 1 : sizeScaleRaw;
+      return { count, sizeScale };
+    }
+      // 点击“start”时随机移动两个方块
+      function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      function getRandomColor() {
+        return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+      }
+      function moveBoxesRandomly() {
+        const maxX = window.innerWidth - box.offsetWidth;
+        const maxY = window.innerHeight - box.offsetHeight;
+        // 随机位置1
+        x = getRandomInt(0, maxX);
+        y = getRandomInt(0, maxY);
+        // 随机位置2，确保与第一个位置不同
+        do {
+          x2 = getRandomInt(0, maxX);
+          y2 = getRandomInt(0, maxY);
+        } while (x2 === x && y2 === y);
+        // 应用位置
+        box.style.left = x + "px";
+        box.style.top = y + "px";
+        box2.style.left = x2 + "px";
+        box2.style.top = y2 + "px";
+        updateVisibility();
+      }
+
+      function rectsOverlap(r1, r2) {
+        return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
+      }
+
+      function checkCollisionAndMaybeWin() {
+        if (!gameStarted || gamePhase !== 'hunt') return;
+        const r1 = box.getBoundingClientRect();
+        const r2 = box2.getBoundingClientRect();
+        if (rectsOverlap(r1, r2)) {
+          const c = getCenter(box2);
+          box2.style.opacity = '1';
+          box2.style.outline = '3px solid #22c55e';
+          setTimeout(() => { box2.style.outline = 'none'; }, 2000);
+          endGame(`Box 1 wins! Box 2 was at (${Math.round(c.x)}, ${Math.round(c.y)})`);
+        }
+      }
+
+      function updateStatus() {
+        if (!statusEl) return;
+        if (!gameStarted || gamePhase === 'idle') {
+          statusEl.textContent = 'Press start to begin. Box 2 has 30s to hide.';
+        } else if (gamePhase === 'prepare') {
+          statusEl.textContent = `Hide phase (Box 2 moves only): ${timeLeft}s`;
+        } else if (gamePhase === 'hunt') {
+          statusEl.textContent = `Hunt phase (Box 1 moves): ${timeLeft}s`;
+        } else if (gamePhase === 'over') {
+          statusEl.textContent = 'Round over. Press start for a new round.';
+        }
+      }
+
+      // ---- Cover utilities ----
+      function clearHideZones() {
+        hideZones.splice(0, hideZones.length);
+        document.querySelectorAll('.hide-zone').forEach(el => el.remove());
+      }
+
+      function clearWalls() {
+        walls.splice(0, walls.length);
+        document.querySelectorAll('.wall').forEach(el => el.remove());
+      }
+
+      function rectsOverlap(r1, r2) {
+        return !(r1.right <= r2.left || r1.left >= r2.right || r1.bottom <= r2.top || r1.top >= r2.bottom);
+      }
+
+      function addHideZone(xc, yc, w, h) {
+        const el = document.createElement('div');
+        el.className = 'hide-zone';
+        el.style.left = xc + 'px';
+        el.style.top = yc + 'px';
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        document.body.appendChild(el);
+        hideZones.push(el);
+      }
+
+      function addWall(xc, yc, w, h) {
+        const el = document.createElement('div');
+        el.className = 'wall';
+        el.style.left = xc + 'px';
+        el.style.top = yc + 'px';
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        document.body.appendChild(el);
+        walls.push(el);
+      }
+
+      function createRandomHideZones(count = 6, sizeScale = 1) {
+        clearHideZones();
+        const pad = 20;
+        const maxX = window.innerWidth;
+        const maxY = window.innerHeight;
+        const safeTop = getSafeTopY();
+        let attempts = 0;
+        while (hideZones.length < count && attempts < count * 20) {
+          attempts++;
+          const w = Math.floor((80 + Math.random() * 120) * sizeScale);
+          const h = Math.floor((40 + Math.random() * 120) * sizeScale);
+          const lx = Math.floor(Math.random() * Math.max(1, maxX - w - pad)) + pad/2;
+          const minY = Math.min(maxY - h - pad, Math.max(0, safeTop + 10));
+          const ly = Math.floor(minY + Math.random() * Math.max(1, (maxY - h - pad) - minY));
+          const newRect = {left: lx, top: ly, right: lx + w, bottom: ly + h};
+          // avoid overlapping the initial boxes too much
+          const b1 = {left: x, top: y, right: x + box.offsetWidth, bottom: y + box.offsetHeight};
+          const b2 = {left: x2, top: y2, right: x2 + box2.offsetWidth, bottom: y2 + box2.offsetHeight};
+          if (!rectsOverlap(newRect, b1) && !rectsOverlap(newRect, b2)) {
+            addHideZone(lx, ly, w, h);
+          }
+        }
+      }
+
+      function createRandomWalls(count = 8, sizeScale = 1) {
+        clearWalls();
+        const pad = 10;
+        const maxX = window.innerWidth;
+        const maxY = window.innerHeight;
+        const safeTop = getSafeTopY();
+        let attempts = 0;
+        while (walls.length < count && attempts < count * 30) {
+          attempts++;
+          const w = Math.floor((60 + Math.random() * 140) * sizeScale);
+          const h = Math.floor((30 + Math.random() * 100) * sizeScale);
+          const lx = Math.floor(Math.random() * Math.max(1, maxX - w - pad)) + pad/2;
+          const minY = Math.min(maxY - h - pad, Math.max(0, safeTop + 10));
+          const ly = Math.floor(minY + Math.random() * Math.max(1, (maxY - h - pad) - minY));
+          const newRect = {left: lx, top: ly, right: lx + w, bottom: ly + h};
+          const b1 = {left: x, top: y, right: x + box.offsetWidth, bottom: y + box.offsetHeight};
+          const b2 = {left: x2, top: y2, right: x2 + box2.offsetWidth, bottom: y2 + box2.offsetHeight};
+          // avoid overlapping players and hide zones significantly
+          const tooCloseToPlayers = rectsOverlap(newRect, b1) || rectsOverlap(newRect, b2);
+          const overlapsAnyHide = hideZones.some(hz => rectsOverlap(newRect, hz.getBoundingClientRect()));
+          if (!tooCloseToPlayers && !overlapsAnyHide) {
+            addWall(lx, ly, w, h);
+          }
+        }
+        applyWallColorsForPhase();
+      }
+
+      function getSafeTopY() {
+        const h2 = document.querySelector('h2');
+        const status = document.getElementById('status');
+        const controls = document.getElementById('controls');
+        const list = document.querySelector('ul');
+        const bottoms = [];
+        if (h2) bottoms.push(h2.offsetTop + h2.offsetHeight);
+        if (status) bottoms.push(status.offsetTop + status.offsetHeight);
+        if (list) bottoms.push(list.offsetTop + list.offsetHeight);
+        if (controls) bottoms.push(controls.offsetTop + controls.offsetHeight);
+        const maxBottom = bottoms.length ? Math.max(...bottoms) : 100;
+        return maxBottom;
+      }
+
+      function applyWallColorsForPhase() {
+        const color = (gamePhase === 'hunt') ? '#333' : '#6b7280';
+        for (const w of walls) {
+          w.style.background = color;
+        }
+      }
+
+      // Line intersection helpers for line-of-sight
+      function lineIntersectsRect(x1, y1, x2, y2, rect) {
+        const rx1 = rect.left, ry1 = rect.top, rx2 = rect.right, ry2 = rect.bottom;
+        // If either point inside rect, count as intersecting (covers hide if between or around)
+        if (pointInRect(x1, y1, rect) || pointInRect(x2, y2, rect)) return true;
+        // Check intersection with each edge
+        return (
+          segmentsIntersect(x1, y1, x2, y2, rx1, ry1, rx2, ry1) || // top
+          segmentsIntersect(x1, y1, x2, y2, rx2, ry1, rx2, ry2) || // right
+          segmentsIntersect(x1, y1, x2, y2, rx2, ry2, rx1, ry2) || // bottom
+          segmentsIntersect(x1, y1, x2, y2, rx1, ry2, rx1, ry1)    // left
+        );
+      }
+
+      function pointInRect(px, py, r) {
+        return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom;
+      }
+
+      function orientation(ax, ay, bx, by, cx, cy) {
+        const v = (by - ay) * (cx - bx) - (bx - ax) * (cy - by);
+        if (v === 0) return 0;
+        return v > 0 ? 1 : 2; // 1: clockwise, 2: counterclockwise
+      }
+
+      function onSegment(ax, ay, bx, by, cx, cy) {
+        return Math.min(ax, bx) <= cx && cx <= Math.max(ax, bx) && Math.min(ay, by) <= cy && cy <= Math.max(ay, by);
+      }
+
+      function segmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+        const o1 = orientation(ax, ay, bx, by, cx, cy);
+        const o2 = orientation(ax, ay, bx, by, dx, dy);
+        const o3 = orientation(cx, cy, dx, dy, ax, ay);
+        const o4 = orientation(cx, cy, dx, dy, bx, by);
+        if (o1 !== o2 && o3 !== o4) return true;
+        if (o1 === 0 && onSegment(ax, ay, bx, by, cx, cy)) return true;
+        if (o2 === 0 && onSegment(ax, ay, bx, by, dx, dy)) return true;
+        if (o3 === 0 && onSegment(cx, cy, dx, dy, ax, ay)) return true;
+        if (o4 === 0 && onSegment(cx, cy, dx, dy, bx, by)) return true;
+        return false;
+      }
+
+      function updateVisibility() {
+        // Box2 fully invisible only when its center is inside any hide zone; otherwise slightly faded
+        const r2 = box2.getBoundingClientRect();
+        const c2x = r2.left + r2.width / 2;
+        const c2y = r2.top + r2.height / 2;
+        let inHide = false;
+        for (const hz of hideZones) {
+          const hr = hz.getBoundingClientRect();
+          if (c2x >= hr.left && c2x <= hr.right && c2y >= hr.top && c2y <= hr.bottom) { inHide = true; break; }
+        }
+        box2.style.opacity = inHide ? '0' : '0.4';
+        // Outline hide zones during prepare phase so Box2 can clearly see hiding spots
+        for (const hz of hideZones) {
+          hz.style.outlineWidth = (gamePhase === 'prepare') ? '2px' : '0px';
+          hz.style.outlineColor = (gamePhase === 'prepare') ? '#22c55e' : 'transparent';
+          hz.style.outlineStyle = (gamePhase === 'prepare') ? 'solid' : 'none';
+        }
+      }
+
+      function getCenter(el) {
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+
+      function startPreparePhase() {
+        gameStarted = true;
+        gamePhase = 'prepare';
+        timeLeft = 30; // 30s to hide
+        moveBoxesRandomly();
+        const { count, sizeScale } = getCoverSettings();
+        createRandomHideZones(count, sizeScale);
+        createRandomWalls(Math.max(4, Math.round(count * 1.3)), sizeScale);
+        updateVisibility();
+        updateStatus();
+        applyWallColorsForPhase();
+        if (countdownId) clearInterval(countdownId);
+        if (prepareTimerId) clearTimeout(prepareTimerId);
+        countdownId = setInterval(() => {
+          if (gamePhase !== 'prepare') return;
+          timeLeft = Math.max(0, timeLeft - 1);
+          updateStatus();
+        }, 1000);
+        prepareTimerId = setTimeout(() => {
+          if (gamePhase === 'prepare') beginHuntPhase();
+        }, 30000);
+        // Update button label to allow manual start of hunt
+        const startLink = document.getElementById('start');
+        if (startLink) startLink.textContent = 'Begin hunt';
+      }
+
+      function beginHuntPhase() {
+        gamePhase = 'hunt';
+        timeLeft = 40; // 40s to find
+        updateStatus();
+        if (countdownId) clearInterval(countdownId);
+        if (huntTimerId) clearTimeout(huntTimerId);
+        countdownId = setInterval(() => {
+          if (gamePhase !== 'hunt') return;
+          timeLeft = Math.max(0, timeLeft - 1);
+          updateStatus();
+        }, 1000);
+        huntTimerId = setTimeout(() => {
+          if (gamePhase === 'hunt') {
+            // Reveal Box2 and report its position
+            const c = getCenter(box2);
+            box2.style.opacity = '1';
+            box2.style.outline = '3px solid #ef4444';
+            setTimeout(() => { box2.style.outline = 'none'; }, 2000);
+            endGame(`Box 2 wins! Time up. It was at (${Math.round(c.x)}, ${Math.round(c.y)})`);
+          }
+        }, 40000);
+        // Update button label for next round
+        const startLink = document.getElementById('start');
+        if (startLink) startLink.textContent = 'Restart';
+        applyWallColorsForPhase();
+      }
+
+      function startOrAdvance() {
+        if (!gameStarted || gamePhase === 'idle' || gamePhase === 'over') {
+          startPreparePhase();
+        } else if (gamePhase === 'prepare') {
+          // Manually advance to hunt
+          beginHuntPhase();
+        } else if (gamePhase === 'hunt') {
+          // Restart flow
+          endGame('Restarting...');
+          startPreparePhase();
+        }
+      }
+
+      function endGame(message) {
+        gameStarted = false;
+        gamePhase = 'over';
+        if (prepareTimerId) clearTimeout(prepareTimerId);
+        if (huntTimerId) clearTimeout(huntTimerId);
+        if (countdownId) clearInterval(countdownId);
+        updateStatus();
+        // Ensure Box 2 is visible at game over
+        box2.style.opacity = '1';
+        box2.style.outline = 'none';
+        if (message) alert(message);
+        const startLink = document.getElementById('start');
+        if (startLink) startLink.textContent = 'Start';
+      }
+      const startLink = document.getElementById("start");
+      if (startLink) {
+        startLink.addEventListener("click", function(e) {
+          e.preventDefault();
+          startOrAdvance();
+        });
+      }
+      const newMapBtn = document.getElementById('newMap');
+      if (newMapBtn) {
+        newMapBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const { count, sizeScale } = getCoverSettings();
+          createRandomHideZones(count, sizeScale);
+          createRandomWalls(Math.max(4, Math.round(count * 1.3)), sizeScale);
+          updateVisibility();
+        });
+      }
+      // 监听键盘事件
+    document.addEventListener("keydown", function(event) {
+      const prevX = x, prevY = y;
+      const prevX2 = x2, prevY2 = y2;
+      if (gamePhase === 'prepare') {
+        // Only Box 2 can move
+        if (event.key === "w") y2 -= step2;
+        else if (event.key === "s") y2 += step2;
+        else if (event.key === "a") x2 -= step2;
+        else if (event.key === "d") x2 += step2;
+      } else if (gamePhase === 'hunt') {
+        // Only Box 1 can move
+        if (event.key === "ArrowUp") y -= step;
+        else if (event.key === "ArrowDown") y += step;
+        else if (event.key === "ArrowLeft") x -= step;
+        else if (event.key === "ArrowRight") x += step;
+        else if (event.key === " ") box.style.backgroundColor = getRandomColor();
+      } else {
+        // Before start or after, ignore movement
+        return;
+      }
+
+      // 计算边界并限制位置，防止超出屏幕
+      const maxX = window.innerWidth - box.offsetWidth;
+      const maxY = window.innerHeight - box.offsetHeight;
+      x = Math.max(0, Math.min(x, maxX));
+      y = Math.max(0, Math.min(y, maxY));
+
+      // 更新方块位置
+      box.style.left = x + "px";
+      box.style.top = y + "px";
+
+      x2 = Math.max(0, Math.min(x2, maxX));
+      y2 = Math.max(0, Math.min(y2, maxY));
+
+      box2.style.left = x2 + "px";
+      box2.style.top = y2 + "px"; 
+      // Walls are impassable: revert move if overlapping any wall
+      const b1 = box.getBoundingClientRect();
+      const b2 = box2.getBoundingClientRect();
+      for (const w of walls) {
+        const wr = w.getBoundingClientRect();
+        if (rectsOverlap(b1, wr)) {
+          x = prevX; y = prevY;
+          box.style.left = x + 'px';
+          box.style.top = y + 'px';
+        }
+        if (rectsOverlap(b2, wr)) {
+          x2 = prevX2; y2 = prevY2;
+          box2.style.left = x2 + 'px';
+          box2.style.top = y2 + 'px';
+        }
+      }
+      // 移动后检查是否碰撞
+      checkCollisionAndMaybeWin();
+      updateVisibility();
+    });
+  </script>
+</body>
+</html>

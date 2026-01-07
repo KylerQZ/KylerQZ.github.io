@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Play</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 24px; background: linear-gradient(135deg, #f472b6 0%, #ef4444 100%); color: #222; }
+      .container { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); padding: 24px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .meta { color: #666; margin: 0 0 16px; }
+      .question { font-size: 20px; margin: 16px 0; }
+      .choices { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 12px; }
+      .choice-btn { display: block; width: 100%; text-align: left; border: 2px solid #e6e6ef; background: #fafafe; padding: 12px 14px; border-radius: 10px; cursor: pointer; font-size: 16px; }
+      .choice-btn:hover { border-color: #c9c9df; background: #fff; }
+      .choice-btn.selected { border-color: #4f46e5; background: #eef2ff; }
+      .actions { display: flex; gap: 12px; margin-top: 12px; }
+      button.primary { background: #4f46e5; color: #fff; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+      button.primary[disabled] { opacity: 0.5; cursor: not-allowed; }
+      button.secondary { background: transparent; color: #4f46e5; border: 2px solid #4f46e5; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+      .progress { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; margin: 12px 0 0; }
+      .bar { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, #4f46e5); }
+      .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: #555; }
+      .result { text-align: center; }
+      .result h2 { font-size: 24px; margin-bottom: 8px; }
+      .result p { color: #555; }
+      a.link { color: #4f46e5; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container"> 
+      <h1>Quiz Game</h1>
+      <p class="meta" id="modeLine"></p>
+      <p class="meta" id="status">Question 1</p>
+
+      <div id="quiz-card">
+        <div class="question" id="question">Loading question...</div>
+        <ul class="choices" id="choices"></ul>
+        <div class="actions">
+          <button class="primary" id="submitBtn" disabled>Submit Answer</button>
+          <button class="secondary" id="skipBtn">Skip</button>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span id="score">Score: 0</span>
+        <a class="link" href="index.html">End Game</a>
+      </div>
+      <div class="progress"><div class="bar" id="progressBar"></div></div>
+    </div>
+
+    <script>
+      // Utility
+      function shuffle(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      // Question pool (expandable). Each question has a difficulty: 'easy' | 'medium' | 'hard'
+      const questionPool = [
+        {
+          q: "What is the capital of France?",
+          choices: ["Paris", "Rome", "Berlin", "Madrid"],
+          answer: 0,
+          difficulty: 'easy',
+        },
+        {
+          q: "Which planet is known as the Red Planet?",
+          choices: ["Venus", "Mars", "Jupiter", "Mercury"],
+          answer: 1,
+          difficulty: 'easy',
+        },
+        {
+          q: "What is 7 × 8?",
+          choices: ["54", "56", "58", "64"],
+          answer: 1,
+          difficulty: 'easy',
+        },
+        {
+          q: "Which language runs in a web browser?",
+          choices: ["C", "Java", "Python", "JavaScript"],
+          answer: 3,
+          difficulty: 'easy',
+        },
+        {
+          q: "What is the largest ocean on Earth?",
+          choices: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+          answer: 3,
+          difficulty: 'easy',
+        },
+        {
+          q: "Who wrote 'Romeo and Juliet'?",
+          choices: ["William Shakespeare", "Charles Dickens", "Mark Twain", "Jane Austen"],
+          answer: 0,
+          difficulty: 'easy',
+        },
+        {
+          q: "What gas do plants absorb from the atmosphere?",
+          choices: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Helium"],
+          answer: 1,
+          difficulty: 'easy',
+        },
+        {
+          q: "Which continent is the Sahara Desert located on?",
+          choices: ["Asia", "Africa", "Australia", "South America"],
+          answer: 1,
+          difficulty: 'easy',
+        },
+        {
+          q: "What is the boiling point of water at sea level?",
+          choices: ["90°C", "95°C", "100°C", "110°C"],
+          answer: 2,
+          difficulty: 'easy',
+        },
+        {
+          q: "Which animal is known as the 'King of the Jungle'?",
+          choices: ["Tiger", "Lion", "Elephant", "Gorilla"],
+          answer: 1,
+          difficulty: 'easy',
+        },
+        {
+          q: "Which metal is liquid at room temperature?",
+          choices: ["Mercury", "Iron", "Aluminum", "Sodium"],
+          answer: 0,
+          difficulty: 'medium',
+        },
+        {
+          q: "How many continents are there?",
+          choices: ["5", "6", "7", "8"],
+          answer: 2,
+          difficulty: 'medium',
+        },
+        {
+          q: "What is the smallest prime number?",
+          choices: ["0", "1", "2", "3"],
+          answer: 2,
+          difficulty: 'medium',
+        },
+        {
+          q: "In which country are the pyramids of Giza?",
+          choices: ["Mexico", "Egypt", "Peru", "Sudan"],
+          answer: 1,
+          difficulty: 'medium',
+        },
+        {
+          q: "What is H2O commonly known as?",
+          choices: ["Salt", "Hydrogen", "Water", "Oxygen"],
+          answer: 2,
+          difficulty: 'medium',
+        },
+        {
+          q: "Which instrument has keys, pedals, and strings?",
+          choices: ["Guitar", "Flute", "Piano", "Drum"],
+          answer: 2,
+          difficulty: 'medium',
+        },
+        {
+          q: "Which planet is closest to the Sun?",
+          choices: ["Mercury", "Earth", "Venus", "Mars"],
+          answer: 0,
+          difficulty: 'medium',
+        },
+        {
+          q: "Which gas do humans breathe in to stay alive?",
+          choices: ["Oxygen", "Carbon Dioxide", "Methane", "Helium"],
+          answer: 0,
+          difficulty: 'medium',
+        },
+        {
+          q: "How many days are there in a leap year?",
+          choices: ["364", "365", "366", "367"],
+          answer: 2,
+          difficulty: 'medium',
+        },
+        {
+          q: "What is the largest mammal?",
+          choices: ["African Elephant", "Blue Whale", "Giraffe", "Hippopotamus"],
+          answer: 1,
+          difficulty: 'medium',
+        },
+        // Harder questions
+        {
+          q: "What is the value of π (pi) to 3 decimal places?",
+          choices: ["3.141", "3.142", "3.143", "3.140"],
+          answer: 1,
+          difficulty: 'hard',
+        },
+        {
+          q: "Who proposed the three laws of motion?",
+          choices: ["Albert Einstein", "Isaac Newton", "Niels Bohr", "Galileo Galilei"],
+          answer: 1,
+          difficulty: 'hard',
+        },
+        {
+          q: "What is the chemical symbol for gold?",
+          choices: ["Ag", "Au", "Gd", "Go"],
+          answer: 1,
+          difficulty: 'hard',
+        },
+        {
+          q: "In computing, what does 'CPU' stand for?",
+          choices: ["Central Processing Unit", "Computer Processing Unit", "Core Performance Unit", "Control Processing Utility"],
+          answer: 0,
+          difficulty: 'hard',
+        },
+        {
+          q: "Which country has the longest coastline in the world?",
+          choices: ["Australia", "Russia", "Canada", "Indonesia"],
+          answer: 2,
+          difficulty: 'hard',
+        },
+        {
+          q: "What is the square root of 256?",
+          choices: ["14", "15", "16", "18"],
+          answer: 2,
+          difficulty: 'hard',
+        },
+        {
+          q: "Which gas is primarily responsible for the greenhouse effect?",
+          choices: ["Nitrogen", "Oxygen", "Carbon Dioxide", "Neon"],
+          answer: 2,
+          difficulty: 'hard',
+        },
+        {
+          q: "Who painted the ceiling of the Sistine Chapel?",
+          choices: ["Leonardo da Vinci", "Raphael", "Michelangelo", "Donatello"],
+          answer: 2,
+          difficulty: 'hard',
+        },
+      ];
+
+      const modeLineEl = document.getElementById('modeLine');
+      const statusEl = document.getElementById('status');
+      const questionEl = document.getElementById('question');
+      const choicesEl = document.getElementById('choices');
+      const submitBtn = document.getElementById('submitBtn');
+      const skipBtn = document.getElementById('skipBtn');
+      const scoreEl = document.getElementById('score');
+      const progressBar = document.getElementById('progressBar');
+
+      // Read mode from URL (?mode=easy|normal|hard)
+      const params = new URLSearchParams(location.search);
+      const mode = (params.get('mode') || 'normal').toLowerCase();
+      const modeNames = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+      const totalByMode = { easy: 5, normal: 10, hard: 15 };
+      modeLineEl.textContent = `Mode: ${modeNames[mode] || modeNames.normal}`;
+
+      // Build pools by difficulty
+      const easyPool = questionPool.filter(q => q.difficulty === 'easy');
+      const mediumPool = questionPool.filter(q => q.difficulty === 'medium');
+      const hardPool = questionPool.filter(q => q.difficulty === 'hard');
+
+      // Select questions by mode
+      let selected;
+      if (mode === 'easy') {
+        selected = shuffle(easyPool);
+      } else if (mode === 'hard') {
+        // Prefer hard questions, then fill with medium if needed
+        selected = shuffle(hardPool).concat(shuffle(mediumPool));
+      } else {
+        // normal: mix of easy + medium
+        selected = shuffle(easyPool.concat(mediumPool));
+      }
+
+      const totalCount = Math.min(totalByMode[mode] || totalByMode.normal, selected.length);
+      selected = selected.slice(0, totalCount);
+
+      let current = 0;
+      let score = 0;
+      let selectedIndex = null; // index in displayed (shuffled) options
+      let correctDisplayedIndex = null; // correct index in displayed options
+
+      function renderQuestion() {
+        statusEl.textContent = `Question ${current + 1} of ${totalCount}`;
+        const qObj = selected[current];
+        const { q, choices } = qObj;
+        questionEl.textContent = q;
+        choicesEl.innerHTML = '';
+        selectedIndex = null;
+        submitBtn.disabled = true;
+
+        // shuffle displayed choices, track where the correct answer ended up
+        const idxs = shuffle(choices.map((_, i) => i));
+        correctDisplayedIndex = idxs.indexOf(qObj.answer);
+
+        idxs.forEach((choiceIdx, displayIdx) => {
+          const li = document.createElement('li');
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.textContent = choices[choiceIdx];
+          btn.addEventListener('click', () => {
+            // clear previous selection
+            [...choicesEl.querySelectorAll('.choice-btn')].forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedIndex = displayIdx;
+            submitBtn.disabled = false;
+          });
+          li.appendChild(btn);
+          choicesEl.appendChild(li);
+        });
+
+        updateProgress();
+      }
+
+      function updateProgress() {
+        const percent = (current / totalCount) * 100;
+        progressBar.style.width = percent + '%';
+      }
+
+      function showResult() {
+        const total = totalCount;
+        const container = document.querySelector('.container');
+        container.innerHTML = `
+          <div class="result">
+            <h2>Game Over</h2>
+            <p>You scored <strong>${score}</strong> out of <strong>${total}</strong>.</p>
+            <p><a class="link" href="play.html">Play again</a> or <a class="link" href="index.html">Home</a></p>
+          </div>
+        `;
+      }
+
+      submitBtn.addEventListener('click', () => {
+        if (selectedIndex === null) return;
+        const correct = correctDisplayedIndex;
+        const buttons = choicesEl.querySelectorAll('.choice-btn');
+        // feedback colors
+        buttons.forEach((b, i) => {
+          if (i === correct) b.style.borderColor = '#22c55e';
+          if (i === selectedIndex && i !== correct) b.style.borderColor = '#ef4444';
+        });
+
+        if (selectedIndex === correct) {
+          score += 1;
+          scoreEl.textContent = `Score: ${score}`;
+        }
+
+        // Move to next question after a short delay
+        setTimeout(() => {
+          current += 1;
+          if (current >= totalCount) {
+            progressBar.style.width = '100%';
+            showResult();
+          } else {
+            renderQuestion();
+          }
+        }, 600);
+      });
+
+      skipBtn.addEventListener('click', () => {
+        current += 1;
+        if (current >= totalCount) {
+          progressBar.style.width = '100%';
+          showResult();
+        } else {
+          renderQuestion();
+        }
+      });
+
+      // In hard mode, hide Skip to increase difficulty
+      if (mode === 'hard') {
+        skipBtn.style.display = 'none';
+      }
+
+      // Initialize
+      renderQuestion();
+    </script>
+</body>
+</html>
