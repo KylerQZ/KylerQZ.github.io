@@ -28,15 +28,31 @@
       
       <h1>About Me</h1>
       
-      <p>Hi! I'm KylerQZ, a developer passionate about creating interesting projects and sharing knowledge with the community.</p>
+      <p>Hi! I'm KylerQZ, a <span id="age">13</span>-year-old developer from China, currently living in Ireland. I'm passionate about creating interesting projects, building things, and sharing knowledge with the community.</p>
       
-      <h2>What I Do</h2>
-      <p>I work on various projects ranging from web development to game development. I enjoy exploring new technologies and building things that solve real problems or just bring joy to people.</p>
+      <h2>🎓 Education</h2>
+      <p>I'm currently studying at <strong>St. Kilian's</strong> in Ireland, where I'm exploring my interests in technology, science, and creativity.</p>
       
-      <h2>This Blog</h2>
-      <p>This blog is a space where I share my journey in software development, document my projects, and write about things I'm learning. It's hosted on GitHub Pages and built with simple, clean HTML and CSS.</p>
+      <h2>⚽ Sports & Music</h2>
+      <p>I'm a huge football fan! My favorite player is <strong>Lionel Messi</strong> and my favorite club is <strong>FC Barcelona</strong>. I also play football at <strong>MMYFC</strong> (Malahide & Maynooth Youth Football Club).</p>
       
-      <h2>Get in Touch</h2>
+      <p>Music is another passion of mine. I've been playing guitar for <span id="guitarDuration">8 months</span>, and my favorite band is <strong>Guns N' Roses</strong>! 🎸</p>
+      
+      <h2>💻 What I Do</h2>
+      <p>I love <strong>coding</strong> and <strong>building things</strong>! My interests include:</p>
+      <ul style="color: #cccccc; line-height: 1.8;">
+        <li><strong style="color: var(--primary);">Web Development</strong> - Creating websites and interactive experiences</li>
+        <li><strong style="color: var(--primary);">Game Development</strong> - Building fun and engaging games</li>
+        <li><strong style="color: var(--primary);">Arduino Projects</strong> - Working with electronics and hardware</li>
+        <li><strong style="color: var(--primary);">Physics</strong> - Understanding how the world works</li>
+        <li><strong style="color: var(--primary);">Space Exploration</strong> - Learning about the universe and astronomy</li>
+        <li><strong style="color: var(--primary);">Filmmaking</strong> - Creating movies and visual stories</li>
+      </ul>
+      
+      <h2>🚀 This Blog</h2>
+      <p>This blog is a space where I share my journey in software development, document my projects, and write about things I'm learning. It's hosted on GitHub Pages and built with HTML, CSS, and JavaScript.</p>
+      
+      <h2>📫 Get in Touch</h2>
       <p>Feel free to check out my projects on <a href="https://github.com/KylerQZ" target="_blank">GitHub</a> or connect with me there!</p>
     </div>
   </main>
@@ -46,5 +62,56 @@
       <p>&copy; 2026 KylerQZ. Built with ❤️ and hosted on GitHub Pages.</p>
     </div>
   </footer>
+
+  <script>
+    // Auto-update age based on birthdate (born in 2013, assuming birthday already passed this year)
+    function updateAge() {
+      const birthYear = 2013;
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-11
+      
+      // Assuming birthday is January 7, 2013 (adjust if different)
+      const birthMonth = 0; // January (0-indexed)
+      const birthDay = 7;
+      
+      let age = currentYear - birthYear;
+      
+      // If birthday hasn't occurred yet this year, subtract 1
+      if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDate.getDate() < birthDay)) {
+        age--;
+      }
+      
+      document.getElementById('age').textContent = age;
+    }
+    
+    // Auto-update guitar playing duration
+    function updateGuitarDuration() {
+      // Started playing guitar in May 2024 (8 months ago from Jan 2025)
+      const startDate = new Date(2024, 4, 1); // May 1, 2024 (month is 0-indexed)
+      const currentDate = new Date();
+      
+      // Calculate months difference
+      let months = (currentDate.getFullYear() - startDate.getFullYear()) * 12;
+      months += currentDate.getMonth() - startDate.getMonth();
+      
+      // Format the duration
+      if (months < 12) {
+        document.getElementById('guitarDuration').textContent = months + ' months';
+      } else {
+        const years = Math.floor(months / 12);
+        const remainingMonths = months % 12;
+        if (remainingMonths === 0) {
+          document.getElementById('guitarDuration').textContent = years + (years === 1 ? ' year' : ' years');
+        } else {
+          document.getElementById('guitarDuration').textContent = years + (years === 1 ? ' year' : ' years') + ' and ' + remainingMonths + (remainingMonths === 1 ? ' month' : ' months');
+        }
+      }
+    }
+    
+    // Update on page load
+    updateAge();
+    updateGuitarDuration();
+  </script>
 </body>
 </html>
