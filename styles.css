@@ -1,12 +1,12 @@
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
-  --text-dark: #1f2937;
-  --text-light: #6b7280;
-  --bg-light: #f9fafb;
-  --bg-white: #ffffff;
-  --border: #e5e7eb;
-  --shadow: rgba(0, 0, 0, 0.1);
+  --primary: #d4af37;
+  --primary-dark: #b8941f;
+  --text-dark: #ffffff;
+  --text-light: #d4af37;
+  --bg-light: #0a0a0a;
+  --bg-white: #1a1a1a;
+  --border: #333333;
+  --shadow: rgba(212, 175, 55, 0.2);
 }
 
 * {
@@ -61,7 +61,7 @@ nav .container {
 
 .nav-links a {
   text-decoration: none;
-  color: var(--text-dark);
+  color: #cccccc;
   font-weight: 500;
   transition: color 0.2s ease;
 }
@@ -84,12 +84,12 @@ main {
 .hero h2 {
   font-size: 2.5rem;
   margin-bottom: 1rem;
-  color: var(--text-dark);
+  color: var(--text-light);
 }
 
 .hero p {
   font-size: 1.25rem;
-  color: var(--text-light);
+  color: #cccccc;
 }
 
 .blog-posts {
@@ -113,7 +113,7 @@ main {
 
 .post-date {
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: #999999;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -122,7 +122,7 @@ main {
 .post-card h3 {
   font-size: 1.5rem;
   margin-bottom: 1rem;
-  color: var(--text-dark);
+  color: var(--text-light);
 }
 
 .post-card h3 a {
@@ -136,7 +136,7 @@ main {
 }
 
 .post-card p {
-  color: var(--text-light);
+  color: #cccccc;
   margin-bottom: 1rem;
   line-height: 1.7;
 }
@@ -162,7 +162,7 @@ footer {
 }
 
 footer p {
-  color: var(--text-light);
+  color: #999999;
 }
 
 .content {
@@ -177,19 +177,19 @@ footer p {
 .content h1 {
   font-size: 2.5rem;
   margin-bottom: 1rem;
-  color: var(--text-dark);
+  color: var(--text-light);
 }
 
 .content h2 {
   font-size: 1.75rem;
   margin: 2rem 0 1rem;
-  color: var(--text-dark);
+  color: var(--text-light);
 }
 
 .content p {
   margin-bottom: 1.5rem;
   line-height: 1.8;
-  color: var(--text-dark);
+  color: #cccccc;
 }
 
 .content a {
@@ -245,19 +245,19 @@ footer p {
 
 .game-header h3 {
   font-size: 1.75rem;
-  color: var(--text-dark);
+  color: var(--text-light);
   margin: 0;
 }
 
 .game-date {
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: #999999;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .game-description {
-  color: var(--text-light);
+  color: #cccccc;
   line-height: 1.7;
   margin-bottom: 1.5rem;
 }
@@ -271,7 +271,7 @@ footer p {
 }
 
 .setup-info strong {
-  color: var(--text-dark);
+  color: var(--primary);
   display: block;
   margin-bottom: 0.5rem;
 }
@@ -306,25 +306,25 @@ footer p {
 
 .btn.primary {
   background: var(--primary);
-  color: white;
+  color: #000000;
 }
 
 .btn.primary:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.5);
 }
 
 .btn.secondary {
   background: var(--bg-light);
-  color: var(--text-dark);
-  border: 2px solid var(--border);
+  color: var(--primary);
+  border: 2px solid var(--primary);
 }
 
 .btn.secondary:hover {
-  background: var(--bg-white);
+  background: var(--primary);
   border-color: var(--primary);
-  color: var(--primary);
+  color: #000000;
 }
 
 .game-tech {
@@ -336,8 +336,9 @@ footer p {
 .tech-tag {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  background: var(--bg-light);
-  color: var(--text-light);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
