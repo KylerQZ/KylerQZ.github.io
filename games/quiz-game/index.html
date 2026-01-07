@@ -13,13 +13,13 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #ec4899 0%, #f472b6 35%, #60a5fa 100%);
-        color: #0b1020;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #000000 100%);
+        color: #d4af37;
       }
       h1 {
         margin-bottom: 20px;
-        color: #0b1020;
-        text-shadow: 0 2px 12px rgba(96,165,250,0.35);
+        color: #d4af37;
+        text-shadow: 0 2px 12px rgba(212, 175, 55, 0.5);
       }
       ul { list-style: none; padding: 0; margin: 0; }
       li { margin: 10px 0; }
@@ -28,16 +28,17 @@
         display: inline-block;
         padding: 10px 18px;
         border-radius: 12px;
-        background: rgba(255,255,255,0.65);
-        color: #1e293b;
+        background: #d4af37;
+        color: #000000;
         text-decoration: none;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.18);
-        transition: transform 0.12s ease, background 0.2s ease, color 0.2s ease;
+        box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3);
+        transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
+        font-weight: 600;
       }
       h2 a:hover {
-        background: rgba(14,165,233,0.85);
-        color: #ffffff;
+        background: #b8941f;
         transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.5);
       }
       .btn {
         display: inline-block;
@@ -49,15 +50,16 @@
         margin-top: 16px;
       }
       .btn.secondary {
-        background: rgba(255,255,255,0.85);
-        color: #0a0a0a;
-        border: 2px solid rgba(0,0,0,0.08);
-        box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+        background: transparent;
+        color: #d4af37;
+        border: 2px solid #d4af37;
+        box-shadow: 0 6px 14px rgba(212, 175, 55, 0.2);
       }
       .btn.secondary:hover {
-        background: rgba(255,255,255,1);
+        background: #d4af37;
+        color: #000000;
         transform: translateY(-2px);
-        box-shadow: 0 10px 18px rgba(0,0,0,0.25);
+        box-shadow: 0 10px 18px rgba(212, 175, 55, 0.4);
       }
     </style>
 </head>

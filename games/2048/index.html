@@ -4,12 +4,12 @@
   <title>2048</title>
   <style>
     :root {
-      --light-brown: #d2b48c;
-      --mid-brown: #a97c50;
-      --dark-brown: #5c4033;
-      --text-dark: #1a1a1a;
-      --text-light: #f7f7f7;
-      --accent: #f59e0b;
+      --gold: #d4af37;
+      --dark-gold: #b8941f;
+      --black: #0a0a0a;
+      --dark-gray: #1a1a1a;
+      --text-light: #ffffff;
+      --accent: #d4af37;
     }
     body {
       margin: 0;
@@ -19,25 +19,28 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: var(--text-dark);
-      background: linear-gradient(135deg, var(--light-brown) 0%, var(--mid-brown) 50%, var(--dark-brown) 100%);
+      color: var(--gold);
+      background: linear-gradient(135deg, var(--black) 0%, var(--dark-gray) 50%, #000000 100%);
     }
     .card {
       width: min(92vw, 560px);
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(26, 26, 26, 0.95);
+      border: 2px solid rgba(212, 175, 55, 0.3);
       border-radius: 16px;
       padding: 28px 26px;
-      box-shadow: 0 14px 30px rgba(0,0,0,0.25);
+      box-shadow: 0 14px 30px rgba(212, 175, 55, 0.2);
       backdrop-filter: blur(1.5px);
     }
     h1 {
       margin: 0 0 6px 0;
       font-size: 2.2rem;
       letter-spacing: 0.5px;
+      color: var(--gold);
+      text-shadow: 0 2px 12px rgba(212, 175, 55, 0.5);
     }
     p.sub {
       margin: 0 0 18px 0;
-      color: #5b5b5b;
+      color: #cccccc;
       font-size: 0.98rem;
     }
     .actions {
@@ -52,29 +55,30 @@
       display: inline-block;
       padding: 12px 20px;
       border-radius: 12px;
-      color: var(--text-light);
-      background: linear-gradient(90deg, #b68555, #8c5a3a);
-      box-shadow: 0 8px 18px rgba(0,0,0,0.25), inset 0 -2px 0 rgba(255,255,255,0.15);
-      transition: transform 0.12s ease, filter 0.2s ease, box-shadow 0.2s ease;
+      color: #000000;
+      background: var(--gold);
+      box-shadow: 0 8px 18px rgba(212, 175, 55, 0.3);
+      transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
       font-weight: 600;
     }
     a.btn:hover {
       transform: translateY(-2px);
-      filter: brightness(1.05);
-      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+      background: var(--dark-gold);
+      box-shadow: 0 12px 24px rgba(212, 175, 55, 0.5);
     }
     .btn.secondary {
-      background: rgba(255, 255, 255, 0.65);
-      color: var(--text-dark);
-      border: 2px solid rgba(0, 0, 0, 0.08);
+      background: transparent;
+      color: var(--gold);
+      border: 2px solid var(--gold);
     }
     .btn.secondary:hover {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(0,0,0,0.12);
+      background: var(--gold);
+      color: #000000;
+      border-color: var(--gold);
     }
     .tips {
       margin-top: 16px;
-      color: #4a4a4a;
+      color: #999999;
       font-size: 0.95rem;
     }
     .tips b { color: var(--accent); }
