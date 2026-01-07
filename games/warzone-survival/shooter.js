@@ -1299,19 +1299,19 @@ document.addEventListener('keydown', (e) => {
             }
             break;
         case 'KeyT':
-            if (prepPhase && buildMode && baseLevel >= 3) {
+            if (prepPhase && baseLevel >= 3) {
                 buyTeammate();
             }
             break;
         case 'KeyR':
-            if (prepPhase && buildMode && baseLevel >= 2) {
+            if (prepPhase && baseLevel >= 2) {
                 buyAmmo();
             } else if (!prepPhase && !buildMode) {
                 reload();
             }
             break;
         case 'KeyM':
-            if (prepPhase && buildMode) {
+            if (prepPhase) {
                 buyMedicine();
             }
             break;
@@ -1727,7 +1727,7 @@ function shoot() {
 }
 
 function reload() {
-    if (weapon.isReloading || weapon.currentAmmo === weapon.magazineSize) {
+    if (weapon.isReloading || weapon.currentAmmo === weapon.magazineSize || weapon.reserveAmmo === 0) {
         return;
     }
     
@@ -1770,9 +1770,10 @@ function reload() {
     }, 16);
     
     setTimeout(() => {
-        // Infinite reserve ammo - always refill to full magazine
-        weapon.currentAmmo = weapon.magazineSize;
-        weapon.reserveAmmo = 999; // Keep reserve ammo display high
+        const ammoNeeded = weapon.magazineSize - weapon.currentAmmo;
+        const ammoToReload = Math.min(ammoNeeded, weapon.reserveAmmo);
+        weapon.currentAmmo += ammoToReload;
+        weapon.reserveAmmo -= ammoToReload;
         weapon.isReloading = false;
         console.log('Reload complete!');
         updateUI();
@@ -2238,11 +2239,13 @@ function updateUI() {
             `${wallType.name} (${wallType.cost}g, ${wallType.health}HP)`;
         
         // Shop options
-        let shopText = 'C - Build Mode | U - Upgrade';
+        let shopText = 'M - Medicine (30g) | U - Upgrade Base';
+        if (baseLevel >= 2) shopText += ' | R - Ammo (20g)';
+        if (baseLevel >= 3) shopText += ' | T - Teammate (100g)';
         if (buildMode) {
-            shopText = 'Q - Cycle Walls | M - Medicine (30g)';
-            if (baseLevel >= 2) shopText += ' | R - Ammo (20g)';
-            if (baseLevel >= 3) shopText += ' | T - Teammate (100g)';
+            shopText = 'Q - Cycle Walls | ' + shopText;
+        } else {
+            shopText = 'C - Build Mode | ' + shopText;
         }
         document.getElementById('shopOptions').textContent = shopText;
     }
