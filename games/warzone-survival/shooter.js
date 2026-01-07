@@ -1626,11 +1626,12 @@ function createWallHealthBar(wall) {
 // ============================================
 
 function shoot() {
-    if (!weapon.canShoot || weapon.isReloading || weapon.currentAmmo <= 0) {
+    if (!weapon.canShoot || weapon.isReloading) {
         return;
     }
     
-    weapon.currentAmmo--;
+    // Infinite ammo - no ammo decrease
+    // weapon.currentAmmo--;
     weapon.canShoot = false;
     weapon.shootCooldown = weapon.fireRate;
     
@@ -1718,10 +1719,10 @@ function shoot() {
         }
     }
     
-    // Auto reload if empty
-    if (weapon.currentAmmo === 0) {
-        reload();
-    }
+    // Auto reload disabled - infinite ammo
+    // if (weapon.currentAmmo === 0) {
+    //     reload();
+    // }
     
     updateUI();
 }
