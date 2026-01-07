@@ -5,26 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Play</title>
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 24px; background: linear-gradient(135deg, #f472b6 0%, #ef4444 100%); color: #222; }
-      .container { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); padding: 24px; }
-      h1 { margin: 0 0 8px; font-size: 28px; }
-      .meta { color: #666; margin: 0 0 16px; }
-      .question { font-size: 20px; margin: 16px 0; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 24px; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #000000 100%); color: #d4af37; }
+      .container { max-width: 720px; margin: 0 auto; background: rgba(26, 26, 26, 0.95); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; box-shadow: 0 6px 18px rgba(212, 175, 55, 0.2); padding: 24px; }
+      h1 { margin: 0 0 8px; font-size: 28px; color: #d4af37; text-shadow: 0 2px 12px rgba(212, 175, 55, 0.5); }
+      .meta { color: #999999; margin: 0 0 16px; }
+      .question { font-size: 20px; margin: 16px 0; color: #cccccc; }
       .choices { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 12px; }
-      .choice-btn { display: block; width: 100%; text-align: left; border: 2px solid #e6e6ef; background: #fafafe; padding: 12px 14px; border-radius: 10px; cursor: pointer; font-size: 16px; }
-      .choice-btn:hover { border-color: #c9c9df; background: #fff; }
-      .choice-btn.selected { border-color: #4f46e5; background: #eef2ff; }
+      .choice-btn { display: block; width: 100%; text-align: left; border: 2px solid rgba(212, 175, 55, 0.3); background: rgba(212, 175, 55, 0.1); padding: 12px 14px; border-radius: 10px; cursor: pointer; font-size: 16px; color: #cccccc; transition: all 0.2s ease; }
+      .choice-btn:hover { border-color: #d4af37; background: rgba(212, 175, 55, 0.2); color: #d4af37; }
+      .choice-btn.selected { border-color: #d4af37; background: rgba(212, 175, 55, 0.25); color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
       .actions { display: flex; gap: 12px; margin-top: 12px; }
-      button.primary { background: #4f46e5; color: #fff; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+      button.primary { background: #d4af37; color: #000000; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
+      button.primary:hover { background: #b8941f; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.5); }
       button.primary[disabled] { opacity: 0.5; cursor: not-allowed; }
-      button.secondary { background: transparent; color: #4f46e5; border: 2px solid #4f46e5; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 15px; }
-      .progress { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; margin: 12px 0 0; }
-      .bar { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, #4f46e5); }
-      .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: #555; }
+      button.secondary { background: transparent; color: #d4af37; border: 2px solid #d4af37; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 15px; transition: all 0.2s ease; }
+      button.secondary:hover { background: rgba(212, 175, 55, 0.1); }
+      .progress { height: 10px; background: rgba(212, 175, 55, 0.1); border-radius: 999px; overflow: hidden; margin: 12px 0 0; }
+      .bar { height: 100%; width: 0%; background: linear-gradient(90deg, #d4af37, #b8941f); box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+      .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: #999999; }
       .result { text-align: center; }
-      .result h2 { font-size: 24px; margin-bottom: 8px; }
-      .result p { color: #555; }
-      a.link { color: #4f46e5; text-decoration: none; }
+      .result h2 { font-size: 24px; margin-bottom: 8px; color: #d4af37; }
+      .result p { color: #cccccc; }
+      a.link { color: #d4af37; text-decoration: none; transition: color 0.2s ease; }
+      a.link:hover { color: #b8941f; }
     </style>
 </head>
 <body>
