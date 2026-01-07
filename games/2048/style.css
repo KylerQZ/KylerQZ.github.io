@@ -161,6 +161,24 @@ h1 {
 .tile-2048 { background: #675210; color: #ffffff; font-size: 1.5rem; box-shadow: 0 0 30px rgba(212, 175, 55, 0.8); }
 .tile-super { background: #000000; color: #d4af37; font-size: 1.2rem; box-shadow: 0 0 30px rgba(212, 175, 55, 1); }
 
+/* Tile positioning - 4x4 grid */
+.tile-position-1-1 { top: 0; left: 0; }
+.tile-position-1-2 { top: 0; left: calc(25% + 11.25px); }
+.tile-position-1-3 { top: 0; left: calc(50% + 22.5px); }
+.tile-position-1-4 { top: 0; left: calc(75% + 33.75px); }
+.tile-position-2-1 { top: calc(25% + 11.25px); left: 0; }
+.tile-position-2-2 { top: calc(25% + 11.25px); left: calc(25% + 11.25px); }
+.tile-position-2-3 { top: calc(25% + 11.25px); left: calc(50% + 22.5px); }
+.tile-position-2-4 { top: calc(25% + 11.25px); left: calc(75% + 33.75px); }
+.tile-position-3-1 { top: calc(50% + 22.5px); left: 0; }
+.tile-position-3-2 { top: calc(50% + 22.5px); left: calc(25% + 11.25px); }
+.tile-position-3-3 { top: calc(50% + 22.5px); left: calc(50% + 22.5px); }
+.tile-position-3-4 { top: calc(50% + 22.5px); left: calc(75% + 33.75px); }
+.tile-position-4-1 { top: calc(75% + 33.75px); left: 0; }
+.tile-position-4-2 { top: calc(75% + 33.75px); left: calc(25% + 11.25px); }
+.tile-position-4-3 { top: calc(75% + 33.75px); left: calc(50% + 22.5px); }
+.tile-position-4-4 { top: calc(75% + 33.75px); left: calc(75% + 33.75px); }
+
 .tile-new {
   animation: appear 0.2s ease;
 }
