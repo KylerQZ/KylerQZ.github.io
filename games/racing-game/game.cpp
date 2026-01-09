@@ -5,14 +5,16 @@
 #include <cstdio>
 
 // Car physics constants
-const float MAX_SPEED = 150.0f;
-const float ACCELERATION = 40.0f;
-const float DECELERATION = 20.0f;
-const float BRAKE_FORCE = 50.0f;
+// Speed is in units/s, where 1 unit/s ≈ 3.6 km/h
+const float MAX_SPEED_KMH = 200.0f; // Maximum speed in km/h
+const float MAX_SPEED = MAX_SPEED_KMH / 3.6f; // Convert to units/s (~55.56 units/s)
+const float ACCELERATION = 25.0f;
+const float DECELERATION = 15.0f;
+const float BRAKE_FORCE = 35.0f;
 const float TURN_SPEED = 2.5f;
 const float FRICTION = 0.95f;
 const float DRIFT_FACTOR = 0.8f;
-const float DRIFT_THRESHOLD = 100.0f; // Speed at which drifting starts
+const float DRIFT_THRESHOLD = 100.0f / 3.6f; // ~27.78 units/s (100 km/h)
 
 // Car state
 struct Car {
