@@ -6,14 +6,14 @@
 
 // Car physics constants
 // Speed scaling: 1 km/h = 20 internal units for faster gameplay feel
-const float SPEED_SCALE = 10.0f; // 1 km/h = 20 units
-const float MAX_SPEED_KMH = 180.0f; // Maximum speed in km/h
+const float SPEED_SCALE = 20.0f; // 1 km/h = 20 units
+const float MAX_SPEED_KMH = 200.0f; // Maximum speed in km/h
 const float MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 4000 units
-const float ACCELERATION = 600.0f; // Scaled acceleration
+const float ACCELERATION = 800.0f; // Scaled acceleration
 const float DECELERATION = 300.0f; // Scaled deceleration
 const float BRAKE_FORCE = 600.0f; // Scaled brake force
 const float TURN_SPEED = 2.5f;
-const float FRICTION = 0.92f; // Lower friction to slow down faster
+const float FRICTION = 0.98f;
 const float DRIFT_FACTOR = 0.8f;
 const float DRIFT_THRESHOLD = 100.0f * SPEED_SCALE; // 100 km/h = 2000 units
 
@@ -55,7 +55,7 @@ GameState gameState;
 
 // Physics update
 void updateCarPhysics(Car& car, float dt) {
-    // Input handling - support both WASD and arrow keys
+    // Input handling - WASD and Arrow keys
     bool accelerate = gameState.keys['W'] || gameState.keys['w'] || gameState.keys[38]; // W or Up Arrow
     bool brake = gameState.keys['S'] || gameState.keys['s'] || gameState.keys[40]; // S or Down Arrow
     bool turnLeft = gameState.keys['A'] || gameState.keys['a'] || gameState.keys[37]; // A or Left Arrow
@@ -193,12 +193,12 @@ void renderCar(const Car& car) {
     glTranslatef(car.x, car.y, car.z);
     glRotatef(car.rotation * 180.0f / M_PI, 0, 1, 0);
     
-    // Main car body - sleek white sedan/sports car
-    glColor3f(0.95f, 0.95f, 0.95f); // Pearl white
+    // Main car body - sleek sports car shape
+    glColor3f(0.8f, 0.1f, 0.1f); // Metallic red
     glBegin(GL_QUADS);
     
-    // Lower body - lower profile for sedan look
-    float bodyHeight = car.height * 0.35f;
+    // Lower body
+    float bodyHeight = car.height * 0.4f;
     glVertex3f(-car.width/2, 0, car.length/2);
     glVertex3f(car.width/2, 0, car.length/2);
     glVertex3f(car.width/2, bodyHeight, car.length/2);
@@ -220,13 +220,13 @@ void renderCar(const Car& car) {
     glVertex3f(car.width/2, 0, car.length/2);
     glEnd();
     
-    // Cabin/roof - lower and sleeker for sedan profile
-    glColor3f(0.9f, 0.9f, 0.9f); // Slightly darker white
+    // Cabin/roof - smaller and set back
+    glColor3f(0.7f, 0.1f, 0.1f);
     glBegin(GL_QUADS);
-    float cabinWidth = car.width * 0.85f;
-    float cabinStart = car.length * 0.15f;
-    float cabinEnd = -car.length * 0.15f;
-    float cabinHeight = car.height * 0.75f; // Lower roof for sedan
+    float cabinWidth = car.width * 0.8f;
+    float cabinStart = car.length * 0.1f;
+    float cabinEnd = -car.length * 0.2f;
+    float cabinHeight = car.height;
     
     glVertex3f(-cabinWidth/2, bodyHeight, cabinStart);
     glVertex3f(cabinWidth/2, bodyHeight, cabinStart);

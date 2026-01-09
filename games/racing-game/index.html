@@ -191,12 +191,12 @@
         const keys = {};
         // Speed scaling: 1 km/h = 1 internal unit (scaled down from C++ for JS performance)
         const SPEED_SCALE = 1; // 1 km/h = 1 unit in JS
-        const MAX_SPEED_KMH = 180; // Maximum speed in km/h
-        const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 180 units
-        const ACCELERATION = 4; // Reduced acceleration for better control
+        const MAX_SPEED_KMH = 200; // Maximum speed in km/h
+        const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 200 units
+        const ACCELERATION = 5; // Much faster acceleration
         const TURN_SPEED = 0.05;
-        const FRICTION = 0.92; // Lower friction to slow down faster
-        const WORLD_SIZE = 1000; // Larger map
+        const FRICTION = 0.98;
+        const WORLD_SIZE = 2000; // Larger map
         const BOUNCE_THRESHOLD = 80; // Speed threshold for bounce
         const DRIFT_THRESHOLD = 100; // 100 km/h
         
@@ -243,7 +243,7 @@
         
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
-            // Support arrow keys
+            // Also handle arrow keys
             if (e.key === 'ArrowUp') keys['w'] = true;
             if (e.key === 'ArrowDown') keys['s'] = true;
             if (e.key === 'ArrowLeft') keys['a'] = true;
@@ -252,7 +252,7 @@
         
         window.addEventListener('keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
-            // Support arrow keys
+            // Also handle arrow keys
             if (e.key === 'ArrowUp') keys['w'] = false;
             if (e.key === 'ArrowDown') keys['s'] = false;
             if (e.key === 'ArrowLeft') keys['a'] = false;
@@ -342,17 +342,17 @@
             ctx.translate(car.x - cameraX, car.y - cameraY);
             ctx.rotate(car.rotation);
             
-            // Main body - pearl white sedan
-            ctx.fillStyle = '#f2f2f2';
-            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.55);
+            // Main body - metallic red
+            ctx.fillStyle = '#cc1a1a';
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.6);
             
-            // Cabin/roof - slightly darker white, lower profile
-            ctx.fillStyle = '#e6e6e6';
-            ctx.fillRect(-car.width * 0.42, -car.height * 0.28, car.width * 0.84, car.height * 0.35);
+            // Cabin/roof - darker red
+            ctx.fillStyle = '#991515';
+            ctx.fillRect(-car.width * 0.4, -car.height * 0.3, car.width * 0.8, car.height * 0.4);
             
-            // Windshield - dark tinted
+            // Windshield - dark blue
             ctx.fillStyle = '#1a1a33';
-            ctx.fillRect(-car.width * 0.38, -car.height * 0.24, car.width * 0.76, car.height * 0.12);
+            ctx.fillRect(-car.width * 0.35, -car.height * 0.25, car.width * 0.7, car.height * 0.15);
             
             // Wheels - black
             ctx.fillStyle = '#1a1a1a';
