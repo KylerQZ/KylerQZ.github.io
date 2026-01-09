@@ -190,8 +190,8 @@
         
         const keys = {};
         // Speed scaling: 1 km/h = 1 internal unit (scaled down from C++ for JS performance)
-        const SPEED_SCALE = 1; // 1 km/h = 1 unit in JS
-        const MAX_SPEED_KMH = 200; // Maximum speed in km/h
+        const SPEED_SCALE = 4; // 1 km/h = 1 unit in JS
+        const MAX_SPEED_KMH = 180; // Maximum speed in km/h
         const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 200 units
         const ACCELERATION = 1.0; // Much slower acceleration
         const TURN_SPEED = 0.05;
