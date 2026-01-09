@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #000000 100%);
+            font-family: 'Arial', sans-serif;
+            color: #d4af37;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        #canvas {
+            border: 3px solid #d4af37;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+            border-radius: 8px;
+            background: #000;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(26, 26, 26, 0.9);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 200px;
+        }
+        
+        #ui h3 {
+            margin: 0 0 10px 0;
+            color: #d4af37;
+            font-size: 18px;
+        }
+        
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            color: #cccccc;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #d4af37;
+        }
+        
+        .stat-value {
+            color: #ffffff;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 26, 0.9);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        #controls h4 {
+            margin: 0 0 10px 0;
+            color: #d4af37;
+        }
+        
+        #controls ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #cccccc;
+        }
+        
+        #controls li {
+            margin: 5px 0;
+        }
+        
+        .key {
+            background: #d4af37;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        #backButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #d4af37;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+        
+        #backButton:hover {
+            background: #b8941f;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(212, 175, 55, 0.5);
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 26, 0.95);
+            border: 2px solid #d4af37;
+            border-radius: 12px;
+            padding: 30px 50px;
+            text-align: center;
+            font-size: 20px;
+            color: #d4af37;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading Racing Game...</div>
+    
+    <button id="backButton" onclick="window.location.href='../../games.html'">🏠 Back to Games</button>
+    
+    <div id="ui">
+        <h3>🏎️ Car Stats</h3>
+        <div class="stat">
+            <span class="stat-label">Speed:</span>
+            <span class="stat-value" id="speed">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Position:</span>
+            <span class="stat-value" id="position">0, 0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Rotation:</span>
+            <span class="stat-value" id="rotation">0°</span>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <h4>⌨️ Controls</h4>
+        <ul>
+            <li><span class="key">W</span> - Accelerate</li>
+            <li><span class="key">S</span> - Brake/Reverse</li>
+            <li><span class="key">A</span> - Turn Left</li>
+            <li><span class="key">D</span> - Turn Right</li>
+        </ul>
+    </div>
+    
+    <div id="gameContainer">
+        <canvas id="canvas" width="1200" height="800"></canvas>
+    </div>
+    
+    <script>
+        // This will be replaced with the compiled WebAssembly module
+        // For now, this is a placeholder showing how the integration works
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Temporary JavaScript version for testing before WASM compilation
+        let car = {
+            x: 600,
+            y: 400,
+            rotation: 0,
+            speed: 0,
+            width: 40,
+            height: 80
+        };
+        
+        const keys = {};
+        const MAX_SPEED = 5;
+        const ACCELERATION = 0.2;
+        const TURN_SPEED = 0.05;
+        const FRICTION = 0.95;
+        
+        // Particle system for smoke
+        const particles = [];
+        const MAX_PARTICLES = 100;
+        
+        class Particle {
+            constructor(x, y) {
+                this.x = x + (Math.random() - 0.5) * 10;
+                this.y = y + (Math.random() - 0.5) * 10;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.life = 1.0;
+                this.size = 5 + Math.random() * 10;
+                this.alpha = 0.6;
+            }
+            
+            update(dt) {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= dt * 0.5;
+                this.alpha = this.life * 0.6;
+                this.size += dt * 10;
+            }
+            
+            draw(ctx) {
+                if (this.life > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    const gray = Math.floor(128 + this.life * 50);
+                    ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+        
+        // Generate rocky terrain
+        const rocks = [];
+        for (let i = 0; i < 200; i++) {
+            rocks.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: 5 + Math.random() * 15,
+                color: `rgb(${70 + Math.random() * 20}, ${60 + Math.random() * 20}, ${50 + Math.random() * 20})`
+            });
+        }
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        function updateCar() {
+            // Acceleration
+            if (keys['w']) {
+                car.speed += ACCELERATION;
+            } else if (keys['s']) {
+                car.speed -= ACCELERATION;
+            }
+            
+            // Clamp speed
+            car.speed = Math.max(-MAX_SPEED * 0.5, Math.min(MAX_SPEED, car.speed));
+            
+            // Steering
+            if (Math.abs(car.speed) > 0.1) {
+                if (keys['a']) {
+                    car.rotation -= TURN_SPEED * (car.speed / MAX_SPEED);
+                }
+                if (keys['d']) {
+                    car.rotation += TURN_SPEED * (car.speed / MAX_SPEED);
+                }
+            }
+            
+            // Apply friction
+            car.speed *= FRICTION;
+            
+            // Update position
+            car.x += Math.sin(car.rotation) * car.speed;
+            car.y -= Math.cos(car.rotation) * car.speed;
+            
+            // Wrap around screen
+            if (car.x < 0) car.x = canvas.width;
+            if (car.x > canvas.width) car.x = 0;
+            if (car.y < 0) car.y = canvas.height;
+            if (car.y > canvas.height) car.y = 0;
+            
+            // Update UI
+            document.getElementById('speed').textContent = Math.abs(car.speed * 20).toFixed(1) + ' km/h';
+            document.getElementById('position').textContent = `${car.x.toFixed(0)}, ${car.y.toFixed(0)}`;
+            document.getElementById('rotation').textContent = (car.rotation * 180 / Math.PI).toFixed(0) + '°';
+        }
+        
+        function drawCar() {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.rotation);
+            
+            // Car body
+            ctx.fillStyle = '#d4af37';
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+            
+            // Car front indicator
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, 10);
+            
+            // Wheels
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-car.width/2 - 5, -car.height/2 + 10, 5, 15);
+            ctx.fillRect(car.width/2, -car.height/2 + 10, 5, 15);
+            ctx.fillRect(-car.width/2 - 5, car.height/2 - 25, 5, 15);
+            ctx.fillRect(car.width/2, car.height/2 - 25, 5, 15);
+            
+            ctx.restore();
+        }
+        
+        function drawTerrain() {
+            // Base ground - dirt/sand color
+            ctx.fillStyle = '#8B7355';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw rocks
+            rocks.forEach(rock => {
+                ctx.fillStyle = rock.color;
+                ctx.beginPath();
+                const sides = 5 + Math.floor(Math.random() * 3);
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * Math.PI * 2) / sides;
+                    const radius = rock.size * (0.8 + Math.random() * 0.4);
+                    const x = rock.x + Math.cos(angle) * radius;
+                    const y = rock.y + Math.sin(angle) * radius;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+            });
+            
+            // Dirt tracks
+            ctx.strokeStyle = 'rgba(100, 80, 60, 0.5)';
+            ctx.lineWidth = 30;
+            for (let i = 0; i < canvas.width; i += 200) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                for (let y = 0; y < canvas.height; y += 20) {
+                    const offset = Math.sin(y * 0.01) * 20;
+                    ctx.lineTo(i + offset, y);
+                }
+                ctx.stroke();
+            }
+            
+            // Small pebbles
+            ctx.fillStyle = 'rgba(90, 75, 60, 0.6)';
+            for (let i = 0; i < 500; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                ctx.fillRect(x, y, 2, 2);
+            }
+        }
+        
+        function updateParticles(dt) {
+            // Update existing particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(dt);
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Spawn new smoke particles when car is moving
+            if (Math.abs(car.speed) > 0.5) {
+                if (particles.length < MAX_PARTICLES && Math.random() < 0.3) {
+                    // Spawn from rear of car
+                    const rearX = car.x - Math.sin(car.rotation) * car.height * 0.3;
+                    const rearY = car.y - Math.cos(car.rotation) * car.height * 0.3;
+                    particles.push(new Particle(rearX, rearY));
+                }
+            }
+        }
+        
+        function drawParticles() {
+            particles.forEach(p => p.draw(ctx));
+        }
+        
+        function gameLoop() {
+            // Draw terrain
+            drawTerrain();
+            
+            // Update particles
+            updateParticles(0.016);
+            
+            // Draw particles behind car
+            drawParticles();
+            
+            // Update and draw car
+            updateCar();
+            drawCar();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Hide loading screen and start game
+        document.getElementById('loading').style.display = 'none';
+        gameLoop();
+        
+        console.log('🏎️ Racing Game Started!');
+        console.log('Note: This is a JavaScript placeholder. Compile game.cpp to WebAssembly for the full C++ version.');
+    </script>
+</body>
+</html>
