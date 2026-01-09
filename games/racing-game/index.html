@@ -197,7 +197,7 @@
         const SPEED_SCALE = 4; // 1 km/h = 4 units in JS
         const MAX_SPEED_KMH = 180; // Maximum speed in km/h
         const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 720 units
-        const ACCELERATION = 1.0; // Much slower acceleration
+        const ACCELERATION = 4.0; // Scaled to match speed scale (1 km/h/s acceleration)
         const TURN_SPEED = 0.05;
         const FRICTION = 0.95;
         const WORLD_SIZE = 5000; // Larger map
