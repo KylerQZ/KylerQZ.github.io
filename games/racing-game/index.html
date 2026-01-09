@@ -159,10 +159,10 @@
     <div id="controls">
         <h4>⌨️ Controls</h4>
         <ul>
-            <li><span class="key">W</span> - Accelerate</li>
-            <li><span class="key">S</span> - Brake/Reverse</li>
-            <li><span class="key">A</span> - Turn Left</li>
-            <li><span class="key">D</span> - Turn Right</li>
+            <li><span class="key">W</span> / <span class="key">↑</span> - Accelerate</li>
+            <li><span class="key">S</span> / <span class="key">↓</span> - Brake/Reverse</li>
+            <li><span class="key">A</span> / <span class="key">←</span> - Turn Left</li>
+            <li><span class="key">D</span> / <span class="key">→</span> - Turn Right</li>
             <li><span class="key">E</span> - Drift Mode (Hold)</li>
         </ul>
     </div>
@@ -243,10 +243,20 @@
         
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
+            // Support arrow keys
+            if (e.key === 'ArrowUp') keys['w'] = true;
+            if (e.key === 'ArrowDown') keys['s'] = true;
+            if (e.key === 'ArrowLeft') keys['a'] = true;
+            if (e.key === 'ArrowRight') keys['d'] = true;
         });
         
         window.addEventListener('keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
+            // Support arrow keys
+            if (e.key === 'ArrowUp') keys['w'] = false;
+            if (e.key === 'ArrowDown') keys['s'] = false;
+            if (e.key === 'ArrowLeft') keys['a'] = false;
+            if (e.key === 'ArrowRight') keys['d'] = false;
         });
         
         function updateCar() {
@@ -290,12 +300,8 @@
                 }
             }
             
-            // Apply friction - reduce by 60% when drifting (E key pressed)
-            let currentFriction = FRICTION;
-            if (keys['e']) {
-                currentFriction = 1.0 - ((1.0 - FRICTION) * 0.4); // 60% less friction loss
-            }
-            car.speed *= currentFriction;
+            // Apply friction
+            car.speed *= FRICTION;
             
             // Update position
             car.x += Math.sin(car.rotation) * car.speed;

@@ -55,11 +55,11 @@ GameState gameState;
 
 // Physics update
 void updateCarPhysics(Car& car, float dt) {
-    // Input handling
-    bool accelerate = gameState.keys['W'] || gameState.keys['w'];
-    bool brake = gameState.keys['S'] || gameState.keys['s'];
-    bool turnLeft = gameState.keys['A'] || gameState.keys['a'];
-    bool turnRight = gameState.keys['D'] || gameState.keys['d'];
+    // Input handling - support both WASD and arrow keys
+    bool accelerate = gameState.keys['W'] || gameState.keys['w'] || gameState.keys[38]; // W or Up Arrow
+    bool brake = gameState.keys['S'] || gameState.keys['s'] || gameState.keys[40]; // S or Down Arrow
+    bool turnLeft = gameState.keys['A'] || gameState.keys['a'] || gameState.keys[37]; // A or Left Arrow
+    bool turnRight = gameState.keys['D'] || gameState.keys['d'] || gameState.keys[39]; // D or Right Arrow
     bool driftKey = gameState.keys['E'] || gameState.keys['e']; // Manual drift control
     
     // Acceleration/Braking
@@ -120,12 +120,8 @@ void updateCarPhysics(Car& car, float dt) {
         car.steerAngle = 0;
     }
     
-    // Apply friction - reduce by 60% when drifting (E key pressed)
-    float currentFriction = FRICTION;
-    if (driftKey) {
-        currentFriction = 1.0f - ((1.0f - FRICTION) * 0.4f); // 60% less friction loss
-    }
-    car.speed *= currentFriction;
+    // Apply friction
+    car.speed *= FRICTION;
     
     // Update velocity based on rotation and speed
     car.vx = sin(car.rotation) * car.speed;
