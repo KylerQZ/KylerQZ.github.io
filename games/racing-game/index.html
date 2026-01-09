@@ -188,12 +188,13 @@
         };
         
         const keys = {};
-        const MAX_SPEED = 5;
+        const MAX_SPEED = 7.5; // 150 units scaled down
         const ACCELERATION = 0.3;
         const TURN_SPEED = 0.05;
         const FRICTION = 0.95;
         const WORLD_SIZE = 1000; // Larger map
         const BOUNCE_THRESHOLD = 3; // Speed threshold for bounce (scaled for JS)
+        const DRIFT_THRESHOLD = 5; // Speed at which drifting starts (100 units scaled)
         
         // Particle system for smoke
         const particles = [];
@@ -255,13 +256,32 @@
             // Clamp speed
             car.speed = Math.max(-MAX_SPEED * 0.5, Math.min(MAX_SPEED, car.speed));
             
-            // Steering
+            // Steering with drift
             if (Math.abs(car.speed) > 0.1) {
+                const turnFactor = car.speed / MAX_SPEED;
+                const isDrifting = Math.abs(car.speed) > DRIFT_THRESHOLD;
+                const driftMultiplier = isDrifting ? 1.5 : 1.0;
+                
+                let steerInput = 0;
                 if (keys['a']) {
-                    car.rotation -= TURN_SPEED * (car.speed / MAX_SPEED);
+                    steerInput = -TURN_SPEED * turnFactor * driftMultiplier;
+                    car.rotation += steerInput;
                 }
                 if (keys['d']) {
-                    car.rotation += TURN_SPEED * (car.speed / MAX_SPEED);
+                    steerInput = TURN_SPEED * turnFactor * driftMultiplier;
+                    car.rotation += steerInput;
+                }
+                
+                // Drift/slide effect at high speed
+                if (isDrifting && Math.abs(steerInput) > 0.001) {
+                    const driftAmount = Math.min((Math.abs(car.speed) - DRIFT_THRESHOLD) / DRIFT_THRESHOLD, 1.0);
+                    
+                    // Add lateral slide perpendicular to car direction
+                    const slideX = Math.cos(car.rotation) * steerInput * driftAmount * 3;
+                    const slideY = -Math.sin(car.rotation) * steerInput * driftAmount * 3;
+                    
+                    car.x += slideX;
+                    car.y += slideY;
                 }
             }
             

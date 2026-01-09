@@ -5,13 +5,14 @@
 #include <cstdio>
 
 // Car physics constants
-const float MAX_SPEED = 100.0f;
+const float MAX_SPEED = 150.0f;
 const float ACCELERATION = 40.0f;
 const float DECELERATION = 20.0f;
 const float BRAKE_FORCE = 50.0f;
 const float TURN_SPEED = 2.5f;
 const float FRICTION = 0.95f;
 const float DRIFT_FACTOR = 0.8f;
+const float DRIFT_THRESHOLD = 100.0f; // Speed at which drifting starts
 
 // Car state
 struct Car {
@@ -78,16 +79,39 @@ void updateCarPhysics(Car& car, float dt) {
     // Steering (only when moving)
     if (fabs(car.speed) > 0.1f) {
         float turnFactor = car.speed / MAX_SPEED; // Turn better at higher speeds
+        
+        // Check if drifting (speed over threshold)
+        bool isDrifting = fabs(car.speed) > DRIFT_THRESHOLD;
+        float driftMultiplier = isDrifting ? 1.5f : 1.0f; // More responsive steering when drifting
+        
         if (turnLeft) {
-            car.steerAngle = TURN_SPEED * turnFactor;
+            car.steerAngle = TURN_SPEED * turnFactor * driftMultiplier;
         } else if (turnRight) {
-            car.steerAngle = -TURN_SPEED * turnFactor;
+            car.steerAngle = -TURN_SPEED * turnFactor * driftMultiplier;
         } else {
             car.steerAngle *= 0.9f; // Return to center
         }
         
         // Apply steering to rotation
         car.rotation += car.steerAngle * dt;
+        
+        // Drift/slide effect when speed is high
+        if (isDrifting && fabs(car.steerAngle) > 0.1f) {
+            // Add lateral drift velocity
+            float driftAmount = (fabs(car.speed) - DRIFT_THRESHOLD) / DRIFT_THRESHOLD;
+            driftAmount = fmin(driftAmount, 1.0f); // Cap at 1.0
+            
+            // Slide perpendicular to car direction
+            float slideX = cos(car.rotation) * car.steerAngle * driftAmount * 5.0f;
+            float slideZ = -sin(car.rotation) * car.steerAngle * driftAmount * 5.0f;
+            
+            car.vx += slideX;
+            car.vz += slideZ;
+            
+            // Apply extra friction during drift
+            car.vx *= 0.98f;
+            car.vz *= 0.98f;
+        }
     } else {
         car.steerAngle = 0;
     }
