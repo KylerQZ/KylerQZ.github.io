@@ -342,17 +342,17 @@
             ctx.translate(car.x - cameraX, car.y - cameraY);
             ctx.rotate(car.rotation);
             
-            // Main body - metallic red
-            ctx.fillStyle = '#cc1a1a';
-            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.6);
+            // Main body - pearl white sedan
+            ctx.fillStyle = '#f2f2f2';
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.55);
             
-            // Cabin/roof - darker red
-            ctx.fillStyle = '#991515';
-            ctx.fillRect(-car.width * 0.4, -car.height * 0.3, car.width * 0.8, car.height * 0.4);
+            // Cabin/roof - slightly darker white, lower profile
+            ctx.fillStyle = '#e6e6e6';
+            ctx.fillRect(-car.width * 0.42, -car.height * 0.28, car.width * 0.84, car.height * 0.35);
             
-            // Windshield - dark blue
+            // Windshield - dark tinted
             ctx.fillStyle = '#1a1a33';
-            ctx.fillRect(-car.width * 0.35, -car.height * 0.25, car.width * 0.7, car.height * 0.15);
+            ctx.fillRect(-car.width * 0.38, -car.height * 0.24, car.width * 0.76, car.height * 0.12);
             
             // Wheels - black
             ctx.fillStyle = '#1a1a1a';

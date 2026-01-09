@@ -193,12 +193,12 @@ void renderCar(const Car& car) {
     glTranslatef(car.x, car.y, car.z);
     glRotatef(car.rotation * 180.0f / M_PI, 0, 1, 0);
     
-    // Main car body - sleek sports car shape
-    glColor3f(0.8f, 0.1f, 0.1f); // Metallic red
+    // Main car body - sleek white sedan/sports car
+    glColor3f(0.95f, 0.95f, 0.95f); // Pearl white
     glBegin(GL_QUADS);
     
-    // Lower body
-    float bodyHeight = car.height * 0.4f;
+    // Lower body - lower profile for sedan look
+    float bodyHeight = car.height * 0.35f;
     glVertex3f(-car.width/2, 0, car.length/2);
     glVertex3f(car.width/2, 0, car.length/2);
     glVertex3f(car.width/2, bodyHeight, car.length/2);
@@ -220,13 +220,13 @@ void renderCar(const Car& car) {
     glVertex3f(car.width/2, 0, car.length/2);
     glEnd();
     
-    // Cabin/roof - smaller and set back
-    glColor3f(0.7f, 0.1f, 0.1f);
+    // Cabin/roof - lower and sleeker for sedan profile
+    glColor3f(0.9f, 0.9f, 0.9f); // Slightly darker white
     glBegin(GL_QUADS);
-    float cabinWidth = car.width * 0.8f;
-    float cabinStart = car.length * 0.1f;
-    float cabinEnd = -car.length * 0.2f;
-    float cabinHeight = car.height;
+    float cabinWidth = car.width * 0.85f;
+    float cabinStart = car.length * 0.15f;
+    float cabinEnd = -car.length * 0.15f;
+    float cabinHeight = car.height * 0.75f; // Lower roof for sedan
     
     glVertex3f(-cabinWidth/2, bodyHeight, cabinStart);
     glVertex3f(cabinWidth/2, bodyHeight, cabinStart);
