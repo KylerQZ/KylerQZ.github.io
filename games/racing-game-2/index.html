@@ -468,14 +468,19 @@
                     const screenX = x - cameraX;
                     const screenY = y - cameraY;
                     
-                    // Checkerboard pattern
+                    // Checkerboard pattern - lighter colors for better contrast
                     if ((Math.floor(x / tileSize) + Math.floor(y / tileSize)) % 2 === 0) {
-                        ctx.fillStyle = '#2ecc71';
+                        ctx.fillStyle = '#90EE90'; // Light green
                     } else {
-                        ctx.fillStyle = '#27ae60';
+                        ctx.fillStyle = '#7FDD7F'; // Medium green
                     }
                     
                     ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                    
+                    // Add grid lines for better visibility
+                    ctx.strokeStyle = '#6B8E6B';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(screenX, screenY, tileSize, tileSize);
                 }
             }
         }
@@ -488,30 +493,48 @@
             ctx.translate(screenX, screenY);
             ctx.rotate(car.rotation);
             
-            // Car shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.fillRect(-car.width/2 + 5, -car.height/2 + 5, car.width, car.height * 0.6);
+            // Car shadow - more visible
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(-car.width/2 + 8, -car.height/2 + 8, car.width, car.height * 0.6);
             
-            // Car body - sporty red
-            ctx.fillStyle = '#cc1a1a';
+            // Car body - bright red
+            ctx.fillStyle = '#ff3333';
             ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.6);
             
-            // Car roof
+            // Car body outline
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-car.width/2, -car.height/2, car.width, car.height * 0.6);
+            
+            // Car roof - darker red
             ctx.fillStyle = '#990000';
-            ctx.fillRect(-car.width/2 + 5, -car.height/2 + 10, car.width - 10, car.height * 0.3);
+            ctx.fillRect(-car.width/2 + 8, -car.height/2 + 15, car.width - 16, car.height * 0.35);
             
-            // Windows
-            ctx.fillStyle = '#1a1a3a';
-            ctx.fillRect(-car.width/2 + 8, -car.height/2 + 15, car.width - 16, car.height * 0.15);
+            // Windows - bright blue
+            ctx.fillStyle = '#4488ff';
+            ctx.fillRect(-car.width/2 + 12, -car.height/2 + 20, car.width - 24, car.height * 0.2);
             
-            // Wheels
-            ctx.fillStyle = '#1a1a1a';
+            // Headlights - bright white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-car.width/2 + 5, -car.height/2 + 5, 10, 8);
+            ctx.fillRect(car.width/2 - 15, -car.height/2 + 5, 10, 8);
+            
+            // Wheels - black with outline
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 1;
+            
             // Front wheels
-            ctx.fillRect(-car.width/2 - 3, -car.height/2 + 10, 6, 15);
-            ctx.fillRect(car.width/2 - 3, -car.height/2 + 10, 6, 15);
+            ctx.fillRect(-car.width/2 - 5, -car.height/2 + 15, 8, 20);
+            ctx.strokeRect(-car.width/2 - 5, -car.height/2 + 15, 8, 20);
+            ctx.fillRect(car.width/2 - 3, -car.height/2 + 15, 8, 20);
+            ctx.strokeRect(car.width/2 - 3, -car.height/2 + 15, 8, 20);
+            
             // Rear wheels
-            ctx.fillRect(-car.width/2 - 3, car.height/2 - 25, 6, 15);
-            ctx.fillRect(car.width/2 - 3, car.height/2 - 25, 6, 15);
+            ctx.fillRect(-car.width/2 - 5, car.height/2 - 35, 8, 20);
+            ctx.strokeRect(-car.width/2 - 5, car.height/2 - 35, 8, 20);
+            ctx.fillRect(car.width/2 - 3, car.height/2 - 35, 8, 20);
+            ctx.strokeRect(car.width/2 - 3, car.height/2 - 35, 8, 20);
             
             ctx.restore();
         }
