@@ -422,9 +422,9 @@
             car.pitch = car.vx * 0.01;
             car.roll = -car.vy * 0.01;
             
-            // Update camera to follow car
-            cameraX = car.x - Math.sin(car.rotation) * 150;
-            cameraY = car.y - Math.cos(car.rotation) * 150;
+            // Update camera to keep car centered in screen
+            cameraX = car.x - canvas.width / 2;
+            cameraY = car.y - canvas.height / 2;
             cameraZ = car.z + 100;
             
             // Update UI
