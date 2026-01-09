@@ -104,8 +104,8 @@ A third-person 3D racing game built with C++ and compiled to WebAssembly for bro
 Current physics constants (defined in `game.cpp`):
 
 ```cpp
-MAX_SPEED = 100.0f;        // Maximum forward speed
-ACCELERATION = 30.0f;      // Acceleration rate
+MAX_SPEED = 150.0f;        // Maximum forward speed
+ACCELERATION = 40.0f;      // Acceleration rate
 DECELERATION = 20.0f;      // Natural slowdown
 BRAKE_FORCE = 50.0f;       // Braking power
 TURN_SPEED = 2.5f;         // Steering sensitivity

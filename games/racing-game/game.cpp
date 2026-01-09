@@ -6,9 +6,9 @@
 
 // Car physics constants
 // Speed is in units/s, where 1 unit/s ≈ 3.6 km/h
-const float MAX_SPEED_KMH = 200.0f; // Maximum speed in km/h
-const float MAX_SPEED = MAX_SPEED_KMH / 3.6f; // Convert to units/s (~55.56 units/s)
-const float ACCELERATION = 25.0f;
+const float MAX_SPEED_KMH = 250.0f; // Maximum speed in km/h
+const float MAX_SPEED = MAX_SPEED_KMH / 4f; // Convert to units/s (~55.56 units/s)
+const float ACCELERATION = 30.0f;
 const float DECELERATION = 15.0f;
 const float BRAKE_FORCE = 35.0f;
 const float TURN_SPEED = 2.5f;
@@ -59,6 +59,7 @@ void updateCarPhysics(Car& car, float dt) {
     bool brake = gameState.keys['S'] || gameState.keys['s'];
     bool turnLeft = gameState.keys['A'] || gameState.keys['a'];
     bool turnRight = gameState.keys['D'] || gameState.keys['d'];
+    bool driftKey = gameState.keys['E'] || gameState.keys['e']; // Manual drift control
     
     // Acceleration/Braking
     if (accelerate) {
@@ -82,9 +83,9 @@ void updateCarPhysics(Car& car, float dt) {
     if (fabs(car.speed) > 0.1f) {
         float turnFactor = car.speed / MAX_SPEED; // Turn better at higher speeds
         
-        // Check if drifting (speed over threshold)
-        bool isDrifting = fabs(car.speed) > DRIFT_THRESHOLD;
-        float driftMultiplier = isDrifting ? 1.5f : 1.0f; // More responsive steering when drifting
+        // Manual drift mode - only drift when E is pressed
+        bool isDrifting = driftKey && fabs(car.speed) > DRIFT_THRESHOLD;
+        float driftMultiplier = isDrifting ? 1.8f : 1.0f; // More responsive steering when drifting
         
         if (turnLeft) {
             car.steerAngle = TURN_SPEED * turnFactor * driftMultiplier;
@@ -97,22 +98,22 @@ void updateCarPhysics(Car& car, float dt) {
         // Apply steering to rotation
         car.rotation += car.steerAngle * dt;
         
-        // Drift/slide effect when speed is high
+        // Drift/slide effect when E key is pressed and speed is high
         if (isDrifting && fabs(car.steerAngle) > 0.1f) {
             // Add lateral drift velocity
             float driftAmount = (fabs(car.speed) - DRIFT_THRESHOLD) / DRIFT_THRESHOLD;
             driftAmount = fmin(driftAmount, 1.0f); // Cap at 1.0
             
             // Slide perpendicular to car direction
-            float slideX = cos(car.rotation) * car.steerAngle * driftAmount * 5.0f;
-            float slideZ = -sin(car.rotation) * car.steerAngle * driftAmount * 5.0f;
+            float slideX = cos(car.rotation) * car.steerAngle * driftAmount * 6.0f;
+            float slideZ = -sin(car.rotation) * car.steerAngle * driftAmount * 6.0f;
             
             car.vx += slideX;
             car.vz += slideZ;
             
             // Apply extra friction during drift
-            car.vx *= 0.98f;
-            car.vz *= 0.98f;
+            car.vx *= 0.97f;
+            car.vz *= 0.97f;
         }
     } else {
         car.steerAngle = 0;

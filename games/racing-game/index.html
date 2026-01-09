@@ -25,7 +25,7 @@
         
         #canvas {
             border: 3px solid #d4af37;
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+            box-shadow: 0 0 30px rgba(255, 202, 27, 0.5);
             border-radius: 8px;
             background: #000;
         }
@@ -35,7 +35,7 @@
             top: 20px;
             left: 20px;
             background: rgba(26, 26, 26, 0.9);
-            border: 2px solid rgba(212, 175, 55, 0.5);
+            border: 2px solid rgba(235, 181, 7, 0.5);
             border-radius: 8px;
             padding: 15px;
             min-width: 200px;
@@ -163,6 +163,7 @@
             <li><span class="key">S</span> - Brake/Reverse</li>
             <li><span class="key">A</span> - Turn Left</li>
             <li><span class="key">D</span> - Turn Right</li>
+            <li><span class="key">E</span> - Drift Mode (Hold)</li>
         </ul>
     </div>
     
@@ -258,11 +259,12 @@
             // Clamp speed
             car.speed = Math.max(-MAX_SPEED * 0.5, Math.min(MAX_SPEED, car.speed));
             
-            // Steering with drift
+            // Steering with manual drift control
             if (Math.abs(car.speed) > 0.1) {
                 const turnFactor = car.speed / MAX_SPEED;
-                const isDrifting = Math.abs(car.speed) > DRIFT_THRESHOLD;
-                const driftMultiplier = isDrifting ? 1.5 : 1.0;
+                // Manual drift mode - only drift when E is pressed
+                const isDrifting = keys['e'] && Math.abs(car.speed) > DRIFT_THRESHOLD;
+                const driftMultiplier = isDrifting ? 1.8 : 1.0;
                 
                 let steerInput = 0;
                 if (keys['a']) {
@@ -274,13 +276,13 @@
                     car.rotation += steerInput;
                 }
                 
-                // Drift/slide effect at high speed
+                // Drift/slide effect when E key is pressed and speed is high
                 if (isDrifting && Math.abs(steerInput) > 0.001) {
                     const driftAmount = Math.min((Math.abs(car.speed) - DRIFT_THRESHOLD) / DRIFT_THRESHOLD, 1.0);
                     
                     // Add lateral slide perpendicular to car direction
-                    const slideX = Math.cos(car.rotation) * steerInput * driftAmount * 3;
-                    const slideY = -Math.sin(car.rotation) * steerInput * driftAmount * 3;
+                    const slideX = Math.cos(car.rotation) * steerInput * driftAmount * 4;
+                    const slideY = -Math.sin(car.rotation) * steerInput * driftAmount * 4;
                     
                     car.x += slideX;
                     car.y += slideY;
