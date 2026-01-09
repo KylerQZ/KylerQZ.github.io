@@ -154,6 +154,10 @@
             <span class="stat-label">Rotation:</span>
             <span class="stat-value" id="rotation">0°</span>
         </div>
+        <div class="stat">
+            <span class="stat-label">Drift:</span>
+            <span class="stat-value" id="drift" style="color: #ff6666;">OFF</span>
+        </div>
     </div>
     
     <div id="controls">
@@ -189,16 +193,16 @@
         };
         
         const keys = {};
-        // Speed scaling: 1 km/h = 1 internal unit (scaled down from C++ for JS performance)
-        const SPEED_SCALE = 4; // 1 km/h = 1 unit in JS
+        // Speed scaling: 1 km/h = 4 internal units
+        const SPEED_SCALE = 4; // 1 km/h = 4 units in JS
         const MAX_SPEED_KMH = 180; // Maximum speed in km/h
-        const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 200 units
+        const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 720 units
         const ACCELERATION = 1.0; // Much slower acceleration
         const TURN_SPEED = 0.05;
         const FRICTION = 0.95;
         const WORLD_SIZE = 5000; // Larger map
-        const BOUNCE_THRESHOLD = 80; // Speed threshold for bounce
-        const DRIFT_THRESHOLD = 100; // 100 km/h
+        const BOUNCE_THRESHOLD = 80 * SPEED_SCALE; // Speed threshold for bounce
+        const DRIFT_THRESHOLD = 100 * SPEED_SCALE; // 100 km/h = 400 units
         
         // Particle system for smoke
         const particles = [];
@@ -337,10 +341,21 @@
             cameraY = car.y - canvas.height / 2;
             
             // Update UI
-            const speedKmh = Math.abs(car.speed / SPEED_SCALE); // Convert to km/h
+            const speedKmh = Math.abs(car.speed) / SPEED_SCALE; // Convert to km/h (divide by scale)
             document.getElementById('speed').textContent = speedKmh.toFixed(1) + ' km/h';
             document.getElementById('position').textContent = `${car.x.toFixed(0)}, ${car.y.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation * 180 / Math.PI).toFixed(0) + '°';
+            
+            // Show drift status
+            const isDriftActive = keys['e'] && Math.abs(car.speed) > DRIFT_THRESHOLD;
+            const driftElement = document.getElementById('drift');
+            if (isDriftActive) {
+                driftElement.textContent = 'ON';
+                driftElement.style.color = '#00ff00';
+            } else {
+                driftElement.textContent = 'OFF';
+                driftElement.style.color = '#ff6666';
+            }
         }
         
         function drawCar() {
