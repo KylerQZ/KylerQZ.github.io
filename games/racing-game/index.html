@@ -189,15 +189,15 @@
         };
         
         const keys = {};
-        // Speed conversion: 1 unit/s ≈ 3.6 km/h
+        // Speed: 1 unit = 1 km/h for direct display
         const MAX_SPEED_KMH = 200; // Maximum speed in km/h
-        const MAX_SPEED = MAX_SPEED_KMH / 36; // Convert to scaled units (~5.56)
-        const ACCELERATION = 0.2;
+        const MAX_SPEED = 10; // Internal speed units (scaled for gameplay)
+        const ACCELERATION = 0.35;
         const TURN_SPEED = 0.05;
-        const FRICTION = 0.95;
+        const FRICTION = 0.98;
         const WORLD_SIZE = 1000; // Larger map
-        const BOUNCE_THRESHOLD = 2.5; // Speed threshold for bounce
-        const DRIFT_THRESHOLD = 100 / 36; // ~2.78 units (100 km/h)
+        const BOUNCE_THRESHOLD = 4; // Speed threshold for bounce
+        const DRIFT_THRESHOLD = 5; // Internal units (100 km/h)
         
         // Particle system for smoke
         const particles = [];
@@ -320,7 +320,7 @@
             cameraY = car.y - canvas.height / 2;
             
             // Update UI
-            const speedKmh = Math.abs(car.speed * 36); // Convert back to km/h
+            const speedKmh = Math.abs(car.speed * 20); // Convert to km/h (10 units = 200 km/h)
             document.getElementById('speed').textContent = speedKmh.toFixed(1) + ' km/h';
             document.getElementById('position').textContent = `${car.x.toFixed(0)}, ${car.y.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation * 180 / Math.PI).toFixed(0) + '°';
