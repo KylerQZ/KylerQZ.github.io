@@ -290,8 +290,12 @@
                 }
             }
             
-            // Apply friction
-            car.speed *= FRICTION;
+            // Apply friction - reduce by 60% when drifting (E key pressed)
+            let currentFriction = FRICTION;
+            if (keys['e']) {
+                currentFriction = 1.0 - ((1.0 - FRICTION) * 0.4); // 60% less friction loss
+            }
+            car.speed *= currentFriction;
             
             // Update position
             car.x += Math.sin(car.rotation) * car.speed;

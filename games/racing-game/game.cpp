@@ -120,8 +120,12 @@ void updateCarPhysics(Car& car, float dt) {
         car.steerAngle = 0;
     }
     
-    // Apply friction
-    car.speed *= FRICTION;
+    // Apply friction - reduce by 60% when drifting (E key pressed)
+    float currentFriction = FRICTION;
+    if (driftKey) {
+        currentFriction = 1.0f - ((1.0f - FRICTION) * 0.4f); // 60% less friction loss
+    }
+    car.speed *= currentFriction;
     
     // Update velocity based on rotation and speed
     car.vx = sin(car.rotation) * car.speed;
