@@ -7,9 +7,9 @@
 // Car physics constants
 // Speed scaling: 1 km/h = 20 internal units for faster gameplay feel
 const float SPEED_SCALE = 10.0f; // 1 km/h = 20 units
-const float MAX_SPEED_KMH = 200.0f; // Maximum speed in km/h
+const float MAX_SPEED_KMH = 180.0f; // Maximum speed in km/h
 const float MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 4000 units
-const float ACCELERATION = 800.0f; // Scaled acceleration
+const float ACCELERATION = 600.0f; // Scaled acceleration
 const float DECELERATION = 300.0f; // Scaled deceleration
 const float BRAKE_FORCE = 600.0f; // Scaled brake force
 const float TURN_SPEED = 2.5f;
