@@ -193,10 +193,10 @@
         const SPEED_SCALE = 1; // 1 km/h = 1 unit in JS
         const MAX_SPEED_KMH = 200; // Maximum speed in km/h
         const MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 200 units
-        const ACCELERATION = 5; // Much faster acceleration
+        const ACCELERATION = 2.5; // Reduced for better control
         const TURN_SPEED = 0.05;
-        const FRICTION = 0.98;
-        const WORLD_SIZE = 2000; // Larger map
+        const FRICTION = 0.97;
+        const WORLD_SIZE = 5000; // Larger map
         const BOUNCE_THRESHOLD = 80; // Speed threshold for bounce
         const DRIFT_THRESHOLD = 100; // 100 km/h
         
@@ -242,16 +242,22 @@
         let cameraY = 0;
         
         window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
+            const key = e.key.toLowerCase();
+            keys[key] = true;
             // Also handle arrow keys
             if (e.key === 'ArrowUp') keys['w'] = true;
             if (e.key === 'ArrowDown') keys['s'] = true;
             if (e.key === 'ArrowLeft') keys['a'] = true;
             if (e.key === 'ArrowRight') keys['d'] = true;
+            // Prevent default for arrow keys and space
+            if (e.key.startsWith('Arrow') || e.key === ' ') {
+                e.preventDefault();
+            }
         });
         
         window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
+            const key = e.key.toLowerCase();
+            keys[key] = false;
             // Also handle arrow keys
             if (e.key === 'ArrowUp') keys['w'] = false;
             if (e.key === 'ArrowDown') keys['s'] = false;

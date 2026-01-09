@@ -9,11 +9,11 @@
 const float SPEED_SCALE = 20.0f; // 1 km/h = 20 units
 const float MAX_SPEED_KMH = 200.0f; // Maximum speed in km/h
 const float MAX_SPEED = MAX_SPEED_KMH * SPEED_SCALE; // 4000 units
-const float ACCELERATION = 800.0f; // Scaled acceleration
-const float DECELERATION = 300.0f; // Scaled deceleration
-const float BRAKE_FORCE = 600.0f; // Scaled brake force
+const float ACCELERATION = 400.0f; // Reduced for better control
+const float DECELERATION = 200.0f; // Scaled deceleration
+const float BRAKE_FORCE = 400.0f; // Scaled brake force
 const float TURN_SPEED = 2.5f;
-const float FRICTION = 0.98f;
+const float FRICTION = 0.97f;
 const float DRIFT_FACTOR = 0.8f;
 const float DRIFT_THRESHOLD = 100.0f * SPEED_SCALE; // 100 km/h = 2000 units
 
