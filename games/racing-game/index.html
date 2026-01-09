@@ -313,9 +313,10 @@
             // Apply friction
             car.speed *= FRICTION;
             
-            // Update position
-            car.x += Math.sin(car.rotation) * car.speed;
-            car.y -= Math.cos(car.rotation) * car.speed;
+            // Update position (reduce actual movement by 20% while display shows full speed)
+            const actualMovementSpeed = car.speed * 0.8; // 20% slower actual movement
+            car.x += Math.sin(car.rotation) * actualMovementSpeed;
+            car.y -= Math.cos(car.rotation) * actualMovementSpeed;
             
             // Border collision with bounce
             if (car.x > WORLD_SIZE || car.x < -WORLD_SIZE) {
