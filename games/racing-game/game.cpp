@@ -13,7 +13,7 @@ const float ACCELERATION = 800.0f; // Scaled acceleration
 const float DECELERATION = 300.0f; // Scaled deceleration
 const float BRAKE_FORCE = 600.0f; // Scaled brake force
 const float TURN_SPEED = 2.5f;
-const float FRICTION = 0.98f;
+const float FRICTION = 0.92f; // Lower friction to slow down faster
 const float DRIFT_FACTOR = 0.8f;
 const float DRIFT_THRESHOLD = 100.0f * SPEED_SCALE; // 100 km/h = 2000 units
 
