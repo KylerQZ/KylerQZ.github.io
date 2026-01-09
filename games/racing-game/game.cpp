@@ -6,7 +6,7 @@
 
 // Car physics constants
 const float MAX_SPEED = 100.0f;
-const float ACCELERATION = 30.0f;
+const float ACCELERATION = 40.0f;
 const float DECELERATION = 20.0f;
 const float BRAKE_FORCE = 50.0f;
 const float TURN_SPEED = 2.5f;
@@ -106,12 +106,39 @@ void updateCarPhysics(Car& car, float dt) {
     // Keep car on ground
     car.y = 0;
     
-    // Boundary check (simple wrap-around for now)
-    const float WORLD_SIZE = 200.0f;
-    if (car.x > WORLD_SIZE) car.x = -WORLD_SIZE;
-    if (car.x < -WORLD_SIZE) car.x = WORLD_SIZE;
-    if (car.z > WORLD_SIZE) car.z = -WORLD_SIZE;
-    if (car.z < -WORLD_SIZE) car.z = WORLD_SIZE;
+    // Boundary check with bounce physics
+    const float WORLD_SIZE = 500.0f; // Larger map
+    const float BOUNCE_THRESHOLD = 40.0f;
+    
+    if (car.x > WORLD_SIZE || car.x < -WORLD_SIZE) {
+        if (fabs(car.speed) > BOUNCE_THRESHOLD) {
+            // Bounce at high speed
+            car.vx = -car.vx * 0.6f; // Reverse and reduce velocity
+            car.speed = -car.speed * 0.6f;
+        } else {
+            // Stop at low speed
+            car.speed = 0;
+            car.vx = 0;
+        }
+        // Clamp position
+        if (car.x > WORLD_SIZE) car.x = WORLD_SIZE;
+        if (car.x < -WORLD_SIZE) car.x = -WORLD_SIZE;
+    }
+    
+    if (car.z > WORLD_SIZE || car.z < -WORLD_SIZE) {
+        if (fabs(car.speed) > BOUNCE_THRESHOLD) {
+            // Bounce at high speed
+            car.vz = -car.vz * 0.6f;
+            car.speed = -car.speed * 0.6f;
+        } else {
+            // Stop at low speed
+            car.speed = 0;
+            car.vz = 0;
+        }
+        // Clamp position
+        if (car.z > WORLD_SIZE) car.z = WORLD_SIZE;
+        if (car.z < -WORLD_SIZE) car.z = -WORLD_SIZE;
+    }
 }
 
 // Update third-person camera
@@ -130,54 +157,139 @@ void updateCamera() {
     gameState.cameraAngle = car.rotation;
 }
 
-// Render simple car (placeholder - will be replaced with proper 3D model)
+// Render more realistic car model
 void renderCar(const Car& car) {
     glPushMatrix();
     
     // Position and rotate car
-    glTranslatef(car.x, car.y + car.height * 0.5f, car.z);
+    glTranslatef(car.x, car.y, car.z);
     glRotatef(car.rotation * 180.0f / M_PI, 0, 1, 0);
     
-    // Car body (simple box for now)
-    glColor3f(1.0f, 0.0f, 0.0f); // Red car
+    // Main car body - sleek sports car shape
+    glColor3f(0.8f, 0.1f, 0.1f); // Metallic red
     glBegin(GL_QUADS);
     
-    // Front
+    // Lower body
+    float bodyHeight = car.height * 0.4f;
     glVertex3f(-car.width/2, 0, car.length/2);
     glVertex3f(car.width/2, 0, car.length/2);
-    glVertex3f(car.width/2, car.height, car.length/2);
-    glVertex3f(-car.width/2, car.height, car.length/2);
+    glVertex3f(car.width/2, bodyHeight, car.length/2);
+    glVertex3f(-car.width/2, bodyHeight, car.length/2);
     
-    // Back
     glVertex3f(-car.width/2, 0, -car.length/2);
-    glVertex3f(-car.width/2, car.height, -car.length/2);
-    glVertex3f(car.width/2, car.height, -car.length/2);
+    glVertex3f(-car.width/2, bodyHeight, -car.length/2);
+    glVertex3f(car.width/2, bodyHeight, -car.length/2);
     glVertex3f(car.width/2, 0, -car.length/2);
     
-    // Left
     glVertex3f(-car.width/2, 0, -car.length/2);
     glVertex3f(-car.width/2, 0, car.length/2);
-    glVertex3f(-car.width/2, car.height, car.length/2);
-    glVertex3f(-car.width/2, car.height, -car.length/2);
+    glVertex3f(-car.width/2, bodyHeight, car.length/2);
+    glVertex3f(-car.width/2, bodyHeight, -car.length/2);
     
-    // Right
     glVertex3f(car.width/2, 0, -car.length/2);
-    glVertex3f(car.width/2, car.height, -car.length/2);
-    glVertex3f(car.width/2, car.height, car.length/2);
+    glVertex3f(car.width/2, bodyHeight, -car.length/2);
+    glVertex3f(car.width/2, bodyHeight, car.length/2);
     glVertex3f(car.width/2, 0, car.length/2);
+    glEnd();
     
-    // Top
-    glVertex3f(-car.width/2, car.height, -car.length/2);
-    glVertex3f(-car.width/2, car.height, car.length/2);
-    glVertex3f(car.width/2, car.height, car.length/2);
-    glVertex3f(car.width/2, car.height, -car.length/2);
+    // Cabin/roof - smaller and set back
+    glColor3f(0.7f, 0.1f, 0.1f);
+    glBegin(GL_QUADS);
+    float cabinWidth = car.width * 0.8f;
+    float cabinStart = car.length * 0.1f;
+    float cabinEnd = -car.length * 0.2f;
+    float cabinHeight = car.height;
     
-    // Bottom
-    glVertex3f(-car.width/2, 0, -car.length/2);
-    glVertex3f(car.width/2, 0, -car.length/2);
-    glVertex3f(car.width/2, 0, car.length/2);
-    glVertex3f(-car.width/2, 0, car.length/2);
+    glVertex3f(-cabinWidth/2, bodyHeight, cabinStart);
+    glVertex3f(cabinWidth/2, bodyHeight, cabinStart);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinStart);
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinStart);
     
+    glVertex3f(-cabinWidth/2, bodyHeight, cabinEnd);
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinEnd);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinEnd);
+    glVertex3f(cabinWidth/2, bodyHeight, cabinEnd);
+    
+    glVertex3f(-cabinWidth/2, bodyHeight, cabinEnd);
+    glVertex3f(-cabinWidth/2, bodyHeight, cabinStart);
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinStart);
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinEnd);
+    
+    glVertex3f(cabinWidth/2, bodyHeight, cabinEnd);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinEnd);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinStart);
+    glVertex3f(cabinWidth/2, bodyHeight, cabinStart);
+    
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinEnd);
+    glVertex3f(-cabinWidth/2, cabinHeight, cabinStart);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinStart);
+    glVertex3f(cabinWidth/2, cabinHeight, cabinEnd);
+    glEnd();
+    
+    // Windows - dark blue/black
+    glColor3f(0.1f, 0.1f, 0.2f);
+    glBegin(GL_QUADS);
+    float windowInset = 0.05f;
+    glVertex3f(-cabinWidth/2 + windowInset, bodyHeight + windowInset, cabinStart - windowInset);
+    glVertex3f(cabinWidth/2 - windowInset, bodyHeight + windowInset, cabinStart - windowInset);
+    glVertex3f(cabinWidth/2 - windowInset, cabinHeight - windowInset, cabinStart - windowInset);
+    glVertex3f(-cabinWidth/2 + windowInset, cabinHeight - windowInset, cabinStart - windowInset);
+    glEnd();
+    
+    // Wheels - black
+    glColor3f(0.1f, 0.1f, 0.1f);
+    float wheelRadius = 0.4f;
+    float wheelWidth = 0.3f;
+    float wheelPositions[4][2] = {
+        {car.width/2 + 0.2f, car.length/2 - 0.5f},
+        {car.width/2 + 0.2f, -car.length/2 + 0.5f},
+        {-car.width/2 - 0.2f, car.length/2 - 0.5f},
+        {-car.width/2 - 0.2f, -car.length/2 + 0.5f}
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        glPushMatrix();
+        glTranslatef(wheelPositions[i][0], wheelRadius, wheelPositions[i][1]);
+        glRotatef(90, 0, 0, 1);
+        
+        // Simple wheel cylinder
+        glBegin(GL_QUAD_STRIP);
+        for (int j = 0; j <= 8; j++) {
+            float angle = j * M_PI / 4;
+            glVertex3f(cos(angle) * wheelRadius, -wheelWidth/2, sin(angle) * wheelRadius);
+            glVertex3f(cos(angle) * wheelRadius, wheelWidth/2, sin(angle) * wheelRadius);
+        }
+        glEnd();
+        glPopMatrix();
+    }
+    
+    // Headlights - yellow
+    glColor3f(1.0f, 1.0f, 0.5f);
+    glBegin(GL_QUADS);
+    float lightSize = 0.2f;
+    glVertex3f(-car.width/2 + 0.2f, bodyHeight * 0.5f, car.length/2);
+    glVertex3f(-car.width/2 + 0.2f + lightSize, bodyHeight * 0.5f, car.length/2);
+    glVertex3f(-car.width/2 + 0.2f + lightSize, bodyHeight * 0.5f + lightSize, car.length/2);
+    glVertex3f(-car.width/2 + 0.2f, bodyHeight * 0.5f + lightSize, car.length/2);
+    
+    glVertex3f(car.width/2 - 0.2f - lightSize, bodyHeight * 0.5f, car.length/2);
+    glVertex3f(car.width/2 - 0.2f, bodyHeight * 0.5f, car.length/2);
+    glVertex3f(car.width/2 - 0.2f, bodyHeight * 0.5f + lightSize, car.length/2);
+    glVertex3f(car.width/2 - 0.2f - lightSize, bodyHeight * 0.5f + lightSize, car.length/2);
+    glEnd();
+    
+    // Tail lights - red
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex3f(-car.width/2 + 0.2f, bodyHeight * 0.3f, -car.length/2);
+    glVertex3f(-car.width/2 + 0.2f + lightSize, bodyHeight * 0.3f, -car.length/2);
+    glVertex3f(-car.width/2 + 0.2f + lightSize, bodyHeight * 0.3f + lightSize, -car.length/2);
+    glVertex3f(-car.width/2 + 0.2f, bodyHeight * 0.3f + lightSize, -car.length/2);
+    
+    glVertex3f(car.width/2 - 0.2f - lightSize, bodyHeight * 0.3f, -car.length/2);
+    glVertex3f(car.width/2 - 0.2f, bodyHeight * 0.3f, -car.length/2);
+    glVertex3f(car.width/2 - 0.2f, bodyHeight * 0.3f + lightSize, -car.length/2);
+    glVertex3f(car.width/2 - 0.2f - lightSize, bodyHeight * 0.3f + lightSize, -car.length/2);
     glEnd();
     
     glPopMatrix();
@@ -262,65 +374,84 @@ void renderParticles() {
     glDisable(GL_BLEND);
 }
 
-// Render rocky field terrain
+// Render clean field terrain with borders
 void renderGround() {
-    // Base ground - dirt/sand color
-    glColor3f(0.55f, 0.45f, 0.35f);
+    const float WORLD_SIZE = 500.0f;
+    
+    // Base ground - clean asphalt/concrete color
+    glColor3f(0.35f, 0.35f, 0.35f);
     glBegin(GL_QUADS);
-    glVertex3f(-500, 0, -500);
-    glVertex3f(500, 0, -500);
-    glVertex3f(500, 0, 500);
-    glVertex3f(-500, 0, 500);
+    glVertex3f(-WORLD_SIZE, 0, -WORLD_SIZE);
+    glVertex3f(WORLD_SIZE, 0, -WORLD_SIZE);
+    glVertex3f(WORLD_SIZE, 0, WORLD_SIZE);
+    glVertex3f(-WORLD_SIZE, 0, WORLD_SIZE);
     glEnd();
     
-    // Rocky patches - darker brown/gray rocks scattered
-    srand(12345); // Fixed seed for consistent rock placement
-    for (int i = 0; i < 200; i++) {
-        float x = (rand() % 1000) - 500;
-        float z = (rand() % 1000) - 500;
-        float size = 2.0f + (rand() % 300) / 100.0f;
-        
-        // Rock color variation
-        float r = 0.3f + (rand() % 20) / 100.0f;
-        float g = 0.25f + (rand() % 20) / 100.0f;
-        float b = 0.2f + (rand() % 20) / 100.0f;
-        glColor3f(r, g, b);
-        
-        // Irregular rock shape
-        glBegin(GL_TRIANGLE_FAN);
-        glVertex3f(x, 0.01f, z);
-        int sides = 5 + rand() % 3;
-        for (int j = 0; j <= sides; j++) {
-            float angle = (j * 2.0f * M_PI) / sides;
-            float radius = size * (0.8f + (rand() % 40) / 100.0f);
-            glVertex3f(x + cos(angle) * radius, 0.01f, z + sin(angle) * radius);
-        }
+    // Grid lines for depth perception
+    glColor3f(0.4f, 0.4f, 0.4f);
+    glLineWidth(1.0f);
+    glBegin(GL_LINES);
+    for (int i = -50; i <= 50; i += 5) {
+        // Vertical lines
+        glVertex3f(i * 10, 0.01f, -WORLD_SIZE);
+        glVertex3f(i * 10, 0.01f, WORLD_SIZE);
+        // Horizontal lines
+        glVertex3f(-WORLD_SIZE, 0.01f, i * 10);
+        glVertex3f(WORLD_SIZE, 0.01f, i * 10);
+    }
+    glEnd();
+    
+    // Border walls - red and white barriers
+    float wallHeight = 2.0f;
+    float wallThickness = 1.0f;
+    
+    // North wall
+    for (int i = -50; i < 50; i++) {
+        float x = i * 10;
+        glColor3f((i % 2 == 0) ? 1.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f);
+        glBegin(GL_QUADS);
+        glVertex3f(x, 0, WORLD_SIZE);
+        glVertex3f(x + 10, 0, WORLD_SIZE);
+        glVertex3f(x + 10, wallHeight, WORLD_SIZE);
+        glVertex3f(x, wallHeight, WORLD_SIZE);
         glEnd();
     }
     
-    // Dirt tracks/paths - lighter brown
-    glColor3f(0.45f, 0.35f, 0.25f);
-    for (int i = -50; i <= 50; i += 20) {
-        glBegin(GL_QUAD_STRIP);
-        for (int j = -500; j <= 500; j += 10) {
-            float offset = sin(j * 0.01f) * 3.0f;
-            glVertex3f(i * 10 + offset - 2, 0.005f, j);
-            glVertex3f(i * 10 + offset + 2, 0.005f, j);
-        }
+    // South wall
+    for (int i = -50; i < 50; i++) {
+        float x = i * 10;
+        glColor3f((i % 2 == 0) ? 1.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f);
+        glBegin(GL_QUADS);
+        glVertex3f(x, 0, -WORLD_SIZE);
+        glVertex3f(x, wallHeight, -WORLD_SIZE);
+        glVertex3f(x + 10, wallHeight, -WORLD_SIZE);
+        glVertex3f(x + 10, 0, -WORLD_SIZE);
         glEnd();
     }
     
-    // Small pebbles scattered around
-    glColor3f(0.4f, 0.35f, 0.3f);
-    srand(54321);
-    glPointSize(2.0f);
-    glBegin(GL_POINTS);
-    for (int i = 0; i < 1000; i++) {
-        float x = (rand() % 1000) - 500;
-        float z = (rand() % 1000) - 500;
-        glVertex3f(x, 0.02f, z);
+    // East wall
+    for (int i = -50; i < 50; i++) {
+        float z = i * 10;
+        glColor3f((i % 2 == 0) ? 1.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f);
+        glBegin(GL_QUADS);
+        glVertex3f(WORLD_SIZE, 0, z);
+        glVertex3f(WORLD_SIZE, wallHeight, z);
+        glVertex3f(WORLD_SIZE, wallHeight, z + 10);
+        glVertex3f(WORLD_SIZE, 0, z + 10);
+        glEnd();
     }
-    glEnd();
+    
+    // West wall
+    for (int i = -50; i < 50; i++) {
+        float z = i * 10;
+        glColor3f((i % 2 == 0) ? 1.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f, (i % 2 == 0) ? 0.0f : 0.9f);
+        glBegin(GL_QUADS);
+        glVertex3f(-WORLD_SIZE, 0, z);
+        glVertex3f(-WORLD_SIZE, 0, z + 10);
+        glVertex3f(-WORLD_SIZE, wallHeight, z + 10);
+        glVertex3f(-WORLD_SIZE, wallHeight, z);
+        glEnd();
+    }
 }
 
 // Main render function

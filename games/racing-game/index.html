@@ -189,9 +189,11 @@
         
         const keys = {};
         const MAX_SPEED = 5;
-        const ACCELERATION = 0.2;
+        const ACCELERATION = 0.3;
         const TURN_SPEED = 0.05;
         const FRICTION = 0.95;
+        const WORLD_SIZE = 1000; // Larger map
+        const BOUNCE_THRESHOLD = 3; // Speed threshold for bounce (scaled for JS)
         
         // Particle system for smoke
         const particles = [];
@@ -230,16 +232,9 @@
             }
         }
         
-        // Generate rocky terrain
-        const rocks = [];
-        for (let i = 0; i < 200; i++) {
-            rocks.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                size: 5 + Math.random() * 15,
-                color: `rgb(${70 + Math.random() * 20}, ${60 + Math.random() * 20}, ${50 + Math.random() * 20})`
-            });
-        }
+        // Camera offset for larger world
+        let cameraX = 0;
+        let cameraY = 0;
         
         window.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
@@ -277,11 +272,28 @@
             car.x += Math.sin(car.rotation) * car.speed;
             car.y -= Math.cos(car.rotation) * car.speed;
             
-            // Wrap around screen
-            if (car.x < 0) car.x = canvas.width;
-            if (car.x > canvas.width) car.x = 0;
-            if (car.y < 0) car.y = canvas.height;
-            if (car.y > canvas.height) car.y = 0;
+            // Border collision with bounce
+            if (car.x > WORLD_SIZE || car.x < -WORLD_SIZE) {
+                if (Math.abs(car.speed) > BOUNCE_THRESHOLD) {
+                    car.speed = -car.speed * 0.6;
+                } else {
+                    car.speed = 0;
+                }
+                car.x = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, car.x));
+            }
+            
+            if (car.y > WORLD_SIZE || car.y < -WORLD_SIZE) {
+                if (Math.abs(car.speed) > BOUNCE_THRESHOLD) {
+                    car.speed = -car.speed * 0.6;
+                } else {
+                    car.speed = 0;
+                }
+                car.y = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, car.y));
+            }
+            
+            // Update camera to follow car
+            cameraX = car.x - canvas.width / 2;
+            cameraY = car.y - canvas.height / 2;
             
             // Update UI
             document.getElementById('speed').textContent = Math.abs(car.speed * 20).toFixed(1) + ' km/h';
@@ -291,68 +303,120 @@
         
         function drawCar() {
             ctx.save();
-            ctx.translate(car.x, car.y);
+            ctx.translate(car.x - cameraX, car.y - cameraY);
             ctx.rotate(car.rotation);
             
-            // Car body
-            ctx.fillStyle = '#d4af37';
-            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+            // Main body - metallic red
+            ctx.fillStyle = '#cc1a1a';
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height * 0.6);
             
-            // Car front indicator
+            // Cabin/roof - darker red
+            ctx.fillStyle = '#991515';
+            ctx.fillRect(-car.width * 0.4, -car.height * 0.3, car.width * 0.8, car.height * 0.4);
+            
+            // Windshield - dark blue
+            ctx.fillStyle = '#1a1a33';
+            ctx.fillRect(-car.width * 0.35, -car.height * 0.25, car.width * 0.7, car.height * 0.15);
+            
+            // Wheels - black
+            ctx.fillStyle = '#1a1a1a';
+            const wheelSize = 8;
+            ctx.fillRect(-car.width/2 - wheelSize, -car.height/2 + 10, wheelSize, 15);
+            ctx.fillRect(car.width/2, -car.height/2 + 10, wheelSize, 15);
+            ctx.fillRect(-car.width/2 - wheelSize, car.height/2 - 25, wheelSize, 15);
+            ctx.fillRect(car.width/2, car.height/2 - 25, wheelSize, 15);
+            
+            // Headlights - yellow
+            ctx.fillStyle = '#ffff66';
+            ctx.fillRect(-car.width/2 + 5, -car.height/2, 8, 4);
+            ctx.fillRect(car.width/2 - 13, -car.height/2, 8, 4);
+            
+            // Tail lights - red
             ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-car.width/2, -car.height/2, car.width, 10);
+            ctx.fillRect(-car.width/2 + 5, car.height/2 - 4, 8, 4);
+            ctx.fillRect(car.width/2 - 13, car.height/2 - 4, 8, 4);
             
-            // Wheels
-            ctx.fillStyle = '#333';
-            ctx.fillRect(-car.width/2 - 5, -car.height/2 + 10, 5, 15);
-            ctx.fillRect(car.width/2, -car.height/2 + 10, 5, 15);
-            ctx.fillRect(-car.width/2 - 5, car.height/2 - 25, 5, 15);
-            ctx.fillRect(car.width/2, car.height/2 - 25, 5, 15);
+            // Spoiler
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(-car.width * 0.4, car.height/2 - 8, car.width * 0.8, 3);
             
             ctx.restore();
         }
         
         function drawTerrain() {
-            // Base ground - dirt/sand color
-            ctx.fillStyle = '#8B7355';
+            // Base ground - clean asphalt
+            ctx.fillStyle = '#5a5a5a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw rocks
-            rocks.forEach(rock => {
-                ctx.fillStyle = rock.color;
-                ctx.beginPath();
-                const sides = 5 + Math.floor(Math.random() * 3);
-                for (let i = 0; i <= sides; i++) {
-                    const angle = (i * Math.PI * 2) / sides;
-                    const radius = rock.size * (0.8 + Math.random() * 0.4);
-                    const x = rock.x + Math.cos(angle) * radius;
-                    const y = rock.y + Math.sin(angle) * radius;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.closePath();
-                ctx.fill();
-            });
+            // Grid lines for depth
+            ctx.strokeStyle = '#6a6a6a';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
             
-            // Dirt tracks
-            ctx.strokeStyle = 'rgba(100, 80, 60, 0.5)';
-            ctx.lineWidth = 30;
-            for (let i = 0; i < canvas.width; i += 200) {
+            // Calculate visible grid range
+            const startX = Math.floor(cameraX / gridSize) * gridSize;
+            const startY = Math.floor(cameraY / gridSize) * gridSize;
+            
+            for (let x = startX; x < cameraX + canvas.width; x += gridSize) {
                 ctx.beginPath();
-                ctx.moveTo(i, 0);
-                for (let y = 0; y < canvas.height; y += 20) {
-                    const offset = Math.sin(y * 0.01) * 20;
-                    ctx.lineTo(i + offset, y);
-                }
+                ctx.moveTo(x - cameraX, 0);
+                ctx.lineTo(x - cameraX, canvas.height);
                 ctx.stroke();
             }
             
-            // Small pebbles
-            ctx.fillStyle = 'rgba(90, 75, 60, 0.6)';
-            for (let i = 0; i < 500; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                ctx.fillRect(x, y, 2, 2);
+            for (let y = startY; y < cameraY + canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y - cameraY);
+                ctx.lineTo(canvas.width, y - cameraY);
+                ctx.stroke();
+            }
+            
+            // Draw border walls
+            const wallHeight = 20;
+            
+            // Check if borders are visible
+            if (WORLD_SIZE - cameraX < canvas.width) {
+                // Right wall
+                for (let y = -WORLD_SIZE; y < WORLD_SIZE; y += 100) {
+                    const screenY = y - cameraY;
+                    if (screenY > -100 && screenY < canvas.height + 100) {
+                        ctx.fillStyle = (Math.floor(y / 100) % 2 === 0) ? '#ff0000' : '#ffffff';
+                        ctx.fillRect(WORLD_SIZE - cameraX, screenY, 10, 100);
+                    }
+                }
+            }
+            
+            if (-WORLD_SIZE - cameraX > -10) {
+                // Left wall
+                for (let y = -WORLD_SIZE; y < WORLD_SIZE; y += 100) {
+                    const screenY = y - cameraY;
+                    if (screenY > -100 && screenY < canvas.height + 100) {
+                        ctx.fillStyle = (Math.floor(y / 100) % 2 === 0) ? '#ff0000' : '#ffffff';
+                        ctx.fillRect(-WORLD_SIZE - cameraX, screenY, 10, 100);
+                    }
+                }
+            }
+            
+            if (WORLD_SIZE - cameraY < canvas.height) {
+                // Bottom wall
+                for (let x = -WORLD_SIZE; x < WORLD_SIZE; x += 100) {
+                    const screenX = x - cameraX;
+                    if (screenX > -100 && screenX < canvas.width + 100) {
+                        ctx.fillStyle = (Math.floor(x / 100) % 2 === 0) ? '#ff0000' : '#ffffff';
+                        ctx.fillRect(screenX, WORLD_SIZE - cameraY, 100, 10);
+                    }
+                }
+            }
+            
+            if (-WORLD_SIZE - cameraY > -10) {
+                // Top wall
+                for (let x = -WORLD_SIZE; x < WORLD_SIZE; x += 100) {
+                    const screenX = x - cameraX;
+                    if (screenX > -100 && screenX < canvas.width + 100) {
+                        ctx.fillStyle = (Math.floor(x / 100) % 2 === 0) ? '#ff0000' : '#ffffff';
+                        ctx.fillRect(screenX, -WORLD_SIZE - cameraY, 100, 10);
+                    }
+                }
             }
         }
         
@@ -377,7 +441,12 @@
         }
         
         function drawParticles() {
-            particles.forEach(p => p.draw(ctx));
+            particles.forEach(p => {
+                ctx.save();
+                ctx.translate(-cameraX, -cameraY);
+                p.draw(ctx);
+                ctx.restore();
+            });
         }
         
         function gameLoop() {
