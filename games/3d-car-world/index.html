@@ -221,6 +221,10 @@
         let currentTime = 0;
         let bestScore = localStorage.getItem('bestScore') || 0;
         
+        // Drift hold-time system
+        let turnHoldTime = 0;
+        let lastTurnDirection = 0;
+        
         // Initialize Three.js
         function init() {
             // Create scene
@@ -672,12 +676,27 @@
                 // REVERSED: Left arrow turns right, right arrow turns left
                 const turnAmount = (turnRight ? -1 : 0) + (turnLeft ? 1 : 0);
                 
+                // Track turn hold time
+                if (turnAmount !== 0) {
+                    if (turnAmount === lastTurnDirection) {
+                        turnHoldTime += deltaTime;
+                    } else {
+                        turnHoldTime = deltaTime;
+                        lastTurnDirection = turnAmount;
+                    }
+                } else {
+                    turnHoldTime = 0;
+                    lastTurnDirection = 0;
+                }
+                
                 if (turnAmount !== 0) {
                     const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
                     const baseTurn = turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
                     
-                    // Check if drifting (speed above 60 and turning)
-                    const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
+                    // Check if drifting (speed above 60 AND held turn for 4 seconds)
+                    const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
+                                      turnHoldTime >= 4.0 && 
+                                      Math.abs(turnAmount) > 0.5;
                     
                     if (isDrifting) {
                         // Calculate drift angle based on speed and turn (reduced)
@@ -705,6 +724,8 @@
                 }
             } else {
                 carPhysics.targetDriftAngle = 0;
+                turnHoldTime = 0;
+                lastTurnDirection = 0;
             }
             
             // Smooth drift angle transition
