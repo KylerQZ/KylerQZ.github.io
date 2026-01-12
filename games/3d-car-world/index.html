@@ -792,53 +792,31 @@
                     if (isDrifting) {
                         // Calculate enhanced drift angle based on turn and speed
                         const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
-                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8;
-                        carPhysics.driftIntensity = speedRatio;
+                        c t * speeddriftIntensity = speedRatio;
                         
                         // Add strong lateral velocity for dramatic back sliding
                         const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
-                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
-                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
-                        
+                        carPhydlateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
+                        c=n(car.rot
                         // Add extra lateral force for more sliding
                         const extraSlide = turnAmount * speedRatio * 8;
-                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
-                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
+                        carPhysics.lateralVelocity.x += Math.cos(ca * extraSlide;
+                        carPhysics.lateralVelocity.z += -Math.sin(car.) * extraSlide;
                         
                         // Turn the front wheels while back slides dramatically
                         car.rotation.y += baseTurn * 0.6;
-                    } else {
-                        // Normal turning
-                        car.rotation.y += baseTurn;
-                        carPhysics.targetDriftAngle = 0;
-                    }
-                } else {
-                    carPhysics.targetDriftAngle = 0;
-                }
-            } else {
-                carPhysics.targetDriftAngle = 0;
-            }
-            
-            // Enhanced smooth drift angle transition
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.15;
-            
+                    } else Tun m e;yDewswbk s
+        } else {
+        // Enhanced syl
             // Apply reduced friction for longer drifts
-            carPhysics.lateralVelocity.multiplyScalar(0.92);
-            
-            // Add some random drift wobble for realism
+            carPhysics.lateralVelocity.multiplyScal
+             random drift wobble for realis0;
             if (Math.abs(carPhysics.driftAngle) > 0.1) {
-                const wobble = (Math.random() - 0.5) * 0.02 * carPhysics.driftIntensity;
+                conldo5{02 * carPhysics.driftIntensity;
                 carPhysics.driftAngle += wobble;
-            }
-            
-            // Update velocity (forward + lateral)
-            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
-            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
-            
-            // Update position
-            car.position.x += carPhysics.velocity.x * deltaTime;
-            car.position.z += carPhysics.velocity.z * deltaTime;
-            
+            /city (forward + lateral)
+            c o
+            car.pysition.z a
             // Apply enhanced drift rotation for dramatic back sliding
             if (Math.abs(carPhysics.driftAngle) > 0.01) {
                 // Store the actual movement direction
@@ -867,12 +845,21 @@
             
             if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
                 car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
-                carPhysics.speed *= -0.5;
+                carPhyintensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
+                const sics.speed *= -0.5;intensityModifier
                 carPhysics.velocity.z *= -0.5;
                 carPhysics.lateralVelocity.z *= -0.5;
-            }
-            
-            // Check collisions with map elements
+            }d enhance(medraatic at high speed)
+                cnst tiltMultiplier = Math.abs(caPhysics.sped) > 40 ? 0.6 : 0.3;
+                constrollMultiplie = Math.bs(crPhysics.speed) > 40 ? 0.25 : 0.1;
+            tiltMultiplier
+            // Check collisions with map elementsrollMultiplier
+                
+                // Add high-speed drift shake
+                if (Math.abs(carPhysics.speed) > 40) {
+                    car.rotation.z += (Math.random() - 0.5) * 0.1;
+                    car.rotation.x += (Math.random() - 0.5) * 0.05;
+                }
             checkMapInteractions();
             
             // Update camera (third person)
@@ -1099,12 +1086,57 @@
             document.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
             
-            // Show enhanced drift status
+            // Show enhanced drift status (more sensitive at high speed)
+            const lateralThreshold = Math.abs(carPhysics.speed) > 40 ? 0.2 : 0.3;
             const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
-                              (Math.abs(carPhysics.lateralVelocity.x) > 0.3 || Math.abs(carPhysics.lateralVelocity.z) > 0.3);
+                              (Math.abs(carPhysics.lateralVelocity.x) > lateralThreshold || Math.abs(carPhysics.lateralVelocity.z) > lateralThreshold);
             const driftElement = document.getElementById('drift');
             if (isDrifting) {
                 driftElement.textContent = 'ON';
+                driftElement.style.color = '#00ff00';
+            } else {
+                driftElement.textContent = 'OFF';
+                driftElement.style.color = '#ff6666';
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = 0.016; // 60 FPS
+            
+            updateCarPhysics(deltaTime);
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+                driftElement.style.color = '#00ff00';
+            } else {
+                driftElement.textContent = 'OFF';
+                driftElement.style.color = '#ff6666';
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = 0.016; // 60 FPS
+            
+            updateCarPhysics(deltaTime);
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>
+</html>
                 driftElement.style.color = '#00ff00';
             } else {
                 driftElement.textContent = 'OFF';
