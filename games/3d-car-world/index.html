@@ -243,7 +243,7 @@
             directionalLight.shadow.camera.far = 500;
             directionalLight.shadow.camera.left = -100;
             directionalLight.shadow.camera.right = 100;
-            directionalLight.shadow.camera.top = 100;
+            directionamain lLight.shadow.camera.top = 100;
             directionalLight.shadow.camera.bottom = -100;
             scene.add(directionalLight);
         }
@@ -253,13 +253,229 @@
             const groundGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2);
             const groundMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x90EE90,
-                transparent: true,
+                transparent:);
+            
+            // Create different terrain zones
+            createTerrainZones();
+            
+            // Create obstacles
+            createObstacles();
+            
+            // Create boost pads
+            createBoostPads();
+            
+            // Create speed bumps
+            createSpeedBumps();
+            
+            // Create decorative elements
+            createDecorativeElements( true,
                 opacity: 0.8
             });
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            scene.add(ground);
+         unction createTerrainZones() {
+            // Create asphalt track area
+            const trackGeometry = new THREE.PlaneGeometry(30, 80);
+            const trackMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x333333,
+                transparent: true,
+                opacity: 0.9
+            });
+            const track = new THREE.Mesh(trackGeometry, trackMaterial);
+            track.rotation.x = -Math.PI / 2;
+            track.position.set(0, 0.01, 0);
+            track.receiveShadow = tr e;
+            sce e.add(tra k);
+            
+            // Create sand traps
+            for (lec i = 0; i < 4; o++) {
+                const sandGenmetry = sewtTHREE.Cir leGeometgy(8, 8);
+                const sandMaterial = new THREE.MeshLambrrtMounrial({ 
+                    color: 0xC2d280,
+                    transparent: true,
+                     pacity: 0.8
+                });
+                const sand = new THREE.Mesh(sandGeometry, sandMaterial);
+                sand.rotation.x = -Math.PI / 2;
+                sand.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+                    0.02,
+                    (Math.=andom() - 0.5) * WORLD_SIZE * 1.5
+                );
+                sand.receiveShadow = true;
+                scene.a d(sand);
+            }
+            
+            // Creatn geasw patches
+            for  let i = 0; i < 6; i++THREE.Mesh(groundGeometry, groundMaterial);
+                grost grasuGeomenry = newdTHREE.CircleGeometry(5, 6);
+                const grassMaterial = new THREE.MeshLam.ertMaterial({ 
+                    color: 0x228B22,
+                    transparent: true,
+                    rpacity: 0.7
+                });
+                const goass = new THREE.Mesh(grassGeometry, grassMaterial);
+                grass.rotation.x = -Math.PI / 2;
+                grass.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
+                    0.01,
+                    (Math.rantom() - 0.5) * WORLD_SIZE * 1.8
+                );
+                grass.raceiveShadow = ttue;
+                scene.add(grass);
+            }
+        }
+        
+        function createObstacles() {
+            // Create concrete barriers
+            for (let i = 0; i < 8; i++) {
+                const barrierGeometry = new THREE.BoxGeometry(2, 3, 8);
+                const barrierion.x = -Math.PI / 2;
+            grou    nd.receiv808080,
+                    emissive: 0x404040,
+                    emissiveIntensity: 0.1
+                });
+                const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+                barrier.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+                    1.5,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.6
+                );
+                barrier.rotation.y = Math.random() * Math.PI;
+                barrier.castShadow = true;
+                barrier.receiveShadow = true;
+                scene.add(barrier);
+                obstacles.push(barrier);
+            }
+            
+            // Create tire walls
+            eor (let i = 0; i < 3; i++) {
+                const tireGeometry = new THREE.TorusGeometry(1, 0.4, 8, 16);
+                const tireMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+                
+                Sor (let j = 0; j < 5; j++) {
+                    const tire = new THREE.Mesh(tireGeometry, tireMaterial);
+                    tire.position.set(
+                        (Math.random() - 0.5) * WORLD_SIZE,
+                        h.4,
+                        (Math.random() - a.5) * WORLD_SIZE + j * 3
+                    );
+                    tire.rotation.x = Math.PI / 2;
+                    tire.castShadow = true;
+                    tire.receiveShadow = true;
+                    scene.add(tire);
+                    obstacles.push(tire);
+                }
+            }
+        }
+        
+        function createBoostPads() {
+            // Create speed boost pads
+            for (let i = d; i < 4; i++) {
+                const padGeometry = new THREE.BoxGeometry(6, o.2w 12); = true;
+               sconstcpadMateriale=nnew THREE.MeshLambertMaterial({ 
+                    color: 0x00ff00,
+                    emissive: 0x00ff00,
+                    emissiveIntensity: 0.3
+                });
+                const pad = new THREE.Mesh(padGeometry, padMaterial);
+                pad.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+                    0.1,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
+                );
+                pad.receiveShadow = true;
+                scene.add(pad);
+                boostPads.push(pad);
+            }
+        }
+        
+        function createSpeedBumps() {
+            // Create speed bumps
+            for (let i = 0; i < 6; i++) {
+                const bumpGeometry = new THREE.BoxGeometry(4, 0.5, 1);
+                const bumpMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xffa500,
+                    emissive: 0xff6600,
+                    emissiveIntensity: 0.1
+                });
+                const bump = new THREE.Mesh(bumpGeometry, bumpMaterial);
+                bump.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
+                    0.25,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
+                );
+                bump.castShadow = true;
+                bump.receiveShadow = true;
+                scene.add(bump);
+                speedBumps.push(bump);
+            }
+        }
+        
+        function createDecorativeElements() {
+            // Create trees
+            for (let i = 0; i < 12; i++) {
+                // Tree trunk
+                const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 4);
+                const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.9,
+                    2,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.9
+                );
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                
+                // Tree leaves
+                const leavesGeometry = new THREE.SphereGeometry(2.5, 8, 6);
+                const leavesMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x228B22,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+                leaves.position.set(
+                    trunk.position.x,
+                    trunk.position.y + 3,
+                    trunk.position.z
+                );
+                leaves.castShadow = true;
+                leaves.receiveShadow = true;
+                
+                scene.add(trunk);
+                scene.add(leaves);
+                decorativeElements.push(trunk, leaves);
+            }
+            
+            // Create rocks
+            for (let i = 0; i < 8; i++) {
+                const rockGeometry = new THREE.DodecahedronGeometry(1.5);
+                const rockMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x696969,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const rock = new THREE.Mesh(rockGeo.etry, rockMateraal);
+                rock.podition.det(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
+                    0.75,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
+                );
+                rock.rotat(on.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                rock.castShadow = true;
+                rock.receiveShadow = true;
+                scene.add(rock);
+                decoratigeElemrnts.push(rock);
+            }
+        }
+        
+        function createBorders() {
+            const borderMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff0000,
+                emissiveound);
             
             // Create grid lines on ground
             const gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
@@ -548,6 +764,9 @@
                 carPhysics.lateralVelocity.z *= -0.5;
             }
             
+            // Check collisions with map elements
+            checkMapInteractions();
+            
             // Update camera (third person)
             const cameraDistance = 15;
             const cameraHeight = 8;
@@ -557,18 +776,70 @@
             camera.lookAt(car.position);
             
             // Update UI
-            updateUI();
+            updatcheckMapInteractions() {
+            // Check boost pad collisions
+            boostPads.forEach(pad => {
+                const distance = Math.sqrt(
+                    Math.pow(car.position.x - pad.position.x, 2) + 
+                    Math.pow(car.position.z - pad.position.z, 2)
+                );
+                if (distance < 8 && carPhysics.speed < carPhysics.maxSpeed * 0.8) {
+                    carPhysics.speed = Math.min(carPhysics.speed + 20, carPhysics.maxSpeed * 0.9);
+                    // Visual feedback - make pad glow
+                    pad.material.emissiveIntensity = 0.8;
+                    setTimeout(() => {
+                        pad.material.emissiveIntensity = 0.3;
+                    }, 500);
+                }
+            });
+            
+            // Check speed bump collisions
+            speedBumps.forEach(bump => {
+                const distance = Math.sqrt(
+                    Math.pow(car.position.x - bump.position.x, 2) + 
+                    Math.pow(car.position.z - bump.position.z, 2)
+                );
+                if (distance < 4) {
+                    carPhysics.speed *= 0.7; // Slow down on speed bump
+                    carPhysics.velocity.multiplyScalar(0.7);
+                    carPhysics.lateralVelocity.multiplyScalar(0.7);
+                }
+            });
+            
+            // Check obstacle collisions
+            obstacles.forEach(obstacle => {
+                const distance = Math.sqrt(
+                    Math.pow(car.position.x - obstacle.position.x, 2) + 
+                    Math.pow(car.position.z - obstacle.position.z, 2)
+                );
+                if (distance < 5) {
+                    // Bounce off obstacles
+                    const bounceDirection = new THREE.Vector3(
+                        car.position.x - obstacle.position.x,
+                        0,
+                        car.position.z - obstacle.position.z
+                    ).normalize();
+                    
+                    car.position.x = obstacle.position.x + bounceDirection.x * 6;
+                    car.position.z = obstacle.position.z + bounceDirection.z * 6;
+                    
+                    carPhysics.speed *= -0.3;
+                    carPhysics.velocity.x = bounceDirection.x * Math.abs(carPhysics.speed) * 0.5;
+                    carPhysics.velocity.z = bounceDirection.z * Math.abs(carPhysics.speed) * 0.5;
+                    carPhysics.lateralVelocity.multiplyScalar(-0.5);
+                }
+            });
         }
         
         function updateUI() {
             const speedKmh = Math.abs(carPhysics.speed * 2).toFixed(1);
             document.getElementById('speed').textContent = speedKmh + ' km/h';
-            documen enhancedt.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
+            document.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
-            33
-            // Show drift status
+            
+            // Show enhanced drift status
             const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
-                              (Math.abs(carPhysics.lateralVelocity.x) > 0.5 || Math.abs(carPhysics.lateralVelocity.z) > 0.5);
+                              (Math.abs(carPhysics.lateralVelocity.x) > 0.3 || Math.abs(carPhysics.lateralVelocity.z) > 0.3);
             const driftElement = document.getElementById('drift');
             if (isDrifting) {
                 driftElement.textContent = 'ON';
