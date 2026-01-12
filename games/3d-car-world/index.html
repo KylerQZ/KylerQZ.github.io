@@ -184,7 +184,7 @@
         };
         
         // World settings
-        const WORLD_SIZE = 100;
+        const WORLD_SIZE = 200;
         const BORDER_HEIGHT = 2;
         const BORDER_WIDTH = 1;
         
@@ -291,9 +291,6 @@
             // Create road network
             createRoadNetwork();
             
-            // Create obstacles
-            createObstacles();
-            
             // Create boost pads
             createBoostPads();
             
@@ -314,7 +311,7 @@
         }
         
         function createEnemyCars() {
-            for (let i = 0; i < 2; i++) {
+            for (let i = 0; i < 4; i++) {
                 const enemyCar = new THREE.Group();
                 
                 // Enemy car body (black)
@@ -410,7 +407,7 @@
         
         function createRoadNetwork() {
             // Main highway (horizontal)
-            const highwayGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, 20);
+            const highwayGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, 30);
             const highwayMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x2a2a2a,
                 transparent: true,
@@ -424,22 +421,13 @@
             roads.push(highway);
             
             // Vertical road
-            const verticalRoadGeometry = new THREE.PlaneGeometry(20, WORLD_SIZE * 2);
+            const verticalRoadGeometry = new THREE.PlaneGeometry(30, WORLD_SIZE * 2);
             const verticalRoad = new THREE.Mesh(verticalRoadGeometry, highwayMaterial);
             verticalRoad.rotation.x = -Math.PI / 2;
             verticalRoad.position.set(0, 0.01, 0);
             verticalRoad.receiveShadow = true;
             scene.add(verticalRoad);
             roads.push(verticalRoad);
-            
-            // Roundabout center
-            const roundaboutGeometry = new THREE.RingGeometry(15, 25, 32);
-            const roundabout = new THREE.Mesh(roundaboutGeometry, highwayMaterial);
-            roundabout.rotation.x = -Math.PI / 2;
-            roundabout.position.set(0, 0.01, 0);
-            roundabout.receiveShadow = true;
-            scene.add(roundabout);
-            roads.push(roundabout);
         }
         
         function createObstacles() {
