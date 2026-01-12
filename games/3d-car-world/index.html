@@ -680,21 +680,21 @@
                     const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
                     
                     if (isDrifting) {
-                        // Calculate drift angle based on speed and turn
+                        // Calculate drift angle based on speed and turn (reduced)
                         const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
-                        const speedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.5 : 1.0;
-                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.5 * speedMultiplier;
+                        const speedMultiplier = Math.abs(carPhysics.speed) > 70 ? 0.3 : 0.2;
+                        carPhysics.targetDriftAngle = turnAmount * speedRatio * speedMultiplier;
                         
-                        // Add lateral velocity for sliding (speed dependent)
-                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.15;
-                        const driftSpeedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.8 : 1.2;
+                        // Add lateral velocity for sliding (reduced force)
+                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.08;
+                        const driftSpeedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.2 : 1.0;
                         const driftForce = baseDriftForce * driftSpeedMultiplier;
                         
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
                         
-                        // Reduce turn control when drifting
-                        car.rotation.y += baseTurn * 0.7;
+                        // Maintain forward momentum while drifting
+                        car.rotation.y += baseTurn * 0.85;
                     } else {
                         // Normal turning
                         car.rotation.y += baseTurn;
@@ -708,10 +708,10 @@
             }
             
             // Smooth drift angle transition
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.15;
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.1;
             
-            // Apply friction to lateral velocity
-            const frictionFactor = Math.abs(carPhysics.speed) > 70 ? 0.92 : 0.95;
+            // Apply stronger friction to lateral velocity to prevent excessive sliding
+            const frictionFactor = Math.abs(carPhysics.speed) > 70 ? 0.88 : 0.92;
             carPhysics.lateralVelocity.multiplyScalar(frictionFactor);
             
             // Update velocity (forward + lateral)
@@ -722,16 +722,16 @@
             car.position.x += carPhysics.velocity.x * deltaTime;
             car.position.z += carPhysics.velocity.z * deltaTime;
             
-            // Apply drift rotation for visual effect
+            // Apply drift rotation for visual effect (reduced)
             if (Math.abs(carPhysics.driftAngle) > 0.01) {
                 const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
-                const visualDriftAngle = carPhysics.driftAngle * 0.8;
+                const visualDriftAngle = carPhysics.driftAngle * 0.3; // Reduced from 0.8
                 car.rotation.y = movementDirection - visualDriftAngle;
                 
-                // Add car tilt during drift (speed dependent)
-                const tiltMultiplier = Math.abs(carPhysics.speed) > 70 ? 0.4 : 0.2;
+                // Add car tilt during drift (reduced)
+                const tiltMultiplier = Math.abs(carPhysics.speed) > 70 ? 0.2 : 0.1; // Reduced from 0.4/0.2
                 car.rotation.z = -carPhysics.driftAngle * tiltMultiplier;
-                car.rotation.x = Math.abs(carPhysics.driftAngle) * 0.1;
+                car.rotation.x = Math.abs(carPhysics.driftAngle) * 0.05; // Reduced from 0.1
             } else {
                 // Reset car tilt when not drifting
                 car.rotation.z *= 0.9;
