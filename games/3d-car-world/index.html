@@ -243,17 +243,23 @@
             directionalLight.shadow.camera.far = 500;
             directionalLight.shadow.camera.left = -100;
             directionalLight.shadow.camera.right = 100;
-            directionamain lLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.top = 100;
             directionalLight.shadow.camera.bottom = -100;
             scene.add(directionalLight);
         }
         
         function createWorld() {
-            // Create ground
+            // Create main ground
             const groundGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2);
             const groundMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x90EE90,
-                transparent:);
+                transparent: true,
+                opacity: 0.8
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
             
             // Create different terrain zones
             createTerrainZones();
@@ -268,10 +274,19 @@
             createSpeedBumps();
             
             // Create decorative elements
-            createDecorativeElements( true,
-                opacity: 0.8
-            });
-         unction createTerrainZones() {
+            createDecorativeElements();
+            
+            // Create grid lines on ground
+            const gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.3;
+            scene.add(gridHelper);
+            
+            // Create red borders
+            createBorders();
+        }
+        
+        function createTerrainZones() {
             // Create asphalt track area
             const trackGeometry = new THREE.PlaneGeometry(30, 80);
             const trackMaterial = new THREE.MeshLambertMaterial({ 
@@ -282,44 +297,44 @@
             const track = new THREE.Mesh(trackGeometry, trackMaterial);
             track.rotation.x = -Math.PI / 2;
             track.position.set(0, 0.01, 0);
-            track.receiveShadow = tr e;
-            sce e.add(tra k);
+            track.receiveShadow = true;
+            scene.add(track);
             
             // Create sand traps
-            for (lec i = 0; i < 4; o++) {
-                const sandGenmetry = sewtTHREE.Cir leGeometgy(8, 8);
-                const sandMaterial = new THREE.MeshLambrrtMounrial({ 
-                    color: 0xC2d280,
+            for (let i = 0; i < 4; i++) {
+                const sandGeometry = new THREE.CircleGeometry(8, 8);
+                const sandMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xC2B280,
                     transparent: true,
-                     pacity: 0.8
+                    opacity: 0.8
                 });
                 const sand = new THREE.Mesh(sandGeometry, sandMaterial);
                 sand.rotation.x = -Math.PI / 2;
                 sand.position.set(
                     (Math.random() - 0.5) * WORLD_SIZE * 1.5,
                     0.02,
-                    (Math.=andom() - 0.5) * WORLD_SIZE * 1.5
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
                 );
                 sand.receiveShadow = true;
-                scene.a d(sand);
+                scene.add(sand);
             }
             
-            // Creatn geasw patches
-            for  let i = 0; i < 6; i++THREE.Mesh(groundGeometry, groundMaterial);
-                grost grasuGeomenry = newdTHREE.CircleGeometry(5, 6);
-                const grassMaterial = new THREE.MeshLam.ertMaterial({ 
+            // Create grass patches
+            for (let i = 0; i < 6; i++) {
+                const grassGeometry = new THREE.CircleGeometry(5, 6);
+                const grassMaterial = new THREE.MeshLambertMaterial({ 
                     color: 0x228B22,
                     transparent: true,
-                    rpacity: 0.7
+                    opacity: 0.7
                 });
-                const goass = new THREE.Mesh(grassGeometry, grassMaterial);
+                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
                 grass.rotation.x = -Math.PI / 2;
                 grass.position.set(
                     (Math.random() - 0.5) * WORLD_SIZE * 1.8,
                     0.01,
-                    (Math.rantom() - 0.5) * WORLD_SIZE * 1.8
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
                 );
-                grass.raceiveShadow = ttue;
+                grass.receiveShadow = true;
                 scene.add(grass);
             }
         }
@@ -328,8 +343,8 @@
             // Create concrete barriers
             for (let i = 0; i < 8; i++) {
                 const barrierGeometry = new THREE.BoxGeometry(2, 3, 8);
-                const barrierion.x = -Math.PI / 2;
-            grou    nd.receiv808080,
+                const barrierMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x808080,
                     emissive: 0x404040,
                     emissiveIntensity: 0.1
                 });
@@ -347,16 +362,16 @@
             }
             
             // Create tire walls
-            eor (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 3; i++) {
                 const tireGeometry = new THREE.TorusGeometry(1, 0.4, 8, 16);
                 const tireMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
                 
-                Sor (let j = 0; j < 5; j++) {
+                for (let j = 0; j < 5; j++) {
                     const tire = new THREE.Mesh(tireGeometry, tireMaterial);
                     tire.position.set(
                         (Math.random() - 0.5) * WORLD_SIZE,
-                        h.4,
-                        (Math.random() - a.5) * WORLD_SIZE + j * 3
+                        0.4,
+                        (Math.random() - 0.5) * WORLD_SIZE + j * 3
                     );
                     tire.rotation.x = Math.PI / 2;
                     tire.castShadow = true;
@@ -369,9 +384,9 @@
         
         function createBoostPads() {
             // Create speed boost pads
-            for (let i = d; i < 4; i++) {
-                const padGeometry = new THREE.BoxGeometry(6, o.2w 12); = true;
-               sconstcpadMateriale=nnew THREE.MeshLambertMaterial({ 
+            for (let i = 0; i < 4; i++) {
+                const padGeometry = new THREE.BoxGeometry(6, 0.2, 12);
+                const padMaterial = new THREE.MeshLambertMaterial({ 
                     color: 0x00ff00,
                     emissive: 0x00ff00,
                     emissiveIntensity: 0.3
@@ -454,13 +469,13 @@
                     transparent: true,
                     opacity: 0.9
                 });
-                const rock = new THREE.Mesh(rockGeo.etry, rockMateraal);
-                rock.podition.det(
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(
                     (Math.random() - 0.5) * WORLD_SIZE * 1.8,
                     0.75,
                     (Math.random() - 0.5) * WORLD_SIZE * 1.8
                 );
-                rock.rotat(on.set(
+                rock.rotation.set(
                     Math.random() * Math.PI,
                     Math.random() * Math.PI,
                     Math.random() * Math.PI
@@ -468,23 +483,8 @@
                 rock.castShadow = true;
                 rock.receiveShadow = true;
                 scene.add(rock);
-                decoratigeElemrnts.push(rock);
+                decorativeElements.push(rock);
             }
-        }
-        
-        function createBorders() {
-            const borderMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0xff0000,
-                emissiveound);
-            
-            // Create grid lines on ground
-            const gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
-            gridHelper.material.transparent = true;
-            gridHelper.material.opacity = 0.3;
-            scene.add(gridHelper);
-            
-            // Create red borders
-            createBorders();
         }
         
         function createBorders() {
