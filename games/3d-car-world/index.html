@@ -243,6 +243,24 @@
             animate();
         }
         
+        function setupControls() {
+            // Keyboard controls
+            document.addEventListener('keydown', (event) => {
+                keys[event.key.toLowerCase()] = true;
+            });
+            
+            document.addEventListener('keyup', (event) => {
+                keys[event.key.toLowerCase()] = false;
+            });
+            
+            // Prevent arrow keys from scrolling the page
+            window.addEventListener('keydown', (event) => {
+                if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
+                    event.preventDefault();
+                }
+            });
+        }
+        
         function setupLighting() {
             // Ambient light
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
