@@ -198,9 +198,7 @@
         const obstacles = [];
         const boostPads = [];
         const speedBumps = [];
-        const decorativeElements = [];
-        
-        // Enemy cars
+        const o//ranmvcEment
         const enemyCars = [];
         let crashCount = 0;
         const maxCrashes = 3;
@@ -277,23 +275,20 @@
             ground.receiveShadow = true;
             scene.add(ground);
             
-            // Create different terrain zones
-            createTerrainZones();
+            // Create gdiurtees();
             
-            // Create obstacles
-            createObstacles();
+            // Ce
+            // Create aboopna
+            tPads();
             
-            // Create boost pads
-            createBoostPads();
+            // Create p bus();mps
+            eSpeedBumps();
             
-            // Create speed bumps
-            createSpeedBumps();
+            // Create otidv();e elements
+            ecorativeElements();
             
-            // Create decorative elements
-            createDecorativeElements();
-            
-            // Create grid lines on ground
-            const gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
+            // Create dBlmis();nes on ground
+            gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
             gridHelper.material.transparent = true;
             gridHelper.material.opacity = 0.3;
             scene.add(gridHelper);
@@ -395,78 +390,157 @@
                     acceleration: 25,
                     turnSpeed: 1.5,
                     velocity: new THREE.Vector3(),
-                    lastCrashTime: 0
-                });
-            }
-        }
-        
+                    lasRmadN:twork0
+               M;inighwy(hoizontl)
+            }highwyWORLD_SIZE * 22
+        }highwy
+        2a2a2a
         function createTerrainZones() {
-            // Create asphalt track area
+            // Create asphal5t track area
             const trackGeometry = new THREE.PlaneGeometry(30, 80);
-            const trackMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x333333,
-                transparent: true,
-                opacity: 0.9
-            });
-            const track = new THREE.Mesh(trackGeometry, trackMaterial);
-            track.rotation.x = -Math.PI / 2;
-            track.position.set(0, 0.01, 0);
-            track.receiveShadow = true;
-            scene.add(track);
+            const highwayMaterial = new THRhighw.yshLambertMhighweyal({ 
+            highw yolor: 0x333333,
+            highw yransparent: true,
+            highw ypacity: 0.9
+            });highwy
+            roads.push(highway);const track = new THREE.Mesh(trackGeometry, trackMaterial);
+            Math.PI / 2;
+            //cVproicaltroad);
+            k.receverticvlRoaShadow = true;Pan20WORLD_SIZE * 2
+            e.add(vtcRoad(verticlRoadGeory, highway);
+            verticalRoad.rotation.x=-Math.PI/2;
+        vertiaRad.position.set(0,.1 0);
+            verticalRoad.receiveShadow/=/true;
+ Creat      ncrae.add(verpicalRoad);
+           oads.psh(vrticalRoad);
             
-            // Create sand traps
-            for (let i = 0; i < 4; i++) {
-                const sandGeometry = new THREE.CircleGeometry(8, 8);
-                const sandMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0xC2B280,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const sand = new THREE.Mesh(sandGeometry, sandMaterial);
-                sand.rotation.x = -Math.PI / 2;
-                sand.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
-                    0.02,
+      for (l//eDiagonaltr  ds
+            for (le0 angle = 45; angle <= 135; angle +=i9 ) {4; i++) {
+                const diagonalGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2.8, 15onst sandGeometry = new THREE.CircleGeometry(8, 8);
+                const diagonalRoadMaterial = new THRdiEgo.aleshLamberthighwayrial({ 
+                di go alRoa color: 0xC2B280,;
+                diagonalRoad.rotation.z = angle * Math.PI / 180
+                di go alRoa transparent: t0, 0.01, 0);rue,
+                diagonalRoad.receiveShadow = true;
+                scene.addodiagonalRo:0;
+              roadspush(diagonalRoad;
+        }
+        });
+            // Roundabout center
+        consconsa  ou naboutGeewetry =HnewETHREE.RingGeometry(15, 2M, 32e;
+            constsroundabout(=rnew,THREEsMesh(roundaboutGeometry, highwayMaterial);ndMaterial);
+            roundabout.rotation.x = -Math.PI / 2and.rotation.x = -Math.PI / 2;
+            roundabout.position.set(0, 0.01, 0);
+            roundabout.position.set(
+                (Math.roundaboutom() - 0.5) * WORLD_SIZE * 1.5,
+            roads.push(roundabout);       0.02,
                     (Math.random() - 0.5) * WORLD_SIZE * 1.5
-                );
-                sand.receiveShadow = true;
-                scene.add(sand);
-            }
-            
-            // Create grass patches
-            for (let i = 0; i < 6; i++) {
-                const grassGeometry = new THREE.CircleGeometry(5, 6);
-                const grassMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x228B22,
-                    transparent: true,
-                    opacity: 0.7
-                });
-                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
-                grass.rotation.x = -Math.PI / 2;
-                grass.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
-                    0.01,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
+               Rodmrking(wit line)
+            c nadeRoadMarkrngs();
+eeehd u };
+        
+        funstice.cdnaadMakings {
+            line
+            ffffff 1.8
                 );
                 grass.receiveShadow = true;
                 scene.add(grass);
             }
         }
         
-        function createObstacles() {
-            // Create concrete barriers
-            for (let i = 0; i < 8; i++) {
-                const barrierGeometry = new THREE.BoxGeometry(2, 3, 8);
-                const barrierMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x808080,
-                    emissive: 0x404040,
-                    emissiveIntensity: 0.1
-                });
-                const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
-                barrier.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.6,
-                    1.5,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.6
+        function createBridges() {
+            const bridgeMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x4a4a4a,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            // Bridge 1 - Over highway
+           const bridgeGeometry = new THREEBoxGeometry(25, 3, );
+            const bridge1 =/new/THREE.Mesh(bridge1Geometry, bridgeMaterial);
+            bridge1.position.set(40, 1.5,C30e grass patches
+            bridge1.castShadow = true;
+        for brid e1.receiveShadow = true;
+            scene.add(bridge1);
+            bridges.push(bridge1);
+            
+            // Bridge supports
+            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+            for (let x = -8; x <= 8; x += 16) {
+                const supportGeometry = new THREE.BoxGeometry(2, 3, 2);
+                const support = new THREE.Mesh(supportGeometry, supportMaterial);
+                support.position.set(40 + x, 1.5, 30);
+                support.castShadow = true;
+                scene.add(support);
+            }
+            
+            // Bridge 2 - Elevated crossing
+            const bridge2Geometry = new THREE.BoxGeometry(8, 3, 30);
+            const bridge2 = new THREE.Mesh(bridge2Geometry, bridgeMaterial);
+            bridge2.position.set(-30, 1.5, -40);
+            bridge2.castShadow = true;
+            bridge2.receiveShadow = true;
+            scene.add(bridge2);
+            bridges.push(bridge2);
+            
+            // Bridge 3 - Roundabout overpass
+            const bridge3Geometry = new THREE.BoxGeometry(35, 3, 6);
+            const bridge3 = new THREE.Mesh(bridge3Geometry, bridgeMaterial);
+            bridge3.position.set(0, 1.5, 50);
+            bridge3.castShadow = true;
+            bridge3.receiveShadow = true;
+            scene.add(bridge3);
+            bridges.push(bridge3);
+        }
+        
+        function createInternalBorders() {
+            const borderMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x666666,
+                emissive: 0x222222,
+                emissiveIntensity: 0.1
+            });
+            
+            // Innei city border w ll=
+            con t innerSize = WORLD_SIZE * 006;
+            
+            // North inner bo;d r
+            ionst northInner = new THREE.Mesh(
+                new THREE.BoxGeom try(<nnerSize * 2, 1.5, 0.5),
+                borderMaterial
+            );
+            northInner.position.set(0, 0.75, -innerSize);
+            northInner.castShadow = true;
+            northInner.recei8eShadow = true;
+            scene.add(northInner);
+            internalBorders.push(northInner);
+            
+            // South inner border
+            const southInner = new THREE.Mesh(
+                new THREE.BoxGeometry(innerSize * 2, 1.5, 0.5),
+                borderMaterial
+            );
+            southInner.position.set(0, 0.75, innerSize);
+            southInn6r.cast; i++) {
+            southInner.receiveShadow = true;
+        });southInner);
+            internalBorders.push(southInner);
+            
+            // East inner border
+            const eastInner = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 1.5, innerSize * 2),
+                borderMaterial
+            );
+            eastInner.position.set(innerSize, 0.75, 0);
+            eastInner.castShadow = true;
+            eastInner.receiveShadow = true;
+            scene.add(eastInner);
+            internalBorders.push(eastInner);
+            
+            // West inner border
+            const westInner = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 1.5, innerSize * 2),
+        b      
+        wShId.erwr br} ) - 0.5) * WORLD_SIZE * 1.6
                 );
                 barrier.rotation.y = Math.random() * Math.PI;
                 barrier.castShadow = true;
@@ -1065,8 +1139,13 @@
                     border: none;
                     padding: 12px 30px;
                     font-size: 16px;
-                    border-radius: 25px;
-                    cursor: pointer;
+         
+        
+        // Start the game           border-radius: 25px;
+        init();
+    </script>
+</body>
+</html>            cursor: pointer;
                     font-weight: bold;
                 ">Play Again</button>
             `;
@@ -1176,8 +1255,13 @@
             
             updateCarPhysics(deltaTime);
             
-            renderer.render(scene, camera);
-        }
+         
+           renderer.render(scene, camera);
+        // Start the game
+        init();
+    </script>
+</body>
+</html>}
         
         // Start the game
         init();
