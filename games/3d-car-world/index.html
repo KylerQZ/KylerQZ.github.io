@@ -175,16 +175,16 @@
         // Car physics
         const carPhysics = {
             speed: 0,
-            maxSpeed: 50,
-            acceleration: 30,
-            brakeForce: 40,
-            turnSpeed: 2.5,
+            maxSpeed: 80,
+            acceleration: 40,
+            brakeForce: 50,
+            turnSpeed: 3.0,
             friction: 0.95,
             velocity: new THREE.Vector3()
         };
         
         // World settings
-        const WORLD_SIZE = 200;
+        const WORLD_SIZE = 400;
         const BORDER_HEIGHT = 2;
         const BORDER_WIDTH = 1;
         
@@ -395,10 +395,10 @@
                 // Add enemy car physics
                 enemyCars.push({
                     mesh: enemyCar,
-                    speed: 25 + Math.random() * 15,
-                    targetSpeed: 40 + Math.random() * 20,
-                    acceleration: 30,
-                    turnSpeed: 1.8,
+                    speed: 40 + Math.random() * 20,
+                    targetSpeed: 80 + Math.random() * 20,
+                    acceleration: 40,
+                    turnSpeed: 2.2,
                     velocity: new THREE.Vector3(),
                     lastCrashTime: 0
                 });
@@ -769,15 +769,21 @@
                         crashCount++;
                         enemy.lastCrashTime = currentTime;
                         
-                        // Apply bounce-back physics
+                        // Apply bounce-back physics to both cars
                         const bounceDirection = new THREE.Vector3();
                         bounceDirection.subVectors(car.position, enemy.mesh.position);
                         bounceDirection.y = 0;
                         bounceDirection.normalize();
                         
-                        car.position.add(bounceDirection.multiplyScalar(10));
-                        carPhysics.speed *= -0.5;
-                        carPhysics.velocity.multiplyScalar(-0.5);
+                        // Bounce player back
+                        car.position.add(bounceDirection.multiplyScalar(15));
+                        carPhysics.speed *= -0.8;
+                        carPhysics.velocity.multiplyScalar(-0.8);
+                        
+                        // Bounce enemy back
+                        enemy.mesh.position.sub(bounceDirection.multiplyScalar(1.5));
+                        enemy.speed *= -0.6;
+                        enemy.velocity.multiplyScalar(-0.6);
                         
                         // Update crash counter display
                         const crashElement = document.getElementById('crashes');
@@ -818,13 +824,15 @@
                         bounceDirection.y = 0;
                         bounceDirection.normalize();
                         
-                        // Push enemies apart
-                        enemy1.mesh.position.add(bounceDirection.multiplyScalar(5));
-                        enemy2.mesh.position.sub(bounceDirection.multiplyScalar(5));
+                        // Push enemies apart with more force
+                        enemy1.mesh.position.add(bounceDirection.multiplyScalar(10));
+                        enemy2.mesh.position.sub(bounceDirection.multiplyScalar(10));
                         
-                        // Reduce speeds
-                        enemy1.speed *= 0.5;
-                        enemy2.speed *= 0.5;
+                        // Bounce both enemies back
+                        enemy1.speed *= -0.4;
+                        enemy1.velocity.multiplyScalar(-0.4);
+                        enemy2.speed *= -0.4;
+                        enemy2.velocity.multiplyScalar(-0.4);
                     }
                 }
             }
