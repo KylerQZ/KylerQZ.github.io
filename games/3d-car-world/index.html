@@ -145,6 +145,10 @@
                 <span class="stat-label">Drift:</span>
                 <span class="stat-value" id="drift" style="color: #ff6666;">OFF</span>
             </div>
+            <div class="stat">
+                <span class="stat-label">Crashes:</span>
+                <span class="stat-value" id="crashes">0/3</span>
+            </div>
         </div>
         
         <div id="controls">
@@ -284,6 +288,104 @@
             
             // Create red borders
             createBorders();
+            
+            // Create enemy cars
+            createEnemyCars();
+        }
+        
+        function createEnemyCars() {
+            for (let i = 0; i < 2; i++) {
+                const enemyCar = new THREE.Group();
+                
+                // Enemy car body (black)
+                const bodyGeometry = new THREE.BoxGeometry(4, 1.5, 8);
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+                const carBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                carBody.position.y = 1;
+                carBody.castShadow = true;
+                enemyCar.add(carBody);
+                
+                // Enemy car roof
+                const roofGeometry = new THREE.BoxGeometry(3, 1, 4);
+                const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x0a0a0a });
+                const carRoof = new THREE.Mesh(roofGeometry, roofMaterial);
+                carRoof.position.set(0, 2, 0);
+                carRoof.castShadow = true;
+                enemyCar.add(carRoof);
+                
+                // Enemy windows
+                const windowGeometry = new THREE.BoxGeometry(2.5, 0.8, 3);
+                const windowMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x333333,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const windows = new THREE.Mesh(windowGeometry, windowMaterial);
+                windows.position.set(0, 2.2, 0);
+                enemyCar.add(windows);
+                
+                // Enemy wheels
+                const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
+                const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+                
+                // Front wheels
+                const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                frontLeftWheel.position.set(-2.2, 0.5, 2.5);
+                frontLeftWheel.rotation.z = Math.PI / 2;
+                enemyCar.add(frontLeftWheel);
+                
+                const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                frontRightWheel.position.set(2.2, 0.5, 2.5);
+                frontRightWheel.rotation.z = Math.PI / 2;
+                enemyCar.add(frontRightWheel);
+                
+                // Rear wheels
+                const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                rearLeftWheel.position.set(-2.2, 0.5, -2.5);
+                rearLeftWheel.rotation.z = Math.PI / 2;
+                enemyCar.add(rearLeftWheel);
+                
+                const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                rearRightWheel.position.set(2.2, 0.5, -2.5);
+                rearRightWheel.rotation.z = Math.PI / 2;
+                enemyCar.add(rearRightWheel);
+                
+                // Red headlights for enemy cars
+                const headlightGeometry = new THREE.BoxGeometry(0.8, 0.5, 0.3);
+                const headlightMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0xff0000,
+                    emissiveIntensity: 0.5
+                });
+                
+                const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+                leftHeadlight.position.set(-1.5, 1, 4);
+                enemyCar.add(leftHeadlight);
+                
+                const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+                rightHeadlight.position.set(1.5, 1, 4);
+                enemyCar.add(rightHeadlight);
+                
+                // Position enemy cars at different starting locations
+                enemyCar.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+                    0,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
+                );
+                
+                scene.add(enemyCar);
+                
+                // Add enemy car physics
+                enemyCars.push({
+                    mesh: enemyCar,
+                    speed: 15 + Math.random() * 10,
+                    targetSpeed: 20 + Math.random() * 15,
+                    acceleration: 25,
+                    turnSpeed: 1.5,
+                    velocity: new THREE.Vector3(),
+                    lastCrashTime: 0
+                });
+            }
         }
         
         function createTerrainZones() {
@@ -665,7 +767,13 @@
                 // Natural deceleration
                 carPhysics.speed *= carPhysics.friction;
             }
+            enemy cars
+            updateEnemyCars(deltaTime);
             
+            // Check enemy car collisions
+            checkEnemyCarCollisions();
+            
+            // Update 
             // Clamp speed
             carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
             
@@ -776,7 +884,161 @@
             camera.lookAt(car.position);
             
             // Update UI
-            updatcheckMapInteractions() {
+            updateUI();
+        }
+        
+        function updateEnemyCars(deltaTime) {
+            if (!gameRunning) return;
+            
+            enemyCars.forEach(enemy => {
+                // Calculate direction to player
+                const direction = new THREE.Vector3();
+                direction.subVectors(car.position, enemy.mesh.position);
+                direction.y = 0;
+                direction.normalize();
+                
+                // Calculate rotation to face player
+                const targetRotation = Math.atan2(direction.x, direction.z);
+                
+                // Smooth rotation
+                let rotationDiff = targetRotation - enemy.mesh.rotation.y;
+                while (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
+                while (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
+                enemy.mesh.rotation.y += rotationDiff * enemy.turnSpeed * deltaTime;
+                
+                // Distance to player
+                const distanceToPlayer = enemy.mesh.position.distanceTo(car.position);
+                
+                // Adjust speed based on distance
+                if (distanceToPlayer > 30) {
+                    enemy.targetSpeed = 35; // Speed up when far
+                } else if (distanceToPlayer < 15) {
+                    enemy.targetSpeed = 10; // Slow down when close
+                } else {
+                    enemy.targetSpeed = 25; // Normal chase speed
+                }
+                
+                // Accelerate/decelerate
+                if (enemy.speed < enemy.targetSpeed) {
+                    enemy.speed += enemy.acceleration * deltaTime;
+                } else {
+                    enemy.speed -= enemy.acceleration * deltaTime * 0.5;
+                }
+                
+                // Clamp speed
+                enemy.speed = Math.max(5, Math.min(40, enemy.speed));
+                
+                // Update velocity
+                enemy.velocity.x = Math.sin(enemy.mesh.rotation.y) * enemy.speed;
+                enemy.velocity.z = Math.cos(enemy.mesh.rotation.y) * enemy.speed;
+                
+                // Update position
+                enemy.mesh.position.x += enemy.velocity.x * deltaTime;
+                enemy.mesh.position.z += enemy.velocity.z * deltaTime;
+                
+                // Keep enemy cars within bounds
+                if (Math.abs(enemy.mesh.position.x) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.x = Math.sign(enemy.mesh.position.x) * (WORLD_SIZE - 5);
+                }
+                if (Math.abs(enemy.mesh.position.z) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.z = Math.sign(enemy.mesh.position.z) * (WORLD_SIZE - 5);
+                }
+            });
+        }
+        
+        function checkEnemyCarCollisions() {
+            if (!gameRunning) return;
+            
+            const currentTime = Date.now();
+            
+            enemyCars.forEach(enemy => {
+                const distance = car.position.distanceTo(enemy.mesh.position);
+                
+                // Check collision (when cars are very close)
+                if (distance < 8) {
+            
+            // Update crash counter
+            const crashElement = document.getElementById('crashes');
+            crashElement.textContent = `${crashCount}/${maxCrashes}`;
+            if (crashCount >= maxCrashes - 1) {
+                crashElement.style.color = '#ff3333';
+            } else if (crashCount >= 1) {
+                crashElement.style.color = '#ffaa00';
+            } else {
+                crashElement.style.color = '#ffffff';
+            }
+                    // Prevent multiple crashes in quick succession
+                    if (currentTime - enemy.lastCrashTime > 2000) {
+                        crashCount++;
+                        enemy.lastCrashTime = currentTime;
+                        
+                        // Bounce cars apart
+                        const bounceDirection = new THREE.Vector3();
+                        bounceDirection.subVectors(car.position, enemy.mesh.position);
+                        bounceDirection.y = 0;
+                        bounceDirection.normalize();
+                        
+                        // Push player away
+                        car.position.x += bounceDirection.x * 10;
+                        car.position.z += bounceDirection.z * 10;
+                        carPhysics.speed *= 0.3;
+                        carPhysics.velocity.multiplyScalar(0.3);
+                        
+                        // Push enemy away
+                        enemy.mesh.position.x -= bounceDirection.x * 10;
+                        enemy.mesh.position.z -= bounceDirection.z * 10;
+                        enemy.speed *= 0.5;
+                        
+                        // Screen shake effect
+                        camera.position.x += (Math.random() - 0.5) * 2;
+                        camera.position.y += (Math.random() - 0.5) * 1;
+                        
+                        // Check for game over
+                        if (crashCount >= maxCrashes) {
+                            gameOver();
+                        }
+                    }
+                }
+            });
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            
+            // Show game over message
+            const gameOverDiv = document.createElement('div');
+            gameOverDiv.id = 'gameOverScreen';
+            gameOverDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 30px;
+                border-radius: 15px;
+                text-align: center;
+                font-size: 24px;
+                z-index: 1000;
+            `;
+            gameOverDiv.innerHTML = `
+                <h2 style="color: #ff3333; margin-bottom: 20px;">💥 CAR WRECKED!</h2>
+                <p style="margin-bottom: 20px;">You crashed ${maxCrashes} times!</p>
+                <button onclick="location.reload()" style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    padding: 12px 30px;
+                    font-size: 16px;
+                    border-radius: 25px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">Play Again</button>
+            `;
+            document.body.appendChild(gameOverDiv);
+        }
+        
+        function checkMapInteractions() {
             // Check boost pad collisions
             boostPads.forEach(pad => {
                 const distance = Math.sqrt(
