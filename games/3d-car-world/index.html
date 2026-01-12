@@ -792,38 +792,83 @@
                     if (isDrifting) {
                         // Calculate enhanced drift angle based on turn and speed
                         const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
-                        c t * speeddriftIntensity = speedRatio;
+                        const highSpeedMultiplier = Math.abs(carPhysics.speed) > 40 ? 2.5 : 1;
+                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8 * highSpeedMultiplier;
+                        carPhysics.driftIntensity = speedRatio * highSpeedMultiplier;
                         
                         // Add strong lateral velocity for dramatic back sliding
-                        const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
-                        carPhydlateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
-                        c=n(car.rot
-                        // Add extra lateral force for more sliding
-                        const extraSlide = turnAmount * speedRatio * 8;
-                        carPhysics.lateralVelocity.x += Math.cos(ca * extraSlide;
-                        carPhysics.lateralVelocity.z += -Math.sin(car.) * extraSlide;
+                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
+                        const highSpeedDriftForce = Math.abs(carPhysics.speed) > 40 ? baseDriftForce * 2 : baseDriftForce;
+                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * highSpeedDriftForce;
+                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * highSpeedDriftForce;
                         
-                        // Turn the front wheels while back slides dramatically
-                        car.rotation.y += baseTurn * 0.6;
-                    } else Tun m e;yDewswbk s
-        } else {
-        // Enhanced syl
-            // Apply reduced friction for longer drifts
-            carPhysics.lateralVelocity.multiplyScal
-             random drift wobble for realis0;
+                        // Add extra lateral force for more sliding (enhanced at high speed)
+                        const extraSlide = turnAmount * speedRatio * 8 * highSpeedMultiplier;
+                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
+                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
+                        
+                        // Add explosive high-speed drift effects
+                        if (Math.abs(carPhysics.speed) > 40) {
+                            // Add random drift turbulence
+                            const turbulence = (Math.random() - 0.5) * 5;
+                            carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2 + turbulence) * 3;
+                            carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2 + turbulence) * 3;
+                            
+                            // Reduce turn control dramatically at high speed
+                            car.rotation.y += baseTurn * 0.3;
+                        } else {
+                            // Normal turn reduction
+                            car.rotation.y += baseTurn * 0.6;
+                        }
+                    } else {
+                        // Normal turning
+                        car.rotation.y += baseTurn;
+                        carPhysics.targetDriftAngle = 0;
+                    }
+                } else {
+                    carPhysics.targetDriftAngle = 0;
+                }
+            } else {
+                carPhysics.targetDriftAngle = 0;
+            }
+            
+            // Enhanced smooth drift angle transition
+            const transitionSpeed = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.15;
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * transitionSpeed;
+            
+            // Apply reduced friction for longer drifts (even less at high speed)
+            const frictionFactor = Math.abs(carPhysics.speed) > 40 ? 0.96 : 0.92;
+            carPhysics.lateralVelocity.multiplyScalar(frictionFactor);
+            
+            // Add enhanced random drift wobble for realism (more intense at high speed)
             if (Math.abs(carPhysics.driftAngle) > 0.1) {
-                conldo5{02 * carPhysics.driftIntensity;
+                const wobbleIntensity = Math.abs(carPhysics.speed) > 40 ? 0.08 : 0.02;
+                const wobble = (Math.random() - 0.5) * wobbleIntensity * carPhysics.driftIntensity;
                 carPhysics.driftAngle += wobble;
-            /city (forward + lateral)
-            c o
-            car.pysition.z a
+            }
+            
+            // Add high-speed drift turbulence
+            if (Math.abs(carPhysics.speed) > 40 && Math.abs(carPhysics.driftAngle) > 0.2) {
+                const turbulence = (Math.random() - 0.5) * 0.05;
+                carPhysics.driftAngle += turbulence;
+            }
+            
+            // Update velocity (forward + lateral)
+            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
+            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
+            
+            // Update position
+            car.position.x += carPhysics.velocity.x * deltaTime;
+            car.position.z += carPhysics.velocity.z * deltaTime;
+            
             // Apply enhanced drift rotation for dramatic back sliding
             if (Math.abs(carPhysics.driftAngle) > 0.01) {
                 // Store the actual movement direction
                 const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
                 
                 // Apply enhanced visual drift angle with intensity modifier
-                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * 0.5);
+                const intensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
+                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * intensityModifier);
                 car.rotation.y = movementDirection - visualDriftAngle;
                 
                 // Add car tilt during drift for more drama
