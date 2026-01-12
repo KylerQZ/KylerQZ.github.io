@@ -769,21 +769,25 @@
                         crashCount++;
                         enemy.lastCrashTime = currentTime;
                         
-                        // Apply bounce-back physics to both cars
+                        // Apply wall-like bounce physics to both cars
                         const bounceDirection = new THREE.Vector3();
                         bounceDirection.subVectors(car.position, enemy.mesh.position);
                         bounceDirection.y = 0;
                         bounceDirection.normalize();
                         
-                        // Bounce player back
-                        car.position.add(bounceDirection.multiplyScalar(15));
-                        carPhysics.speed *= -0.8;
-                        carPhysics.velocity.multiplyScalar(-0.8);
+                        // Separate cars like wall collision
+                        const separationDistance = 12;
+                        car.position.add(bounceDirection.multiplyScalar(separationDistance));
+                        enemy.mesh.position.sub(bounceDirection.multiplyScalar(separationDistance));
                         
-                        // Bounce enemy back
-                        enemy.mesh.position.sub(bounceDirection.multiplyScalar(1.5));
-                        enemy.speed *= -0.6;
-                        enemy.velocity.multiplyScalar(-0.6);
+                        // Bounce both cars like hitting walls
+                        carPhysics.speed *= -0.9;
+                        carPhysics.velocity.x *= -0.9;
+                        carPhysics.velocity.z *= -0.9;
+                        
+                        enemy.speed *= -0.9;
+                        enemy.velocity.x *= -0.9;
+                        enemy.velocity.z *= -0.9;
                         
                         // Update crash counter display
                         const crashElement = document.getElementById('crashes');
@@ -818,21 +822,24 @@
                     
                     // Check collision (within 8 units)
                     if (distance < 8) {
-                        // Apply bounce-back physics between enemies
+                        // Apply wall-like bounce physics between enemies
                         const bounceDirection = new THREE.Vector3();
                         bounceDirection.subVectors(enemy1.mesh.position, enemy2.mesh.position);
                         bounceDirection.y = 0;
                         bounceDirection.normalize();
                         
-                        // Push enemies apart with more force
-                        enemy1.mesh.position.add(bounceDirection.multiplyScalar(10));
-                        enemy2.mesh.position.sub(bounceDirection.multiplyScalar(10));
+                        // Separate enemies like wall collision
+                        const separationDistance = 12;
+                        enemy1.mesh.position.add(bounceDirection.multiplyScalar(separationDistance));
+                        enemy2.mesh.position.sub(bounceDirection.multiplyScalar(separationDistance));
                         
-                        // Bounce both enemies back
-                        enemy1.speed *= -0.4;
-                        enemy1.velocity.multiplyScalar(-0.4);
-                        enemy2.speed *= -0.4;
-                        enemy2.velocity.multiplyScalar(-0.4);
+                        // Bounce both enemies like hitting walls
+                        enemy1.speed *= -0.9;
+                        enemy1.velocity.x *= -0.9;
+                        enemy1.velocity.z *= -0.9;
+                        enemy2.speed *= -0.9;
+                        enemy2.velocity.x *= -0.9;
+                        enemy2.velocity.z *= -0.9;
                     }
                 }
             }
