@@ -687,8 +687,8 @@
                         
                         // Add lateral velocity for sliding (speed dependent)
                         const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.15;
-                        const speedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.8 : 1.2;
-                        const driftForce = baseDriftForce * speedMultiplier;
+                        const driftSpeedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.8 : 1.2;
+                        const driftForce = baseDriftForce * driftSpeedMultiplier;
                         
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
