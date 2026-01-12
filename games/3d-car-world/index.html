@@ -215,7 +215,6 @@
         let startTime = Date.now();
         let currentTime = 0;
         let bestScore = localStorage.getItem('bestScore') || 0;
-        let lastSpeedIncrease = 0;
         
         // Initialize Three.js
         function init() {
@@ -413,8 +412,8 @@
                 // Add enemy car physics
                 enemyCars.push({
                     mesh: enemyCar,
-                    speed: 40 + Math.random() * 20,
-                    targetSpeed: 80 + Math.random() * 20,
+                    speed: 100,
+                    targetSpeed: 100,
                     acceleration: 40,
                     turnSpeed: 2.2,
                     velocity: new THREE.Vector3(),
@@ -636,16 +635,6 @@
             // Update timer
             if (gameRunning) {
                 currentTime = Math.floor((Date.now() - startTime) / 1000);
-                
-                // Increase chaser speed every minute
-                const minutesPassed = Math.floor(currentTime / 60);
-                if (minutesPassed > lastSpeedIncrease) {
-                    lastSpeedIncrease = minutesPassed;
-                    enemyCars.forEach(enemy => {
-                        enemy.speed += 1;
-                        enemy.targetSpeed += 1;
-                    });
-                }
             }
             
             // Input
