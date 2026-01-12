@@ -181,8 +181,6 @@
             driftFactor: 0.5,
             lateralVelocity: new THREE.Vector3(),
             velocity: new THREE.Vector3()
-        };
-        
         // World settings
         const WORLD_SIZE = 100;
         const BORDER_HEIGHT = 2;
@@ -465,18 +463,26 @@
                     
                     if (isDrifting) {
                         // Add lateral velocity for drifting
-                        const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.1;
+                        const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.15;
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
                         
-                        // Reduce main turn speed when drifting
-                        car.rotation.y += baseTurn * 0.5;
+                        // Turn the front wheels while back slides
+                        car.rotation.y += baseTurn * 0.7;
                     } else {
                         // Normal turning
                         car.rotation.y += baseTurn;
+                        carPhysics.targetDriftAngle = 0;
                     }
+                } else {
+                    carPhysics.targetDriftAngle = 0;
                 }
+            } else {
+                carPhysics.targetDriftAngle = 0;
             }
+            
+            // Smooth drift angle transition
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.1;
             
             // Apply friction to lateral velocity (drift recovery)
             carPhysics.lateralVelocity.multiplyScalar(0.9);
@@ -488,6 +494,15 @@
             // Update position
             car.position.x += carPhysics.velocity.x * deltaTime;
             car.position.z += carPhysics.velocity.z * deltaTime;
+            
+            // Apply drift rotation to make back slide visually
+            if (Math.abs(carPhysics.driftAngle) > 0.01) {
+                // Store the actual movement direction
+                const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
+                
+                // Apply visual drift angle to car model (back slides sideways)
+                car.rotation.y = movementDirection - carPhysics.driftAngle;
+            }
             
             // World boundary collision
             if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
