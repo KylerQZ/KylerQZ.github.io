@@ -466,13 +466,23 @@
                     const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
                     
                     if (isDrifting) {
-                        // Add lateral velocity for drifting
-                        const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.15;
+                        // Calculate enhanced drift angle based on turn and speed
+                        const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
+                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8;
+                        carPhysics.driftIntensity = speedRatio;
+                        
+                        // Add strong lateral velocity for dramatic back sliding
+                        const driftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
                         
-                        // Turn the front wheels while back slides
-                        car.rotation.y += baseTurn * 0.7;
+                        // Add extra lateral force for more sliding
+                        const extraSlide = turnAmount * speedRatio * 8;
+                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
+                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
+                        
+                        // Turn the front wheels while back slides dramatically
+                        car.rotation.y += baseTurn * 0.6;
                     } else {
                         // Normal turning
                         car.rotation.y += baseTurn;
@@ -485,27 +495,30 @@
                 carPhysics.targetDriftAngle = 0;
             }
             
-            // Smooth drift angle transition
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.1;
+            // Sft angle transition
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.1
             
-            // Apply friction to lateral velocity (drift recovery)
-            carPhysics.lateralVelocity.multiplyScalar(0.9);
+            // Apply  to latertlveatitalyvelocity ( (dri recovery)t recovery)
+            carPhysics.lateralVelocity.multiplyScalar(0.9;
             
-            // Update velocity (forward + lateral)
-            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
-            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
+            //s.position.z += carPhysics.velocity.z * deltaTime;
             
-            // Update position
-            car.position.x += carPhysics.velocity.x * deltaTime;
-            car.position.z += carPhysics.velocity.z * deltaTime;
-            
-            // Apply drift rotation to make back slide visually
+            // Apply enhanced drift rotation for dramatic back sliding
             if (Math.abs(carPhysics.driftAngle) > 0.01) {
                 // Store the actual movement direction
                 const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
                 
-                // Apply visual drift angle to car model (back slides sideways)
-                car.rotation.y = movementDirection - carPhysics.driftAngle;
+                // Apply enhanced visual drift angle with intensity modifier
+                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * 0.5);
+                car.rotation.y = movementDirection - visualDriftAngle;
+                
+                // Add car tilt during drift for more drama
+                car.rotation.z = -carPhysics.driftAngle * 0.3 * carPhysics.driftIntensity;
+                car.rotation.x = Math.abs(carPhysics.driftAngle) * 0.1 * carPhysics.driftIntensity;
+            } else {
+                // Reset car tilt when not drifting
+                car.rotation.z *= 0.9;
+                car.rotation.x *= 0.9;
             }
             
             // World boundary collision
@@ -538,9 +551,9 @@
         function updateUI() {
             const speedKmh = Math.abs(carPhysics.speed * 2).toFixed(1);
             document.getElementById('speed').textContent = speedKmh + ' km/h';
-            document.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
+            documen enhancedt.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
-            
+            33
             // Show drift status
             const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
                               (Math.abs(carPhysics.lateralVelocity.x) > 0.5 || Math.abs(carPhysics.lateralVelocity.z) > 0.5);
