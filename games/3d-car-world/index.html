@@ -390,148 +390,451 @@
                     acceleration: 25,
                     turnSpeed: 1.5,
                     velocity: new THREE.Vector3(),
-                    lasRmadN:twork0
-               M;inighwy(hoizontl)
-            }highwyWORLD_SIZE * 22
-        }highwy
-        2a2a2a
-        function createTerrainZones() {
-            // Create asphal5t track area
-            const trackGeometry = new THREE.PlaneGeometry(30, 80);
-            const highwayMaterial = new THRhighw.yshLambertMhighweyal({ 
-            highw yolor: 0x333333,
-            highw yransparent: true,
-            highw ypacity: 0.9
-            });highwy
-            roads.push(highway);const track = new THREE.Mesh(trackGeometry, trackMaterial);
-            Math.PI / 2;
-            //cVproicaltroad);
-            k.receverticvlRoaShadow = true;Pan20WORLD_SIZE * 2
-            e.add(vtcRoad(verticlRoadGeory, highway);
-            verticalRoad.rotation.x=-Math.PI/2;
-        vertiaRad.position.set(0,.1 0);
-            verticalRoad.receiveShadow/=/true;
- Creat      ncrae.add(verpicalRoad);
-           oads.psh(vrticalRoad);
-            
-      for (l//eDiagonaltr  ds
-            for (le0 angle = 45; angle <= 135; angle +=i9 ) {4; i++) {
-                const diagonalGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2.8, 15onst sandGeometry = new THREE.CircleGeometry(8, 8);
-                const diagonalRoadMaterial = new THRdiEgo.aleshLamberthighwayrial({ 
-                di go alRoa color: 0xC2B280,;
-                diagonalRoad.rotation.z = angle * Math.PI / 180
-                di go alRoa transparent: t0, 0.01, 0);rue,
-                diagonalRoad.receiveShadow = true;
-                scene.addodiagonalRo:0;
-              roadspush(diagonalRoad;
-        }
-        });
-            // Roundabout center
-        consconsa  ou naboutGeewetry =HnewETHREE.RingGeometry(15, 2M, 32e;
-            constsroundabout(=rnew,THREEsMesh(roundaboutGeometry, highwayMaterial);ndMaterial);
-            roundabout.rotation.x = -Math.PI / 2and.rotation.x = -Math.PI / 2;
-            roundabout.position.set(0, 0.01, 0);
-            roundabout.position.set(
-                (Math.roundaboutom() - 0.5) * WORLD_SIZE * 1.5,
-            roads.push(roundabout);       0.02,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
-               Rodmrking(wit line)
-            c nadeRoadMarkrngs();
-eeehd u };
-        
-        funstice.cdnaadMakings {
-            line
-            ffffff 1.8
-                );
-                grass.receiveShadow = true;
-                scene.add(grass);
+                    lastCrashTime: 0
+                });
             }
         }
         
-        function createBridges() {
-            const bridgeMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x4a4a4a,
+        function createRoadNetwork() {
+            // Main highway (horizontal)
+            const highwayGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, 20);
+            const highwayMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x2a2a2a,
                 transparent: true,
-                opacity: 0.9
+                opacity: 0.95
             });
+            const highway = new THREE.Mesh(highwayGeometry, highwayMaterial);
+            highway.rotation.x = -Math.PI / 2;
+            highway.position.set(0, 0.01, 0);
+            highway.receiveShadow = true;
+            scene.add(highway);
+            roads.push(highway);
             
-            // Bridge 1 - Over highway
-           const bridgeGeometry = new THREEBoxGeometry(25, 3, );
-            const bridge1 =/new/THREE.Mesh(bridge1Geometry, bridgeMaterial);
-            bridge1.position.set(40, 1.5,C30e grass patches
-            bridge1.castShadow = true;
-        for brid e1.receiveShadow = true;
-            scene.add(bridge1);
-            bridges.push(bridge1);
+            // Vertical road
+            const verticalRoadGeometry = new THREE.PlaneGeometry(20, WORLD_SIZE * 2);
+            const verticalRoad = new THREE.Mesh(verticalRoadGeometry, highwayMaterial);
+            verticalRoad.rotation.x = -Math.PI / 2;
+            verticalRoad.position.set(0, 0.01, 0);
+            verticalRoad.receiveShadow = true;
+            scene.add(verticalRoad);
+            roads.push(verticalRoad);
             
-            // Bridge supports
-            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
-            for (let x = -8; x <= 8; x += 16) {
-                const supportGeometry = new THREE.BoxGeometry(2, 3, 2);
-                const support = new THREE.Mesh(supportGeometry, supportMaterial);
-                support.position.set(40 + x, 1.5, 30);
-                support.castShadow = true;
-                scene.add(support);
-            }
-            
-            // Bridge 2 - Elevated crossing
-            const bridge2Geometry = new THREE.BoxGeometry(8, 3, 30);
-            const bridge2 = new THREE.Mesh(bridge2Geometry, bridgeMaterial);
-            bridge2.position.set(-30, 1.5, -40);
-            bridge2.castShadow = true;
-            bridge2.receiveShadow = true;
-            scene.add(bridge2);
-            bridges.push(bridge2);
-            
-            // Bridge 3 - Roundabout overpass
-            const bridge3Geometry = new THREE.BoxGeometry(35, 3, 6);
-            const bridge3 = new THREE.Mesh(bridge3Geometry, bridgeMaterial);
-            bridge3.position.set(0, 1.5, 50);
-            bridge3.castShadow = true;
-            bridge3.receiveShadow = true;
-            scene.add(bridge3);
-            bridges.push(bridge3);
+            // Roundabout center
+            const roundaboutGeometry = new THREE.RingGeometry(15, 25, 32);
+            const roundabout = new THREE.Mesh(roundaboutGeometry, highwayMaterial);
+            roundabout.rotation.x = -Math.PI / 2;
+            roundabout.position.set(0, 0.01, 0);
+            roundabout.receiveShadow = true;
+            scene.add(roundabout);
+            roads.push(roundabout);
         }
         
-        function createInternalBorders() {
+        function createObstacles() {
+            // Create concrete barriers
+            for (let i = 0; i < 8; i++) {
+                const barrierGeometry = new THREE.BoxGeometry(2, 3, 8);
+                const barrierMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x808080,
+                    emissive: 0x404040,
+                    emissiveIntensity: 0.1
+                });
+                const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+                barrier.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+                    1.5,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.6
+                );
+                barrier.castShadow = true;
+                barrier.receiveShadow = true;
+                scene.add(barrier);
+                obstacles.push(barrier);
+            }
+        }
+        
+        function createBoostPads() {
+            for (let i = 0; i < 4; i++) {
+                const padGeometry = new THREE.BoxGeometry(6, 0.2, 12);
+                const padMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x00ff00,
+                    emissive: 0x00ff00,
+                    emissiveIntensity: 0.3
+                });
+                const pad = new THREE.Mesh(padGeometry, padMaterial);
+                pad.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+                    0.1,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
+                );
+                pad.castShadow = true;
+                pad.receiveShadow = true;
+                scene.add(pad);
+                boostPads.push(pad);
+            }
+        }
+        
+        function createSpeedBumps() {
+            for (let i = 0; i < 6; i++) {
+                const bumpGeometry = new THREE.BoxGeometry(4, 0.5, 1);
+                const bumpMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xffa500,
+                    emissive: 0xff6600,
+                    emissiveIntensity: 0.1
+                });
+                const bump = new THREE.Mesh(bumpGeometry, bumpMaterial);
+                bump.position.set(
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
+                    0.25,
+                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
+                );
+                bump.castShadow = true;
+                bump.receiveShadow = true;
+                scene.add(bump);
+                speedBumps.push(bump);
+            }
+        }
+        
+        function createBorders() {
             const borderMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x666666,
-                emissive: 0x222222,
-                emissiveIntensity: 0.1
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.2
             });
             
-            // Innei city border w ll=
-            con t innerSize = WORLD_SIZE * 006;
-            
-            // North inner bo;d r
-            ionst northInner = new THREE.Mesh(
-                new THREE.BoxGeom try(<nnerSize * 2, 1.5, 0.5),
+            // North border
+            const northBorder = new THREE.Mesh(
+                new THREE.BoxGeometry(WORLD_SIZE * 2, BORDER_HEIGHT, BORDER_WIDTH),
                 borderMaterial
             );
-            northInner.position.set(0, 0.75, -innerSize);
-            northInner.castShadow = true;
-            northInner.recei8eShadow = true;
-            scene.add(northInner);
-            internalBorders.push(northInner);
+            northBorder.position.set(0, BORDER_HEIGHT / 2, -WORLD_SIZE);
+            northBorder.castShadow = true;
+            scene.add(northBorder);
             
-            // South inner border
-            const southInner = new THREE.Mesh(
-                new THREE.BoxGeometry(innerSize * 2, 1.5, 0.5),
+            // South border
+            const southBorder = new THREE.Mesh(
+                new THREE.BoxGeometry(WORLD_SIZE * 2, BORDER_HEIGHT, BORDER_WIDTH),
                 borderMaterial
             );
-            southInner.position.set(0, 0.75, innerSize);
-            southInn6r.cast; i++) {
-            southInner.receiveShadow = true;
-        });southInner);
-            internalBorders.push(southInner);
+            southBorder.position.set(0, BORDER_HEIGHT / 2, WORLD_SIZE);
+            southBorder.castShadow = true;
+            scene.add(southBorder);
             
-            // East inner border
-            const eastInner = new THREE.Mesh(
-                new THREE.BoxGeometry(0.5, 1.5, innerSize * 2),
+            // East border
+            const eastBorder = new THREE.Mesh(
+                new THREE.BoxGeometry(BORDER_WIDTH, BORDER_HEIGHT, WORLD_SIZE * 2),
                 borderMaterial
             );
-            eastInner.position.set(innerSize, 0.75, 0);
-            eastInner.castShadow = true;
+            eastBorder.position.set(WORLD_SIZE, BORDER_HEIGHT / 2, 0);
+            eastBorder.castShadow = true;
+            scene.add(eastBorder);
+            
+            // West border
+            const westBorder = new THREE.Mesh(
+                new THREE.BoxGeometry(BORDER_WIDTH, BORDER_HEIGHT, WORLD_SIZE * 2),
+                borderMaterial
+            );
+            westBorder.position.set(-WORLD_SIZE, BORDER_HEIGHT / 2, 0);
+            westBorder.castShadow = true;
+            scene.add(westBorder);
+        }
+        
+        function createCar() {
+            // Car body
+            const bodyGeometry = new THREE.BoxGeometry(4, 1.5, 8);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xff3333 });
+            const carBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            carBody.position.y = 1;
+            carBody.castShadow = true;
+            car.add(carBody);
+            
+            // Car roof
+            const roofGeometry = new THREE.BoxGeometry(3, 1, 4);
+            const roofMaterial = new THREE.MeshLambertMaterial({ color: 0xcc0000 });
+            const carRoof = new THREE.Mesh(roofGeometry, roofMaterial);
+            carRoof.position.set(0, 2, 0);
+            carRoof.castShadow = true;
+            car.add(carRoof);
+            
+            // Windows
+            const windowGeometry = new THREE.BoxGeometry(2.5, 0.8, 3);
+            const windowMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x4488ff,
+                transparent: true,
+                opacity: 0.7
+            });
+            const windows = new THREE.Mesh(windowGeometry, windowMaterial);
+            windows.position.set(0, 2.2, 0);
+            car.add(windows);
+            
+            // Wheels
+            const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
+            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+            
+            // Front wheels
+            const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontLeftWheel.position.set(-2.2, 0.5, 2.5);
+            frontLeftWheel.rotation.z = Math.PI / 2;
+            car.add(frontLeftWheel);
+            
+            const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontRightWheel.position.set(2.2, 0.5, 2.5);
+            frontRightWheel.rotation.z = Math.PI / 2;
+            car.add(frontRightWheel);
+            
+            // Rear wheels
+            const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            rearLeftWheel.position.set(-2.2, 0.5, -2.5);
+            rearLeftWheel.rotation.z = Math.PI / 2;
+            car.add(rearLeftWheel);
+            
+            const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            rearRightWheel.position.set(2.2, 0.5, -2.5);
+            rearRightWheel.rotation.z = Math.PI / 2;
+            car.add(rearRightWheel);
+            
+            // Headlights
+            const headlightGeometry = new THREE.BoxGeometry(0.8, 0.5, 0.3);
+            const headlightMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.3
+            });
+            
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-1.5, 1, 4);
+            car.add(leftHeadlight);
+            
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            rightHeadlight.position.set(1.5, 1, 4);
+            car.add(rightHeadlight);
+            
+            scene.add(car);
+        }
+        
+        function updateCarPhysics(deltaTime) {
+            // Input
+            const accelerate = keys['w'];
+            const brake = keys['s'];
+            const turnLeft = keys['a'];
+            const turnRight = keys['d'];
+            
+            // Acceleration/Braking
+            if (accelerate) {
+                carPhysics.speed += carPhysics.acceleration * deltaTime;
+            } else if (brake) {
+                carPhysics.speed -= carPhysics.brakeForce * deltaTime;
+            } else {
+                // Natural deceleration
+                carPhysics.speed *= carPhysics.friction;
+            }
+            
+            // Update enemy cars
+            updateEnemyCars(deltaTime);
+            
+            // Check enemy car collisions
+            checkEnemyCarCollisions();
+            
+            // Clamp speed
+            carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
+            
+            // Steering with reversed controls and drifting
+            if (Math.abs(carPhysics.speed) > 0.1) {
+                // REVERSED: Left arrow turns right, right arrow turns left
+                const turnAmount = (turnRight ? -1 : 0) + (turnLeft ? 1 : 0);
+                
+                if (turnAmount !== 0) {
+                    const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
+                    const baseTurn = turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
+                    
+                    // Check if drifting (speed above threshold and turning)
+                    const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
+                    
+                    if (isDrifting) {
+                        // Calculate enhanced drift angle based on turn and speed
+                        const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
+                        const highSpeedMultiplier = Math.abs(carPhysics.speed) > 40 ? 2.5 : 1;
+                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8 * highSpeedMultiplier;
+                        carPhysics.driftIntensity = speedRatio * highSpeedMultiplier;
+                        
+                        // Add strong lateral velocity for dramatic back sliding
+                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
+                        const highSpeedDriftForce = Math.abs(carPhysics.speed) > 40 ? baseDriftForce * 2 : baseDriftForce;
+                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * highSpeedDriftForce;
+                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * highSpeedDriftForce;
+                        
+                        // Add extra lateral force for more sliding (enhanced at high speed)
+                        const extraSlide = turnAmount * speedRatio * 8 * highSpeedMultiplier;
+                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
+                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
+                        
+                        // Add explosive high-speed drift effects
+                        if (Math.abs(carPhysics.speed) > 40) {
+                            // Add random drift turbulence
+                            const turbulence = (Math.random() - 0.5) * 5;
+                            carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2 + turbulence) * 3;
+                            carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2 + turbulence) * 3;
+                            
+                            // Reduce turn control dramatically at high speed
+                            car.rotation.y += baseTurn * 0.3;
+                        } else {
+                            // Normal turn reduction
+                            car.rotation.y += baseTurn * 0.6;
+                        }
+                    } else {
+                        // Normal turning
+                        car.rotation.y += baseTurn;
+                        carPhysics.targetDriftAngle = 0;
+                    }
+                } else {
+                    carPhysics.targetDriftAngle = 0;
+                }
+            } else {
+                carPhysics.targetDriftAngle = 0;
+            }
+            
+            // Enhanced smooth drift angle transition
+            const transitionSpeed = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.15;
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * transitionSpeed;
+            
+            // Apply reduced friction for longer drifts (even less at high speed)
+            const frictionFactor = Math.abs(carPhysics.speed) > 40 ? 0.96 : 0.92;
+            carPhysics.lateralVelocity.multiplyScalar(frictionFactor);
+            
+            // Add enhanced random drift wobble for realism (more intense at high speed)
+            if (Math.abs(carPhysics.driftAngle) > 0.1) {
+                const wobbleIntensity = Math.abs(carPhysics.speed) > 40 ? 0.08 : 0.02;
+                const wobble = (Math.random() - 0.5) * wobbleIntensity * carPhysics.driftIntensity;
+                carPhysics.driftAngle += wobble;
+            }
+            
+            // Add high-speed drift turbulence
+            if (Math.abs(carPhysics.speed) > 40 && Math.abs(carPhysics.driftAngle) > 0.2) {
+                const turbulence = (Math.random() - 0.5) * 0.05;
+                carPhysics.driftAngle += turbulence;
+            }
+            
+            // Update velocity (forward + lateral)
+            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
+            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
+            
+            // Update position
+            car.position.x += carPhysics.velocity.x * deltaTime;
+            car.position.z += carPhysics.velocity.z * deltaTime;
+            
+            // Apply enhanced drift rotation for dramatic back sliding
+            if (Math.abs(carPhysics.driftAngle) > 0.01) {
+                // Store the actual movement direction
+                const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
+                
+                // Apply enhanced visual drift angle with intensity modifier
+                const intensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
+                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * intensityModifier);
+                car.rotation.y = movementDirection - visualDriftAngle;
+                
+                // Add enhanced car tilt during drift (more dramatic at high speed)
+                const tiltMultiplier = Math.abs(carPhysics.speed) > 40 ? 0.6 : 0.3;
+                const rollMultiplier = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.1;
+                car.rotation.z = -carPhysics.driftAngle * tiltMultiplier * carPhysics.driftIntensity;
+                car.rotation.x = Math.abs(carPhysics.driftAngle) * rollMultiplier * carPhysics.driftIntensity;
+                
+                // Add high-speed drift shake
+                if (Math.abs(carPhysics.speed) > 40) {
+                    car.rotation.z += (Math.random() - 0.5) * 0.1;
+                    car.rotation.x += (Math.random() - 0.5) * 0.05;
+                }
+            } else {
+                // Reset car tilt when not drifting
+                car.rotation.z *= 0.9;
+                car.rotation.x *= 0.9;
+            }
+            
+            // World boundary collision
+            if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
+                car.position.x = Math.sign(car.position.x) * (WORLD_SIZE - 2);
+                carPhysics.speed *= -0.5;
+                carPhysics.velocity.x *= -0.5;
+                carPhysics.lateralVelocity.x *= -0.5;
+            }
+            
+            if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
+                car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
+                carPhysics.speed *= -0.5;
+                carPhysics.velocity.z *= -0.5;
+                carPhysics.lateralVelocity.z *= -0.5;
+            }
+            
+            // Check collisions with map elements
+            checkMapInteractions();
+            
+            // Update camera (third person)
+            const cameraDistance = 15;
+            const cameraHeight = 8;
+            camera.position.x = car.position.x - Math.sin(car.rotation.y) * cameraDistance;
+            camera.position.y = cameraHeight;
+            camera.position.z = car.position.z - Math.cos(car.rotation.y) * cameraDistance;
+            camera.lookAt(car.position);
+            
+            // Update UI
+            updateUI();
+        }
+        
+        function updateEnemyCars(deltaTime) {
+            if (!gameRunning) return;
+            
+            enemyCars.forEach(enemy => {
+                // Calculate direction to player
+                const direction = new THREE.Vector3();
+                direction.subVectors(car.position, enemy.mesh.position);
+                direction.y = 0;
+                direction.normalize();
+                
+                // Calculate rotation to face player
+                const targetRotation = Math.atan2(direction.x, direction.z);
+                
+                // Smooth rotation
+                let rotationDiff = targetRotation - enemy.mesh.rotation.y;
+                while (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
+                while (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
+                enemy.mesh.rotation.y += rotationDiff * enemy.turnSpeed * deltaTime;
+                
+                // Distance to player
+                const distanceToPlayer = enemy.mesh.position.distanceTo(car.position);
+                
+                // Adjust speed based on distance
+                if (distanceToPlayer > 30) {
+                    enemy.targetSpeed = 35; // Speed up when far
+                } else if (distanceToPlayer < 15) {
+                    enemy.targetSpeed = 10; // Slow down when close
+                } else {
+                    enemy.targetSpeed = 25; // Normal chase speed
+                }
+                
+                // Accelerate/decelerate
+                if (enemy.speed < enemy.targetSpeed) {
+                    enemy.speed += enemy.acceleration * deltaTime;
+                } else {
+                    enemy.speed -= enemy.acceleration * deltaTime * 0.5;
+                }
+                
+                // Clamp speed
+                enemy.speed = Math.max(5, Math.min(40, enemy.speed));
+                
+                // Update velocity
+                enemy.velocity.x = Math.sin(enemy.mesh.rotation.y) * enemy.speed;
+                enemy.velocity.z = Math.cos(enemy.mesh.rotation.y) * enemy.speed;
+                
+                // Update position
+                enemy.mesh.position.x += enemy.velocity.x * deltaTime;
+                enemy.mesh.position.z += enemy.velocity.z * deltaTime;
+                
+                // Keep enemy cars within bounds
+                if (Math.abs(enemy.mesh.position.x) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.x = Math.sign(enemy.mesh.position.x) * (WORLD_SIZE - 5);
+                }
+                if (Math.abs(enemy.mesh.position.z) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.z = Math.sign(enemy.mesh.position.z) * (WORLD_SIZE - 5);
+                }
+            });
+        }
             eastInner.receiveShadow = true;
             scene.add(eastInner);
             internalBorders.push(eastInner);
