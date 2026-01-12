@@ -191,7 +191,7 @@
             acceleration: 40,
             brakeForce: 50,
             turnSpeed: 3.0,
-            friction: 0.95,
+            friction: 0.98,
             driftThreshold: 60,
             driftFactor: 0.6,
             driftAngle: 0,
@@ -693,18 +693,22 @@
                     const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
                     const baseTurn = turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
                     
-                    // Check if drifting (speed above 60 AND held turn for 4 seconds)
+                    // Check if drifting (speed above 60 AND held turn for 1.5 seconds)
                     const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
-                                      turnHoldTime >= 4.0 && 
+                                      turnHoldTime >= 1.5 && 
                                       Math.abs(turnAmount) > 0.5;
                     
+                    // Always add some sliding when turning at high speed
+                    const isSliding = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
+                                     Math.abs(turnAmount) > 0.5;
+                    
                     if (isDrifting) {
-                        // Calculate drift angle based on speed and turn (reduced)
+                        // Full drift with angle and strong sliding
                         const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
                         const speedMultiplier = Math.abs(carPhysics.speed) > 70 ? 0.3 : 0.2;
                         carPhysics.targetDriftAngle = turnAmount * speedRatio * speedMultiplier;
                         
-                        // Add lateral velocity for sliding (reduced force)
+                        // Strong lateral velocity for full drift
                         const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.08;
                         const driftSpeedMultiplier = Math.abs(carPhysics.speed) > 70 ? 1.2 : 1.0;
                         const driftForce = baseDriftForce * driftSpeedMultiplier;
@@ -714,6 +718,16 @@
                         
                         // Maintain forward momentum while drifting
                         car.rotation.y += baseTurn * 0.85;
+                    } else if (isSliding) {
+                        // Light sliding without drift angle
+                        const slideForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.04;
+                        
+                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * slideForce;
+                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * slideForce;
+                        
+                        // Normal turning with light sliding
+                        car.rotation.y += baseTurn;
+                        carPhysics.targetDriftAngle = 0;
                     } else {
                         // Normal turning
                         car.rotation.y += baseTurn;
