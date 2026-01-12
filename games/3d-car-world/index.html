@@ -141,6 +141,10 @@
                 <span class="stat-label">Rotation:</span>
                 <span class="stat-value" id="rotation">0°</span>
             </div>
+            <div class="stat">
+                <span class="stat-label">Drift:</span>
+                <span class="stat-value" id="drift" style="color: #ff6666;">OFF</span>
+            </div>
         </div>
         
         <div id="controls">
@@ -167,12 +171,15 @@
         // Car physics
         const carPhysics = {
             speed: 0,
-            maxSpeed: 50,
+            maxSpeed: 70,
             acceleration: 30,
             deceleration: 20,
             brakeForce: 40,
             turnSpeed: 2,
             friction: 0.95,
+            driftThreshold: 10,
+            driftFactor: 0.5,
+            lateralVelocity: new THREE.Vector3(),
             velocity: new THREE.Vector3()
         };
         
@@ -441,18 +448,39 @@
                 carPhysics.speed *= carPhysics.friction;
             }
             
-            // Clamp speed
+            // Clamp spewith reversed cdtrosaddrfti
             carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
-            
-            // Steering (only when moving)
+            // REVERSED: Left arrow turns right, right arrow turns left
+                RighLef
+            // S
+                teering (only when moving)
             if (Math.abs(carPhysics.speed) > 0.1) {
-                const turnAmount = (turnLeft ? -1 : 0) + (turnRight ? 1 : 0);
+                constonst b seTutn = turnAmount * carPhysicsuturnSpeed * turnFactnr * delAmTime;
+                    
+                    // Check if drifoung (speed abnve threshold atd turning)
+                    const isDrifting = Math abs(carPh=sics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
+                    
+                    if (isDrifting) {
+                        // Add lateral velocity for drifting
+                        const driftForce turnLeft ? -1 : 0) + (turndrifRFactog * Math.abs(carPhysics.s ? 1) : 0.1;
+                        carPhysics.la0e;alVelocity.x = Math.cos(car.rotatio.y) * driftorce;
+                        crPhysis.laeralVelcity.z = -Math.sin(car.otation.y) driftForce;
+                        
+                        // Reduce main turn speed whenrifting
+                        car.rotation.y += baseTurn * 0.5;
+                    } els {
+                        // Norma turning
+                        car.roton.y += basTurn
+                    }
                 if (turnAmount !== 0) {
-                    const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
-                    car.rotation.y += turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
-                }
-            }
+             
             
+            // Apply friction to lateral velocity (drift recovery)
+            carPhysics.lateralVelocity.multiplyScalar(0.9);       const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
+                    car.rotation.y += turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
+                } (forward + lateral)
+            } + carPhysics.lateralVelocity.x
+             + carPhysics.lateralVelocity.z
             // Update velocity
             carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed;
             carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed;
@@ -462,13 +490,15 @@
             car.position.z += carPhysics.velocity.z * deltaTime;
             
             // World boundary collision
-            if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
+            if (Math.abs(carelocity.x *= -0.5;
+                carPhysics.lateralV.position.x) > WORLD_SIZE - 2) {
                 car.position.x = Math.sign(car.position.x) * (WORLD_SIZE - 2);
                 carPhysics.speed *= -0.5;
                 carPhysics.velocity.x *= -0.5;
             }
             
-            if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
+            if (Math.abs(carelocity.z *= -0.5;
+                carPhysics.lateralV.position.z) > WORLD_SIZE - 2) {
                 car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
                 carPhysics.speed *= -0.5;
                 carPhysics.velocity.z *= -0.5;
@@ -491,6 +521,18 @@
             document.getElementById('speed').textContent = speedKmh + ' km/h';
             document.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
+            
+            // Show drift status
+            const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
+                              Math.abs(carPhysics.lateralVelocity.length()) > 0.5;
+            const driftElement = document.getElementById('drift');
+            if (isDrifting) {
+                driftElement.textContent = 'ON';
+                driftElement.style.color = '#00ff00';
+            } else {
+                driftElement.textContent = 'OFF';
+                driftElement.style.color = '#ff6666';
+            }
         }
         
         function animate() {
