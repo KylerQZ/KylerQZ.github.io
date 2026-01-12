@@ -275,20 +275,20 @@
             ground.receiveShadow = true;
             scene.add(ground);
             
-            // Create gdiurtees();
+            // Create road network
+            createRoadNetwork();
             
-            // Ce
-            // Create aboopna
-            tPads();
+            // Create obstacles
+            createObstacles();
             
-            // Create p bus();mps
-            eSpeedBumps();
+            // Create boost pads
+            createBoostPads();
             
-            // Create otidv();e elements
-            ecorativeElements();
+            // Create speed bumps
+            createSpeedBumps();
             
-            // Create dBlmis();nes on ground
-            gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
+            // Create grid lines on ground
+            const gridHelper = new THREE.GridHelper(WORLD_SIZE * 2, 20, 0x6B8E6B, 0x6B8E6B);
             gridHelper.material.transparent = true;
             gridHelper.material.opacity = 0.3;
             scene.add(gridHelper);
