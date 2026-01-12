@@ -835,528 +835,6 @@
                 }
             });
         }
-            eastInner.receiveShadow = true;
-            scene.add(eastInner);
-            internalBorders.push(eastInner);
-            
-            // West inner border
-            const westInner = new THREE.Mesh(
-                new THREE.BoxGeometry(0.5, 1.5, innerSize * 2),
-        b      
-        wShId.erwr br} ) - 0.5) * WORLD_SIZE * 1.6
-                );
-                barrier.rotation.y = Math.random() * Math.PI;
-                barrier.castShadow = true;
-                barrier.receiveShadow = true;
-                scene.add(barrier);
-                obstacles.push(barrier);
-            }
-            
-            // Create tire walls
-            for (let i = 0; i < 3; i++) {
-                const tireGeometry = new THREE.TorusGeometry(1, 0.4, 8, 16);
-                const tireMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-                
-                for (let j = 0; j < 5; j++) {
-                    const tire = new THREE.Mesh(tireGeometry, tireMaterial);
-                    tire.position.set(
-                        (Math.random() - 0.5) * WORLD_SIZE,
-                        0.4,
-                        (Math.random() - 0.5) * WORLD_SIZE + j * 3
-                    );
-                    tire.rotation.x = Math.PI / 2;
-                    tire.castShadow = true;
-                    tire.receiveShadow = true;
-                    scene.add(tire);
-                    obstacles.push(tire);
-                }
-            }
-        }
-        
-        function createBoostPads() {
-            // Create speed boost pads
-            for (let i = 0; i < 4; i++) {
-                const padGeometry = new THREE.BoxGeometry(6, 0.2, 12);
-                const padMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x00ff00,
-                    emissive: 0x00ff00,
-                    emissiveIntensity: 0.3
-                });
-                const pad = new THREE.Mesh(padGeometry, padMaterial);
-                pad.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.5,
-                    0.1,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.5
-                );
-                pad.receiveShadow = true;
-                scene.add(pad);
-                boostPads.push(pad);
-            }
-        }
-        
-        function createSpeedBumps() {
-            // Create speed bumps
-            for (let i = 0; i < 6; i++) {
-                const bumpGeometry = new THREE.BoxGeometry(4, 0.5, 1);
-                const bumpMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0xffa500,
-                    emissive: 0xff6600,
-                    emissiveIntensity: 0.1
-                });
-                const bump = new THREE.Mesh(bumpGeometry, bumpMaterial);
-                bump.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
-                    0.25,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
-                );
-                bump.castShadow = true;
-                bump.receiveShadow = true;
-                scene.add(bump);
-                speedBumps.push(bump);
-            }
-        }
-        
-        function createDecorativeElements() {
-            // Create trees
-            for (let i = 0; i < 12; i++) {
-                // Tree trunk
-                const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 4);
-                const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-                trunk.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.9,
-                    2,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.9
-                );
-                trunk.castShadow = true;
-                trunk.receiveShadow = true;
-                
-                // Tree leaves
-                const leavesGeometry = new THREE.SphereGeometry(2.5, 8, 6);
-                const leavesMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x228B22,
-                    transparent: true,
-                    opacity: 0.9
-                });
-                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-                leaves.position.set(
-                    trunk.position.x,
-                    trunk.position.y + 3,
-                    trunk.position.z
-                );
-                leaves.castShadow = true;
-                leaves.receiveShadow = true;
-                
-                scene.add(trunk);
-                scene.add(leaves);
-                decorativeElements.push(trunk, leaves);
-            }
-            
-            // Create rocks
-            for (let i = 0; i < 8; i++) {
-                const rockGeometry = new THREE.DodecahedronGeometry(1.5);
-                const rockMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x696969,
-                    transparent: true,
-                    opacity: 0.9
-                });
-                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                rock.position.set(
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8,
-                    0.75,
-                    (Math.random() - 0.5) * WORLD_SIZE * 1.8
-                );
-                rock.rotation.set(
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI
-                );
-                rock.castShadow = true;
-                rock.receiveShadow = true;
-                scene.add(rock);
-                decorativeElements.push(rock);
-            }
-        }
-        
-        function createBorders() {
-            const borderMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0xff0000,
-                emissive: 0xff0000,
-                emissiveIntensity: 0.2
-            });
-            
-            // North border
-            const northBorder = new THREE.Mesh(
-                new THREE.BoxGeometry(WORLD_SIZE * 2, BORDER_HEIGHT, BORDER_WIDTH),
-                borderMaterial
-            );
-            northBorder.position.set(0, BORDER_HEIGHT / 2, -WORLD_SIZE);
-            northBorder.castShadow = true;
-            northBorder.receiveShadow = true;
-            scene.add(northBorder);
-            borders.push(northBorder);
-            
-            // South border
-            const southBorder = new THREE.Mesh(
-                new THREE.BoxGeometry(WORLD_SIZE * 2, BORDER_HEIGHT, BORDER_WIDTH),
-                borderMaterial
-            );
-            southBorder.position.set(0, BORDER_HEIGHT / 2, WORLD_SIZE);
-            southBorder.castShadow = true;
-            southBorder.receiveShadow = true;
-            scene.add(southBorder);
-            borders.push(southBorder);
-            
-            // East border
-            const eastBorder = new THREE.Mesh(
-                new THREE.BoxGeometry(BORDER_WIDTH, BORDER_HEIGHT, WORLD_SIZE * 2),
-                borderMaterial
-            );
-            eastBorder.position.set(WORLD_SIZE, BORDER_HEIGHT / 2, 0);
-            eastBorder.castShadow = true;
-            eastBorder.receiveShadow = true;
-            scene.add(eastBorder);
-            borders.push(eastBorder);
-            
-            // West border
-            const westBorder = new THREE.Mesh(
-                new THREE.BoxGeometry(BORDER_WIDTH, BORDER_HEIGHT, WORLD_SIZE * 2),
-                borderMaterial
-            );
-            westBorder.position.set(-WORLD_SIZE, BORDER_HEIGHT / 2, 0);
-            westBorder.castShadow = true;
-            westBorder.receiveShadow = true;
-            scene.add(westBorder);
-            borders.push(westBorder);
-        }
-        
-        function createCar() {
-            // Create car group
-            car = new THREE.Group();
-            
-            // Car body
-            const bodyGeometry = new THREE.BoxGeometry(4, 1.5, 8);
-            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xff3333 });
-            const carBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            carBody.position.y = 1;
-            carBody.castShadow = true;
-            car.add(carBody);
-            
-            // Car roof
-            const roofGeometry = new THREE.BoxGeometry(3, 1, 4);
-            const roofMaterial = new THREE.MeshLambertMaterial({ color: 0xcc0000 });
-            const carRoof = new THREE.Mesh(roofGeometry, roofMaterial);
-            carRoof.position.set(0, 2, 0);
-            carRoof.castShadow = true;
-            car.add(carRoof);
-            
-            // Windows
-            const windowGeometry = new THREE.BoxGeometry(2.5, 0.8, 3);
-            const windowMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x4488ff,
-                transparent: true,
-                opacity: 0.7
-            });
-            const windows = new THREE.Mesh(windowGeometry, windowMaterial);
-            windows.position.set(0, 2.2, 0);
-            car.add(windows);
-            
-            // Wheels
-            const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
-            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
-            
-            // Front wheels
-            const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            frontLeftWheel.position.set(-2.2, 0.5, 2.5);
-            frontLeftWheel.rotation.z = Math.PI / 2;
-            car.add(frontLeftWheel);
-            
-            const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            frontRightWheel.position.set(2.2, 0.5, 2.5);
-            frontRightWheel.rotation.z = Math.PI / 2;
-            car.add(frontRightWheel);
-            
-            // Rear wheels
-            const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            rearLeftWheel.position.set(-2.2, 0.5, -2.5);
-            rearLeftWheel.rotation.z = Math.PI / 2;
-            car.add(rearLeftWheel);
-            
-            const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            rearRightWheel.position.set(2.2, 0.5, -2.5);
-            rearRightWheel.rotation.z = Math.PI / 2;
-            car.add(rearRightWheel);
-            
-            // Headlights
-            const headlightGeometry = new THREE.BoxGeometry(0.8, 0.5, 0.3);
-            const headlightMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0xffffff,
-                emissive: 0xffffff,
-                emissiveIntensity: 0.5
-            });
-            
-            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            leftHeadlight.position.set(-1.5, 1, 4);
-            car.add(leftHeadlight);
-            
-            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            rightHeadlight.position.set(1.5, 1, 4);
-            car.add(rightHeadlight);
-            
-            // Position car
-            car.position.set(0, 0, 0);
-            scene.add(car);
-        }
-        
-        function setupControls() {
-            // Keyboard controls
-            window.addEventListener('keydown', (e) => {
-                keys[e.key.toLowerCase()] = true;
-                // Arrow keys
-                if (e.key === 'ArrowUp') keys['w'] = true;
-                if (e.key === 'ArrowDown') keys['s'] = true;
-                if (e.key === 'ArrowLeft') keys['a'] = true;
-                if (e.key === 'ArrowRight') keys['d'] = true;
-                
-                if (e.key.startsWith('Arrow')) {
-                    e.preventDefault();
-                }
-            });
-            
-            window.addEventListener('keyup', (e) => {
-                keys[e.key.toLowerCase()] = false;
-                // Arrow keys
-                if (e.key === 'ArrowUp') keys['w'] = false;
-                if (e.key === 'ArrowDown') keys['s'] = false;
-                if (e.key === 'ArrowLeft') keys['a'] = false;
-                if (e.key === 'ArrowRight') keys['d'] = false;
-            });
-            
-            // Window resize
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        }
-        
-        function updateCarPhysics(deltaTime) {
-            // Input
-            const accelerate = keys['w'];
-            const brake = keys['s'];
-            const turnLeft = keys['a'];
-            const turnRight = keys['d'];
-            
-            // Acceleration/Braking
-            if (accelerate) {
-                carPhysics.speed += carPhysics.acceleration * deltaTime;
-            } else if (brake) {
-                carPhysics.speed -= carPhysics.brakeForce * deltaTime;
-            } else {
-                // Natural deceleration
-                carPhysics.speed *= carPhysics.friction;
-            }
-            
-            // Update enemy cars
-            updateEnemyCars(deltaTime);
-            
-            // Check enemy car collisions
-            checkEnemyCarCollisions();
-            
-            // Clamp speed
-            carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
-            
-            // Steering with reversed controls and drifting
-            if (Math.abs(carPhysics.speed) > 0.1) {
-                // REVERSED: Left arrow turns right, right arrow turns left
-                const turnAmount = (turnRight ? -1 : 0) + (turnLeft ? 1 : 0);
-                
-                if (turnAmount !== 0) {
-                    const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
-                    const baseTurn = turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
-                    
-                    // Check if drifting (speed above threshold and turning)
-                    const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
-                    
-                    if (isDrifting) {
-                        // Calculate enhanced drift angle based on turn and speed
-                        const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
-                        const highSpeedMultiplier = Math.abs(carPhysics.speed) > 40 ? 2.5 : 1;
-                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8 * highSpeedMultiplier;
-                        carPhysics.driftIntensity = speedRatio * highSpeedMultiplier;
-                        
-                        // Add strong lateral velocity for dramatic back sliding
-                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
-                        const highSpeedDriftForce = Math.abs(carPhysics.speed) > 40 ? baseDriftForce * 2 : baseDriftForce;
-                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * highSpeedDriftForce;
-                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * highSpeedDriftForce;
-                        
-                        // Add extra lateral force for more sliding (enhanced at high speed)
-                        const extraSlide = turnAmount * speedRatio * 8 * highSpeedMultiplier;
-                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
-                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
-                        
-                        // Add explosive high-speed drift effects
-                        if (Math.abs(carPhysics.speed) > 40) {
-                            // Add random drift turbulence
-                            const turbulence = (Math.random() - 0.5) * 5;
-                            carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2 + turbulence) * 3;
-                            carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2 + turbulence) * 3;
-                            
-                            // Reduce turn control dramatically at high speed
-                            car.rotation.y += baseTurn * 0.3;
-                        } else {
-                            // Normal turn reduction
-                            car.rotation.y += baseTurn * 0.6;
-                        }
-                    } else {
-                        // Normal turning
-                        car.rotation.y += baseTurn;
-                        carPhysics.targetDriftAngle = 0;
-                    }
-                } else {
-                    carPhysics.targetDriftAngle = 0;
-                }
-            } else {
-                carPhysics.targetDriftAngle = 0;
-            }
-            
-            // Enhanced smooth drift angle transition
-            const transitionSpeed = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.15;
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * transitionSpeed;
-            
-            // Apply reduced friction for longer drifts (even less at high speed)
-            const frictionFactor = Math.abs(carPhysics.speed) > 40 ? 0.96 : 0.92;
-            carPhysics.lateralVelocity.multiplyScalar(frictionFactor);
-            
-            // Add enhanced random drift wobble for realism (more intense at high speed)
-            if (Math.abs(carPhysics.driftAngle) > 0.1) {
-                const wobbleIntensity = Math.abs(carPhysics.speed) > 40 ? 0.08 : 0.02;
-                const wobble = (Math.random() - 0.5) * wobbleIntensity * carPhysics.driftIntensity;
-                carPhysics.driftAngle += wobble;
-            }
-            
-            // Add high-speed drift turbulence
-            if (Math.abs(carPhysics.speed) > 40 && Math.abs(carPhysics.driftAngle) > 0.2) {
-                const turbulence = (Math.random() - 0.5) * 0.05;
-                carPhysics.driftAngle += turbulence;
-            }
-            
-            // Update velocity (forward + lateral)
-            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
-            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
-            
-            // Update position
-            car.position.x += carPhysics.velocity.x * deltaTime;
-            car.position.z += carPhysics.velocity.z * deltaTime;
-            
-            // Apply enhanced drift rotation for dramatic back sliding
-            if (Math.abs(carPhysics.driftAngle) > 0.01) {
-                // Store the actual movement direction
-                const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
-                
-                // Apply enhanced visual drift angle with intensity modifier
-                const intensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
-                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * intensityModifier);
-                car.rotation.y = movementDirection - visualDriftAngle;
-                
-                // Add car tilt during drift for more drama
-                car.rotation.z = -carPhysics.driftAngle * 0.3 * carPhysics.driftIntensity;
-                car.rotation.x = Math.abs(carPhysics.driftAngle) * 0.1 * carPhysics.driftIntensity;
-            } else {
-                // Reset car tilt when not drifting
-                car.rotation.z *= 0.9;
-                car.rotation.x *= 0.9;
-            }
-            
-            // World boundary collision
-            if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
-                car.position.x = Math.sign(car.position.x) * (WORLD_SIZE - 2);
-                carPhysics.speed *= -0.5;
-                carPhysics.velocity.x *= -0.5;
-                carPhysics.lateralVelocity.x *= -0.5;
-            }
-            
-            if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
-                car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
-                carPhysics.speed *= -0.5;
-                carPhysics.velocity.z *= -0.5;
-                carPhysics.lateralVelocity.z *= -0.5;
-            }
-            
-            // Check collisions with map elements
-            checkMapInteractions();
-            
-            // Update camera (third person)
-            const cameraDistance = 15;
-            const cameraHeight = 8;
-            camera.position.x = car.position.x - Math.sin(car.rotation.y) * cameraDistance;
-            camera.position.y = cameraHeight;
-            camera.position.z = car.position.z - Math.cos(car.rotation.y) * cameraDistance;
-            camera.lookAt(car.position);
-            
-            // Update UI
-            updateUI();
-        }
-        
-        function updateEnemyCars(deltaTime) {
-            if (!gameRunning) return;
-            
-            enemyCars.forEach(enemy => {
-                // Calculate direction to player
-                const direction = new THREE.Vector3();
-                direction.subVectors(car.position, enemy.mesh.position);
-                direction.y = 0;
-                direction.normalize();
-                
-                // Calculate rotation to face player
-                const targetRotation = Math.atan2(direction.x, direction.z);
-                
-                // Smooth rotation
-                let rotationDiff = targetRotation - enemy.mesh.rotation.y;
-                while (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
-                while (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
-                enemy.mesh.rotation.y += rotationDiff * enemy.turnSpeed * deltaTime;
-                
-                // Distance to player
-                const distanceToPlayer = enemy.mesh.position.distanceTo(car.position);
-                
-                // Adjust speed based on distance
-                if (distanceToPlayer > 30) {
-                    enemy.targetSpeed = 35; // Speed up when far
-                } else if (distanceToPlayer < 15) {
-                    enemy.targetSpeed = 10; // Slow down when close
-                } else {
-                    enemy.targetSpeed = 25; // Normal chase speed
-                }
-                
-                // Accelerate/decelerate
-                if (enemy.speed < enemy.targetSpeed) {
-                    enemy.speed += enemy.acceleration * deltaTime;
-                } else {
-                    enemy.speed -= enemy.acceleration * deltaTime * 0.5;
-                }
-                
-                // Clamp speed
-                enemy.speed = Math.max(5, Math.min(40, enemy.speed));
-                
-                // Update velocity
-                enemy.velocity.x = Math.sin(enemy.mesh.rotation.y) * enemy.speed;
-                enemy.velocity.z = Math.cos(enemy.mesh.rotation.y) * enemy.speed;
-                
-                // Update position
-                enemy.mesh.position.x += enemy.velocity.x * deltaTime;
-                enemy.mesh.position.z += enemy.velocity.z * deltaTime;
-                
-                // Keep enemy cars within bounds
-                if (Math.abs(enemy.mesh.position.x) > WORLD_SIZE - 5) {
-                    enemy.mesh.position.x = Math.sign(enemy.mesh.position.x) * (WORLD_SIZE - 5);
-                }
-                if (Math.abs(enemy.mesh.position.z) > WORLD_SIZE - 5) {
-                    enemy.mesh.position.z = Math.sign(enemy.mesh.position.z) * (WORLD_SIZE - 5);
-                }
-            });
-        }
         
         function checkEnemyCarCollisions() {
             if (!gameRunning) return;
@@ -1366,50 +844,84 @@
             enemyCars.forEach(enemy => {
                 const distance = car.position.distanceTo(enemy.mesh.position);
                 
-                // Check collision (when cars are very close)
+                // Check collision (within 8 units)
                 if (distance < 8) {
-            
-            // Update crash counter
-            const crashElement = document.getElementById('crashes');
-            crashElement.textContent = `${crashCount}/${maxCrashes}`;
-            if (crashCount >= maxCrashes - 1) {
-                crashElement.style.color = '#ff3333';
-            } else if (crashCount >= 1) {
-                crashElement.style.color = '#ffaa00';
-            } else {
-                crashElement.style.color = '#ffffff';
-            }
-                    // Prevent multiple crashes in quick succession
+                    // Prevent multiple rapid collisions with same enemy
                     if (currentTime - enemy.lastCrashTime > 2000) {
                         crashCount++;
                         enemy.lastCrashTime = currentTime;
                         
-                        // Bounce cars apart
+                        // Apply bounce-back physics
                         const bounceDirection = new THREE.Vector3();
                         bounceDirection.subVectors(car.position, enemy.mesh.position);
                         bounceDirection.y = 0;
                         bounceDirection.normalize();
                         
-                        // Push player away
-                        car.position.x += bounceDirection.x * 10;
-                        car.position.z += bounceDirection.z * 10;
-                        carPhysics.speed *= 0.3;
-                        carPhysics.velocity.multiplyScalar(0.3);
+                        car.position.add(bounceDirection.multiplyScalar(10));
+                        carPhysics.speed *= -0.5;
+                        carPhysics.velocity.multiplyScalar(-0.5);
+                        carPhysics.lateralVelocity.multiplyScalar(-0.5);
                         
-                        // Push enemy away
-                        enemy.mesh.position.x -= bounceDirection.x * 10;
-                        enemy.mesh.position.z -= bounceDirection.z * 10;
-                        enemy.speed *= 0.5;
+                        // Update crash counter display
+                        const crashElement = document.getElementById('crashes');
+                        crashElement.textContent = `${crashCount}/${maxCrashes}`;
                         
-                        // Screen shake effect
-                        camera.position.x += (Math.random() - 0.5) * 2;
-                        camera.position.y += (Math.random() - 0.5) * 1;
-                        
-                        // Check for game over
-                        if (crashCount >= maxCrashes) {
+                        // Change color based on crash count
+                        if (crashCount >= 3) {
+                            crashElement.style.color = '#ff0000';
                             gameOver();
+                        } else if (crashCount >= 2) {
+                            crashElement.style.color = '#ff6600';
+                        } else {
+                            crashElement.style.color = '#ffff00';
                         }
+                        
+                        // Add screen shake effect
+                        const originalCameraY = camera.position.y;
+                        camera.position.y += 2;
+                        setTimeout(() => {
+                            camera.position.y = originalCameraY;
+                        }, 100);
                     }
+                }
+            });
+        }
+        
+        function checkMapInteractions() {
+            // Check collision with obstacles
+            obstacles.forEach(obstacle => {
+                const distance = car.position.distanceTo(obstacle.position);
+                if (distance < 5) {
+                    // Bounce back from obstacles
+                    const bounceDirection = new THREE.Vector3();
+                    bounceDirection.subVectors(car.position, obstacle.position);
+                    bounceDirection.y = 0;
+                    bounceDirection.normalize();
+                    car.position.add(bounceDirection.multiplyScalar(6));
+                    carPhysics.speed *= -0.3;
+                }
+            });
+            
+            // Check boost pads
+            boostPads.forEach(pad => {
+                const distance = car.position.distanceTo(pad.position);
+                if (distance < 6) {
+                    // Speed boost
+                    carPhysics.speed = Math.min(carPhysics.speed * 1.5, carPhysics.maxSpeed * 1.2);
+                }
+            });
+            
+            // Check speed bumps
+            speedBumps.forEach(bump => {
+                const distance = car.position.distanceTo(bump.position);
+                if (distance < 3) {
+                    // Slow down from speed bump
+                    carPhysics.speed *= 0.7;
+                    // Add small bounce
+                    car.position.y += 0.5;
+                    setTimeout(() => {
+                        car.position.y = 0;
+                    }, 200);
                 }
             });
         }
@@ -1417,168 +929,85 @@
         function gameOver() {
             gameRunning = false;
             
-            // Show game over message
+            // Create game over overlay
             const gameOverDiv = document.createElement('div');
-            gameOverDiv.id = 'gameOverScreen';
-            gameOverDiv.style.cssText = `
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.9);
-                color: white;
-                padding: 30px;
-                border-radius: 15px;
-                text-align: center;
-                font-size: 24px;
-                z-index: 1000;
-            `;
+            gameOverDiv.style.position = 'fixed';
+            gameOverDiv.style.top = '50%';
+            gameOverDiv.style.left = '50%';
+            gameOverDiv.style.transform = 'translate(-50%, -50%)';
+            gameOverDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+            gameOverDiv.style.color = '#ff0000';
+            gameOverDiv.style.padding = '40px';
+            gameOverDiv.style.borderRadius = '10px';
+            gameOverDiv.style.textAlign = 'center';
+            gameOverDiv.style.fontSize = '24px';
+            gameOverDiv.style.fontWeight = 'bold';
+            gameOverDiv.style.zIndex = '1000';
+            gameOverDiv.style.border = '3px solid #ff0000';
+            gameOverDiv.style.boxShadow = '0 0 20px rgba(255, 0, 0, 0.5)';
+            
             gameOverDiv.innerHTML = `
-                <h2 style="color: #ff3333; margin-bottom: 20px;">💥 CAR WRECKED!</h2>
-                <p style="margin-bottom: 20px;">You crashed ${maxCrashes} times!</p>
+                <div style="font-size: 48px; margin-bottom: 20px;">🚗💥</div>
+                <div style="font-size: 36px; margin-bottom: 20px;">CAR WRECKED!</div>
+                <div style="font-size: 20px; margin-bottom: 30px;">You crashed ${crashCount} times</div>
                 <button onclick="location.reload()" style="
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: linear-gradient(45deg, #ff0000, #cc0000);
                     color: white;
                     border: none;
-                    padding: 12px 30px;
-                    font-size: 16px;
-         
-        
-        // Start the game           border-radius: 25px;
-        init();
-    </script>
-</body>
-</html>            cursor: pointer;
+                    padding: 15px 30px;
+                    font-size: 18px;
+                    border-radius: 5px;
+                    cursor: pointer;
                     font-weight: bold;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
                 ">Play Again</button>
             `;
+            
             document.body.appendChild(gameOverDiv);
         }
         
-        function checkMapInteractions() {
-            // Check boost pad collisions
-            boostPads.forEach(pad => {
-                const distance = Math.sqrt(
-                    Math.pow(car.position.x - pad.position.x, 2) + 
-                    Math.pow(car.position.z - pad.position.z, 2)
-                );
-                if (distance < 8 && carPhysics.speed < carPhysics.maxSpeed * 0.8) {
-                    carPhysics.speed = Math.min(carPhysics.speed + 20, carPhysics.maxSpeed * 0.9);
-                    // Visual feedback - make pad glow
-                    pad.material.emissiveIntensity = 0.8;
-                    setTimeout(() => {
-                        pad.material.emissiveIntensity = 0.3;
-                    }, 500);
-                }
-            });
-            
-            // Check speed bump collisions
-            speedBumps.forEach(bump => {
-                const distance = Math.sqrt(
-                    Math.pow(car.position.x - bump.position.x, 2) + 
-                    Math.pow(car.position.z - bump.position.z, 2)
-                );
-                if (distance < 4) {
-                    carPhysics.speed *= 0.7; // Slow down on speed bump
-                    carPhysics.velocity.multiplyScalar(0.7);
-                    carPhysics.lateralVelocity.multiplyScalar(0.7);
-                }
-            });
-            
-            // Check obstacle collisions
-            obstacles.forEach(obstacle => {
-                const distance = Math.sqrt(
-                    Math.pow(car.position.x - obstacle.position.x, 2) + 
-                    Math.pow(car.position.z - obstacle.position.z, 2)
-                );
-                if (distance < 5) {
-                    // Bounce off obstacles
-                    const bounceDirection = new THREE.Vector3(
-                        car.position.x - obstacle.position.x,
-                        0,
-                        car.position.z - obstacle.position.z
-                    ).normalize();
-                    
-                    car.position.x = obstacle.position.x + bounceDirection.x * 6;
-                    car.position.z = obstacle.position.z + bounceDirection.z * 6;
-                    
-                    carPhysics.speed *= -0.3;
-                    carPhysics.velocity.x = bounceDirection.x * Math.abs(carPhysics.speed) * 0.5;
-                    carPhysics.velocity.z = bounceDirection.z * Math.abs(carPhysics.speed) * 0.5;
-                    carPhysics.lateralVelocity.multiplyScalar(-0.5);
-                }
-            });
-        }
-        
         function updateUI() {
+            // Update speed display
             const speedKmh = Math.abs(carPhysics.speed * 2).toFixed(1);
             document.getElementById('speed').textContent = speedKmh + ' km/h';
+            
+            // Update position display
             document.getElementById('position').textContent = `${car.position.x.toFixed(0)}, ${car.position.z.toFixed(0)}`;
+            
+            // Update rotation display
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
             
-            // Show enhanced drift status (more sensitive at high speed)
+            // Update drift status
             const lateralThreshold = Math.abs(carPhysics.speed) > 40 ? 0.2 : 0.3;
             const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
-                              (Math.abs(carPhysics.lateralVelocity.x) > lateralThreshold || Math.abs(carPhysics.lateralVelocity.z) > lateralThreshold);
+                              Math.abs(carPhysics.lateralVelocity.x) + Math.abs(carPhysics.lateralVelocity.z) > lateralThreshold;
+            
             const driftElement = document.getElementById('drift');
             if (isDrifting) {
-                driftElement.textContent = 'ON';
-                driftElement.style.color = '#00ff00';
+                driftElement.textContent = 'DRIFTING! 🏎️';
+                driftElement.style.color = '#ff6600';
+                driftElement.style.fontWeight = 'bold';
             } else {
-                driftElement.textContent = 'OFF';
-                driftElement.style.color = '#ff6666';
+                driftElement.textContent = 'Normal';
+                driftElement.style.color = '#00ff00';
+                driftElement.style.fontWeight = 'normal';
+            }
+            
+            // Update crash counter
+            const crashElement = document.getElementById('crashes');
+            crashElement.textContent = `${crashCount}/${maxCrashes}`;
+            
+            // Change color based on crash count
+            if (crashCount >= 3) {
+                crashElement.style.color = '#ff0000';
+            } else if (crashCount >= 2) {
+                crashElement.style.color = '#ff6600';
+            } else {
+                crashElement.style.color = '#ffff00';
             }
         }
         
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            const deltaTime = 0.016; // 60 FPS
-            
-            updateCarPhysics(deltaTime);
-            
-            renderer.render(scene, camera);
-        }
-        
-        // Start the game
-        init();
-    </script>
-</body>
-                driftElement.style.color = '#00ff00';
-            } else {
-                driftElement.textContent = 'OFF';
-                driftElement.style.color = '#ff6666';
-            }
-        }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            const deltaTime = 0.016; // 60 FPS
-            
-            updateCarPhysics(deltaTime);
-            
-         
-           renderer.render(scene, camera);
-        // Start the game
-        init();
-    </script>
-</body>
-</html>}
-        
-        // Start the game
-        init();
-    </script>
-</body>
-</html>
-</html>
-                driftElement.style.color = '#00ff00';
-            } else {
-                driftElement.textContent = 'OFF';
-                driftElement.style.color = '#ff6666';
-            }
-        }
-        
+        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             
