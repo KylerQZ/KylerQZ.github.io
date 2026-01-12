@@ -495,13 +495,25 @@
                 carPhysics.targetDriftAngle = 0;
             }
             
-            // Sft angle transition
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.1
+            // Enhanced smooth drift angle transition
+            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * 0.15;
             
-            // Apply  to latertlveatitalyvelocity ( (dri recovery)t recovery)
-            carPhysics.lateralVelocity.multiplyScalar(0.9;
+            // Apply reduced friction for longer drifts
+            carPhysics.lateralVelocity.multiplyScalar(0.92);
             
-            //s.position.z += carPhysics.velocity.z * deltaTime;
+            // Add some random drift wobble for realism
+            if (Math.abs(carPhysics.driftAngle) > 0.1) {
+                const wobble = (Math.random() - 0.5) * 0.02 * carPhysics.driftIntensity;
+                carPhysics.driftAngle += wobble;
+            }
+            
+            // Update velocity (forward + lateral)
+            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
+            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
+            
+            // Update position
+            car.position.x += carPhysics.velocity.x * deltaTime;
+            car.position.z += carPhysics.velocity.z * deltaTime;
             
             // Apply enhanced drift rotation for dramatic back sliding
             if (Math.abs(carPhysics.driftAngle) > 0.01) {
