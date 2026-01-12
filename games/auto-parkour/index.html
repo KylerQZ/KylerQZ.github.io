@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Parkour Runner - Endless Running Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            height: 500px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 50%, #B0E0E6 100%);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: crisp-edges;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 180px;
+        }
+        
+        .stat {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #64b5f6;
+        }
+        
+        .stat-value {
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        #controls h4 {
+            margin-bottom: 10px;
+            color: #64b5f6;
+            text-align: center;
+        }
+        
+        #controls ul {
+            list-style: none;
+        }
+        
+        #controls li {
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .key {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            min-width: 25px;
+            text-align: center;
+            margin-right: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        #gameOver h2 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-size: 32px;
+        }
+        
+        #gameOver p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .restart-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        .restart-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        #startScreen h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        #startScreen p {
+            margin-bottom: 30px;
+            font-size: 18px;
+            opacity: 0.8;
+        }
+        
+        .start-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            animation: pulse 2s infinite;
+        }
+        
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 107, 107, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+        
+        .power-up-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .power-up-active {
+            color: #ffd700;
+            font-weight: bold;
+            animation: glow 1s infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 10px #ffd700; }
+            50% { text-shadow: 0 0 20px #ffd700, 0 0 30px #ffd700; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="canvas"></canvas>
+        
+        <div id="ui">
+            <h3>🏃 Runner Stats</h3>
+            <div class="stat">
+                <span class="stat-label">Score:</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Speed:</span>
+                <span class="stat-value" id="speed">1.0x</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Distance:</span>
+                <span class="stat-value" id="distance">0m</span>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <h4>🎮 Controls</h4>
+            <ul>
+                <li><span class="key">Space</span> - Jump</li>
+                <li><span class="key">↓</span> - Slide</li>
+                <li><span class="key">↑</span> - Double Jump</li>
+                <li><span class="key">←</span> - Left Lane</li>
+                <li><span class="key">→</span> - Right Lane</li>
+            </ul>
+        </div>
+        
+        <div id="startScreen">
+            <h1>🏃 Auto Parkour Runner</h1>
+            <p>Endless running with obstacles and power-ups!</p>
+            <button class="start-btn" onclick="startGame()">Start Running</button>
+        </div>
+        
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Distance: <span id="finalDistance">0</span>m</p>
+            <button class="restart-btn" onclick="restartGame()">Run Again</button>
+        </div>
+        
+        <div class="power-up-indicator" id="powerUpIndicator">
+            <span class="power-up-active">⚡ Power-Up Active!</span>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = 900;
+            canvas.height = 500;
+        }
+        resizeCanvas();
+        
+        // Game state
+        let gameRunning = false;
+        let gameSpeed = 5;
+        let score = 0;
+        let distance = 0;
+        let frameCount = 0;
+        
+        // Player
+        const player = {
+            x: 150,
+            y: 350,
+            width: 40,
+            height: 60,
+            velocityY: 0,
+            jumping: false,
+            sliding: false,
+            doubleJump: false,
+            lane: 1, // 0=left, 1=center, 2=right
+            color: '#ff6b6b',
+            invincible: false,
+            powerUp: null
+        };
+        
+        // Lane positions
+        const lanes = [250, 450, 650];
+        
+        // Game objects
+        const obstacles = [];
+        const powerUps = [];
+        const particles = [];
+        const clouds = [];
+        
+        // Physics constants
+        const GRAVITY = 0.8;
+        const JUMP_FORCE = -15;
+        const DOUBLE_JUMP_FORCE = -12;
+        const SLIDE_DURATION = 30;
+        const GROUND_Y = 350;
+        
+        // Input handling
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                handleJump();
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                handleSlide();
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                handleDoubleJump();
+            }
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                changeLane(-1);
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                changeLane(1);
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function handleJump() {
+            if (!gameRunning) return;
+            
+            if (!player.jumping) {
+                player.velocityY = JUMP_FORCE;
+                player.jumping = true;
+                player.doubleJump = false;
+                createJumpParticles();
+            }
+        }
+        
+        function handleDoubleJump() {
+            if (!gameRunning) return;
+            
+            if (player.jumping && !player.doubleJump) {
+                player.velocityY = DOUBLE_JUMP_FORCE;
+                player.doubleJump = true;
+                createJumpParticles();
+            }
+        }
+        
+        function handleSlide() {
+            if (!gameRunning || player.jumping || player.sliding) return;
+            
+            player.sliding = true;
+            player.height = 30;
+            player.y = GROUND_Y + 30;
+            
+            setTimeout(() => {
+                player.sliding = false;
+                player.height = 60;
+                player.y = GROUND_Y;
+            }, SLIDE_DURATION * 16);
+        }
+        
+        function changeLane(direction) {
+            if (!gameRunning) return;
+            
+            const newLane = player.lane + direction;
+            if (newLane >= 0 && newLane <= 2) {
+                player.lane = newLane;
+                createLaneChangeParticles();
+            }
+        }
+        
+        // Particle system
+        function createJumpParticles() {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: Math.random() * -3,
+                    size: Math.random() * 4 + 2,
+                    color: '#4ecdc4',
+                    life: 1.0
+                });
+            }
+        }
+        
+        function createLaneChangeParticles() {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height / 2,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 3 + 1,
+                    color: '#ffd700',
+                    life: 1.0
+                });
+            }
+        }
+        
+        function createCollisionParticles() {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height / 2,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    size: Math.random() * 5 + 2,
+                    color: '#ff6b6b',
+                    life: 1.0
+                });
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3;
+                p.life -= 0.02;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        // Obstacle system
+        function createObstacle() {
+            const types = ['box', 'spike', 'barrier'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const lane = Math.floor(Math.random() * 3);
+            
+            obstacles.push({
+                x: canvas.width,
+                y: type === 'barrier' ? GROUND_Y - 40 : GROUND_Y,
+                width: type === 'barrier' ? 60 : 40,
+                height: type === 'spike' ? 30 : 40,
+                lane: lane,
+                type: type,
+                color: type === 'box' ? '#8b4513' : type === 'spike' ? '#ff4444' : '#666666'
+            });
+        }
+        
+        function updateObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                obstacle.x -= gameSpeed;
+                
+                // Remove off-screen obstacles
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(i, 1);
+                    score += 10;
+                }
+                
+                // Check collision
+                if (!player.invincible && checkCollision(player, obstacle)) {
+                    gameOver();
+                }
+            }
+        }
+        
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                
+                if (obstacle.type === 'spike') {
+                    // Draw triangle spikes
+                    ctx.beginPath();
+                    ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
+                    ctx.lineTo(obstacle.x + obstacle.width / 2, obstacle.y);
+                    ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Draw box/barrier
+                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    
+                    // Add details
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                }
+            });
+        }
+        
+        // Power-up system
+        function createPowerUp() {
+            const types = ['invincible', 'magnet', 'slowmo'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const lane = Math.floor(Math.random() * 3);
+            
+            powerUps.push({
+                x: canvas.width,
+                y: GROUND_Y - 30,
+                width: 30,
+                height: 30,
+                lane: lane,
+                type: type,
+                color: type === 'invincible' ? '#ffd700' : type === 'magnet' ? '#ff69b4' : '#00ffff'
+            });
+        }
+        
+        function updatePowerUps() {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const powerUp = powerUps[i];
+                powerUp.x -= gameSpeed;
+                powerUp.y += Math.sin(frameCount * 0.1) * 0.5; // Floating effect
+                
+                // Remove off-screen power-ups
+                if (powerUp.x + powerUp.width < 0) {
+                    powerUps.splice(i, 1);
+                }
+                
+                // Check collection
+                if (checkCollision(player, powerUp)) {
+                    collectPowerUp(powerUp);
+                    powerUps.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawPowerUps() {
+            powerUps.forEach(powerUp => {
+                ctx.save();
+                ctx.translate(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+                ctx.rotate(frameCount * 0.05);
+                
+                // Draw star shape
+                ctx.fillStyle = powerUp.color;
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+                    const x = Math.cos(angle) * 15;
+                    const y = Math.sin(angle) * 15;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    
+                    const innerAngle = angle + Math.PI / 5;
+                    const innerX = Math.cos(innerAngle) * 7;
+                    const innerY = Math.sin(innerAngle) * 7;
+                    ctx.lineTo(innerX, innerY);
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+            });
+        }
+        
+        function collectPowerUp(powerUp) {
+            score += 50;
+            player.powerUp = powerUp.type;
+            
+            const indicator = document.getElementById('powerUpIndicator');
+            indicator.style.display = 'block';
+            
+            if (powerUp.type === 'invincible') {
+                player.invincible = true;
+                player.color = '#ffd700';
+                setTimeout(() => {
+                    player.invincible = false;
+                    player.color = '#ff6b6b';
+                    player.powerUp = null;
+                    indicator.style.display = 'none';
+                }, 5000);
+            } else if (powerUp.type === 'slowmo') {
+                gameSpeed *= 0.5;
+                setTimeout(() => {
+                    gameSpeed *= 2;
+                    player.powerUp = null;
+                    indicator.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Background
+        function createCloud() {
+            clouds.push({
+                x: canvas.width + Math.random() * 200,
+                y: Math.random() * 200,
+                width: 60 + Math.random() * 40,
+                speed: 0.5 + Math.random() * 1.5,
+                opacity: 0.3 + Math.random() * 0.4
+            });
+        }
+        
+        function updateClouds() {
+            for (let i = clouds.length - 1; i >= 0; i--) {
+                const cloud = clouds[i];
+                cloud.x -= cloud.speed;
+                
+                if (cloud.x + cloud.width < 0) {
+                    clouds.splice(i, 1);
+                }
+            }
+            
+            // Create new clouds occasionally
+            if (Math.random() < 0.01) {
+                createCloud();
+            }
+        }
+        
+        function drawBackground() {
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.5, '#98D8E8');
+            gradient.addColorStop(1, '#B0E0E6');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Clouds
+            clouds.forEach(cloud => {
+                ctx.globalAlpha = cloud.opacity;
+                ctx.fillStyle = '#ffffff';
+                
+                // Draw cloud with multiple circles
+                ctx.beginPath();
+                ctx.arc(cloud.x, cloud.y, cloud.width * 0.3, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width * 0.3, cloud.y, cloud.width * 0.4, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width * 0.6, cloud.y, cloud.width * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            
+            // Ground
+            ctx.fillStyle = '#8fbc8f';
+            ctx.fillRect(0, GROUND_Y + 60, canvas.width, canvas.height - GROUND_Y - 60);
+            
+            // Ground lines
+            ctx.strokeStyle = '#7aa87a';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 3; i++) {
+                const x = (frameCount * gameSpeed + i * 300) % canvas.width;
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y + 60);
+                ctx.lineTo(x - 50, GROUND_Y + 60);
+                ctx.stroke();
+            }
+        }
+        
+        // Player functions
+        function updatePlayer() {
+            // Apply gravity
+            if (player.jumping) {
+                player.velocityY += GRAVITY;
+                player.y += player.velocityY;
+                
+                // Land on ground
+                if (player.y >= GROUND_Y) {
+                    player.y = GROUND_Y;
+                    player.velocityY = 0;
+                    player.jumping = false;
+                    player.doubleJump = false;
+                }
+            }
+            
+            // Smooth lane transition
+            const targetX = lanes[player.lane] - player.width / 2;
+            player.x += (targetX - player.x) * 0.2;
+        }
+        
+        function drawPlayer() {
+            ctx.save();
+            
+            // Add invincibility effect
+            if (player.invincible) {
+                ctx.globalAlpha = 0.7 + Math.sin(frameCount * 0.3) * 0.3;
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 20;
+            }
+            
+            // Draw player as stylized character
+            ctx.fillStyle = player.color;
+            
+            // Body
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Head
+            ctx.beginPath();
+            ctx.arc(player.x + player.width / 2, player.y - 10, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(player.x + player.width / 2 - 5, player.y - 10, 3, 0, Math.PI * 2);
+            ctx.arc(player.x + player.width / 2 + 5, player.y - 10, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Running animation
+            if (frameCount % 10 < 5) {
+                // Arms up
+                ctx.strokeStyle = player.color;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(player.x + 5, player.y + 10);
+                ctx.lineTo(player.x - 5, player.y);
+                ctx.moveTo(player.x + player.width - 5, player.y + 10);
+                ctx.lineTo(player.x + player.width + 5, player.y);
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+        
+        // Collision detection
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        
+        // Game loop
+        function update() {
+            if (!gameRunning) return;
+            
+            frameCount++;
+            distance += gameSpeed * 0.1;
+            
+            // Increase difficulty
+            if (frameCount % 500 === 0) {
+                gameSpeed += 0.5;
+            }
+            
+            // Spawn objects
+            if (frameCount % 60 === 0) {
+                createObstacle();
+            }
+            if (frameCount % 180 === 0) {
+                createPowerUp();
+            }
+            
+            // Update everything
+            updatePlayer();
+            updateObstacles();
+            updatePowerUps();
+            updateParticles();
+            updateClouds();
+            
+            // Update UI
+            document.getElementById('score').textContent = score;
+            document.getElementById('speed').textContent = (gameSpeed / 5).toFixed(1) + 'x';
+            document.getElementById('distance').textContent = Math.floor(distance) + 'm';
+        }
+        
+        function draw() {
+            // Clear and draw background
+            drawBackground();
+            
+            // Draw game objects
+            drawObstacles();
+            drawPowerUps();
+            drawPlayer();
+            drawParticles();
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            
+            if (gameRunning) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // Game control functions
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameRunning = true;
+            gameSpeed = 5;
+            score = 0;
+            distance = 0;
+            frameCount = 0;
+            
+            // Reset player
+            player.x = lanes[1] - player.width / 2;
+            player.y = GROUND_Y;
+            player.velocityY = 0;
+            player.jumping = false;
+            player.sliding = false;
+            player.doubleJump = false;
+            player.lane = 1;
+            player.invincible = false;
+            player.powerUp = null;
+            player.color = '#ff6b6b';
+            
+            // Clear arrays
+            obstacles.length = 0;
+            powerUps.length = 0;
+            particles.length = 0;
+            clouds.length = 0;
+            
+            // Create initial clouds
+            for (let i = 0; i < 5; i++) {
+                createCloud();
+            }
+            
+            gameLoop();
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            createCollisionParticles();
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalDistance').textContent = Math.floor(distance);
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            startGame();
+        }
+        
+        // Initialize
+        drawBackground();
+    </script>
+</body>
+</html>
