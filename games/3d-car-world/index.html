@@ -225,6 +225,11 @@
         let turnHoldTime = 0;
         let lastTurnDirection = 0;
         
+        // Visual effects system
+        let tireMarks = [];
+        let driftParticles = [];
+        let lastTireMarkPosition = new THREE.Vector3();
+        
         // Initialize Three.js
         function init() {
             // Create scene
@@ -277,6 +282,70 @@
             window.addEventListener('keydown', (event) => {
                 if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
                     event.preventDefault();
+                }
+            });
+        }
+        
+        function createTireMark(position) {
+            const tireMarkGeometry = new THREE.PlaneGeometry(0.3, 1);
+            const tireMarkMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x222222,
+                transparent: true,
+                opacity: 0.8
+            });
+            const tireMark = new THREE.Mesh(tireMarkGeometry, tireMarkMaterial);
+            tireMark.position.copy(position);
+            tireMark.position.y = 0.01;
+            tireMark.rotation.x = -Math.PI / 2;
+            tireMark.rotation.y = car.rotation.y;
+            scene.add(tireMark);
+            tireMarks.push(tireMark);
+            
+            // Remove old tire marks (keep only last 50)
+            if (tireMarks.length > 50) {
+                const oldMark = tireMarks.shift();
+                scene.remove(oldMark);
+            }
+        }
+        
+        function createDriftParticle(position) {
+            const particleGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+            const particleMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x888888,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.copy(position);
+            particle.position.y = 0.2;
+            
+            // Random velocity for particle
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                Math.random() * 0.5,
+                (Math.random() - 0.5) * 2
+            );
+            
+            scene.add(particle);
+            driftParticles.push(particle);
+            
+            // Remove old particles (keep only last 30)
+            if (driftParticles.length > 30) {
+                const oldParticle = driftParticles.shift();
+                scene.remove(oldParticle);
+            }
+        }
+        
+        function updateVisualEffects() {
+            // Update drift particles
+            driftParticles.forEach((particle, index) => {
+                particle.position.add(particle.velocity);
+                particle.velocity.y -= 0.02; // Gravity
+                particle.material.opacity *= 0.95; // Fade out
+                
+                if (particle.material.opacity < 0.1) {
+                    scene.remove(particle);
+                    driftParticles.splice(index, 1);
                 }
             });
         }
@@ -716,6 +785,18 @@
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * driftForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * driftForce;
                         
+                        // Create visual effects for full drift
+                        const distance = car.position.distanceTo(lastTireMarkPosition);
+                        if (distance > 1.5) {
+                            createTireMark(car.position.clone());
+                            lastTireMarkPosition.copy(car.position);
+                        }
+                        
+                        // Create drift particles
+                        if (Math.random() < 0.3) {
+                            createDriftParticle(car.position.clone());
+                        }
+                        
                         // Maintain forward momentum while drifting
                         car.rotation.y += baseTurn * 0.85;
                     } else if (isSliding) {
@@ -724,6 +805,18 @@
                         
                         carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * slideForce;
                         carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * slideForce;
+                        
+                        // Create light visual effects for sliding
+                        const distance = car.position.distanceTo(lastTireMarkPosition);
+                        if (distance > 3.0) {
+                            createTireMark(car.position.clone());
+                            lastTireMarkPosition.copy(car.position);
+                        }
+                        
+                        // Create occasional particles
+                        if (Math.random() < 0.1) {
+                            createDriftParticle(car.position.clone());
+                        }
                         
                         // Normal turning with light sliding
                         car.rotation.y += baseTurn;
@@ -1095,13 +1188,18 @@
             }
         }
         
+                
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             
-            const deltaTime = 0.016; // 60 FPS
+            const deltaTime = Math.min(0.1, clock.getDelta());
             
-            updateCarPhysics(deltaTime);
+            if (gameRunning) {
+                updateCarPhysics(deltaTime);
+                updateUI();
+                updateVisualEffects();
+            }
             
             renderer.render(scene, camera);
         }
