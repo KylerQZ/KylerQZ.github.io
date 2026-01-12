@@ -178,9 +178,13 @@
             turnSpeed: 2,
             friction: 0.95,
             driftThreshold: 10,
-            driftFactor: 0.5,
+            driftFactor: 0.8,
             lateralVelocity: new THREE.Vector3(),
-            velocity: new THREE.Vector3()
+            velocity: new THREE.Vector3(),
+            driftAngle: 0,
+            targetDriftAngle: 0
+        };
+        
         // World settings
         const WORLD_SIZE = 100;
         const BORDER_HEIGHT = 2;
