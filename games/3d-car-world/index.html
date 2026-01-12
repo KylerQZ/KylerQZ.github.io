@@ -767,13 +767,13 @@
                 // Natural deceleration
                 carPhysics.speed *= carPhysics.friction;
             }
-            enemy cars
+            
+            // Update enemy cars
             updateEnemyCars(deltaTime);
             
             // Check enemy car collisions
             checkEnemyCarCollisions();
             
-            // Update 
             // Clamp speed
             carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
             
