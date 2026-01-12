@@ -627,10 +627,10 @@
         
         function updateCarPhysics(deltaTime) {
             // Input
-            const accelerate = keys['w'];
-            const brake = keys['s'];
-            const turnLeft = keys['a'];
-            const turnRight = keys['d'];
+            const accelerate = keys['w'] || keys['arrowup'];
+            const brake = keys['s'] || keys['arrowdown'];
+            const turnLeft = keys['a'] || keys['arrowleft'];
+            const turnRight = keys['d'] || keys['arrowright'];
             
             // Acceleration/Braking
             if (accelerate) {
