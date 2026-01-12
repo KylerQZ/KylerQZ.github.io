@@ -896,21 +896,12 @@
             
             if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
                 car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
-                carPhyintensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
-                const sics.speed *= -0.5;intensityModifier
+                carPhysics.speed *= -0.5;
                 carPhysics.velocity.z *= -0.5;
                 carPhysics.lateralVelocity.z *= -0.5;
-            }d enhance(medraatic at high speed)
-                cnst tiltMultiplier = Math.abs(caPhysics.sped) > 40 ? 0.6 : 0.3;
-                constrollMultiplie = Math.bs(crPhysics.speed) > 40 ? 0.25 : 0.1;
-            tiltMultiplier
-            // Check collisions with map elementsrollMultiplier
-                
-                // Add high-speed drift shake
-                if (Math.abs(carPhysics.speed) > 40) {
-                    car.rotation.z += (Math.random() - 0.5) * 0.1;
-                    car.rotation.x += (Math.random() - 0.5) * 0.05;
-                }
+            }
+            
+            // Check collisions with map elements
             checkMapInteractions();
             
             // Update camera (third person)
