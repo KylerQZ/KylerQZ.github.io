@@ -200,6 +200,12 @@
         const speedBumps = [];
         const decorativeElements = [];
         
+        // Enemy cars
+        const enemyCars = [];
+        let crashCount = 0;
+        const maxCrashes = 3;
+        let gameRunning = true;
+        
         // Initialize Three.js
         function init() {
             // Create scene
