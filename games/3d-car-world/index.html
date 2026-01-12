@@ -175,18 +175,12 @@
         // Car physics
         const carPhysics = {
             speed: 0,
-            maxSpeed: 70,
+            maxSpeed: 50,
             acceleration: 30,
-            deceleration: 20,
             brakeForce: 40,
-            turnSpeed: 2,
+            turnSpeed: 2.5,
             friction: 0.95,
-            driftThreshold: 10,
-            driftFactor: 0.8,
-            lateralVelocity: new THREE.Vector3(),
-            velocity: new THREE.Vector3(),
-            driftAngle: 0,
-            targetDriftAngle: 0
+            velocity: new THREE.Vector3()
         };
         
         // World settings
@@ -658,7 +652,7 @@
             // Clamp speed
             carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.3, Math.min(carPhysics.maxSpeed, carPhysics.speed));
             
-            // Steering with reversed controls and drifting
+            // Steering with reversed controls (no drifting)
             if (Math.abs(carPhysics.speed) > 0.1) {
                 // REVERSED: Left arrow turns right, right arrow turns left
                 const turnAmount = (turnRight ? -1 : 0) + (turnLeft ? 1 : 0);
@@ -667,121 +661,34 @@
                     const turnFactor = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
                     const baseTurn = turnAmount * carPhysics.turnSpeed * turnFactor * deltaTime;
                     
-                    // Check if drifting (speed above threshold and turning)
-                    const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && Math.abs(turnAmount) > 0.5;
-                    
-                    if (isDrifting) {
-                        // Calculate enhanced drift angle based on turn and speed
-                        const speedRatio = Math.min(Math.abs(carPhysics.speed) / carPhysics.maxSpeed, 1);
-                        const highSpeedMultiplier = Math.abs(carPhysics.speed) > 40 ? 2.5 : 1;
-                        carPhysics.targetDriftAngle = turnAmount * speedRatio * 0.8 * highSpeedMultiplier;
-                        carPhysics.driftIntensity = speedRatio * highSpeedMultiplier;
-                        
-                        // Add strong lateral velocity for dramatic back sliding
-                        const baseDriftForce = turnAmount * carPhysics.driftFactor * Math.abs(carPhysics.speed) * 0.25;
-                        const highSpeedDriftForce = Math.abs(carPhysics.speed) > 40 ? baseDriftForce * 2 : baseDriftForce;
-                        carPhysics.lateralVelocity.x = Math.cos(car.rotation.y) * highSpeedDriftForce;
-                        carPhysics.lateralVelocity.z = -Math.sin(car.rotation.y) * highSpeedDriftForce;
-                        
-                        // Add extra lateral force for more sliding (enhanced at high speed)
-                        const extraSlide = turnAmount * speedRatio * 8 * highSpeedMultiplier;
-                        carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2) * extraSlide;
-                        carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2) * extraSlide;
-                        
-                        // Add explosive high-speed drift effects
-                        if (Math.abs(carPhysics.speed) > 40) {
-                            // Add random drift turbulence
-                            const turbulence = (Math.random() - 0.5) * 5;
-                            carPhysics.lateralVelocity.x += Math.cos(car.rotation.y + Math.PI/2 + turbulence) * 3;
-                            carPhysics.lateralVelocity.z += -Math.sin(car.rotation.y + Math.PI/2 + turbulence) * 3;
-                            
-                            // Reduce turn control dramatically at high speed
-                            car.rotation.y += baseTurn * 0.3;
-                        } else {
-                            // Normal turn reduction
-                            car.rotation.y += baseTurn * 0.6;
-                        }
-                    } else {
-                        // Normal turning
-                        car.rotation.y += baseTurn;
-                        carPhysics.targetDriftAngle = 0;
-                    }
-                } else {
-                    carPhysics.targetDriftAngle = 0;
+                    // Normal turning without drift
+                    car.rotation.y += baseTurn;
                 }
-            } else {
-                carPhysics.targetDriftAngle = 0;
             }
             
-            // Enhanced smooth drift angle transition
-            const transitionSpeed = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.15;
-            carPhysics.driftAngle += (carPhysics.targetDriftAngle - carPhysics.driftAngle) * transitionSpeed;
-            
-            // Apply reduced friction for longer drifts (even less at high speed)
-            const frictionFactor = Math.abs(carPhysics.speed) > 40 ? 0.96 : 0.92;
-            carPhysics.lateralVelocity.multiplyScalar(frictionFactor);
-            
-            // Add enhanced random drift wobble for realism (more intense at high speed)
-            if (Math.abs(carPhysics.driftAngle) > 0.1) {
-                const wobbleIntensity = Math.abs(carPhysics.speed) > 40 ? 0.08 : 0.02;
-                const wobble = (Math.random() - 0.5) * wobbleIntensity * carPhysics.driftIntensity;
-                carPhysics.driftAngle += wobble;
-            }
-            
-            // Add high-speed drift turbulence
-            if (Math.abs(carPhysics.speed) > 40 && Math.abs(carPhysics.driftAngle) > 0.2) {
-                const turbulence = (Math.random() - 0.5) * 0.05;
-                carPhysics.driftAngle += turbulence;
-            }
-            
-            // Update velocity (forward + lateral)
-            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.x;
-            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed + carPhysics.lateralVelocity.z;
+            // Update velocity (forward movement only)
+            carPhysics.velocity.x = Math.sin(car.rotation.y) * carPhysics.speed;
+            carPhysics.velocity.z = Math.cos(car.rotation.y) * carPhysics.speed;
             
             // Update position
             car.position.x += carPhysics.velocity.x * deltaTime;
             car.position.z += carPhysics.velocity.z * deltaTime;
             
-            // Apply enhanced drift rotation for dramatic back sliding
-            if (Math.abs(carPhysics.driftAngle) > 0.01) {
-                // Store the actual movement direction
-                const movementDirection = Math.atan2(carPhysics.velocity.x, carPhysics.velocity.z);
-                
-                // Apply enhanced visual drift angle with intensity modifier
-                const intensityModifier = Math.abs(carPhysics.speed) > 40 ? 1.2 : 0.5;
-                const visualDriftAngle = carPhysics.driftAngle * (1 + carPhysics.driftIntensity * intensityModifier);
-                car.rotation.y = movementDirection - visualDriftAngle;
-                
-                // Add enhanced car tilt during drift (more dramatic at high speed)
-                const tiltMultiplier = Math.abs(carPhysics.speed) > 40 ? 0.6 : 0.3;
-                const rollMultiplier = Math.abs(carPhysics.speed) > 40 ? 0.25 : 0.1;
-                car.rotation.z = -carPhysics.driftAngle * tiltMultiplier * carPhysics.driftIntensity;
-                car.rotation.x = Math.abs(carPhysics.driftAngle) * rollMultiplier * carPhysics.driftIntensity;
-                
-                // Add high-speed drift shake
-                if (Math.abs(carPhysics.speed) > 40) {
-                    car.rotation.z += (Math.random() - 0.5) * 0.1;
-                    car.rotation.x += (Math.random() - 0.5) * 0.05;
-                }
-            } else {
-                // Reset car tilt when not drifting
-                car.rotation.z *= 0.9;
-                car.rotation.x *= 0.9;
-            }
+            // Keep car level (no tilt)
+            car.rotation.z = 0;
+            car.rotation.x = 0;
             
             // World boundary collision
             if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
                 car.position.x = Math.sign(car.position.x) * (WORLD_SIZE - 2);
                 carPhysics.speed *= -0.5;
                 carPhysics.velocity.x *= -0.5;
-                carPhysics.lateralVelocity.x *= -0.5;
             }
             
             if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
                 car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
                 carPhysics.speed *= -0.5;
                 carPhysics.velocity.z *= -0.5;
-                carPhysics.lateralVelocity.z *= -0.5;
             }
             
             // Check collisions with map elements
@@ -882,7 +789,6 @@
                         car.position.add(bounceDirection.multiplyScalar(10));
                         carPhysics.speed *= -0.5;
                         carPhysics.velocity.multiplyScalar(-0.5);
-                        carPhysics.lateralVelocity.multiplyScalar(-0.5);
                         
                         // Update crash counter display
                         const crashElement = document.getElementById('crashes');
@@ -999,21 +905,7 @@
             // Update rotation display
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
             
-            // Update drift status
-            const lateralThreshold = Math.abs(carPhysics.speed) > 40 ? 0.2 : 0.3;
-            const isDrifting = Math.abs(carPhysics.speed) > carPhysics.driftThreshold && 
-                              Math.abs(carPhysics.lateralVelocity.x) + Math.abs(carPhysics.lateralVelocity.z) > lateralThreshold;
-            
-            const driftElement = document.getElementById('drift');
-            if (isDrifting) {
-                driftElement.textContent = 'DRIFTING! 🏎️';
-                driftElement.style.color = '#ff6600';
-                driftElement.style.fontWeight = 'bold';
-            } else {
-                driftElement.textContent = 'Normal';
-                driftElement.style.color = '#00ff00';
-                driftElement.style.fontWeight = 'normal';
-            }
+            // Remove drift status - no longer needed
             
             // Update crash counter
             const crashElement = document.getElementById('crashes');
