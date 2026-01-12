@@ -406,39 +406,28 @@
         }
         
         function createRoadNetwork() {
-            // Create infinite road system
-            const roadMaterial = new THREE.MeshLambertMaterial({ 
+            // Main highway (horizontal)
+            const highwayGeometry = new THREE.PlaneGeometry(WORLD_SIZE * 2, 30);
+            const highwayMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x2a2a2a,
                 transparent: true,
                 opacity: 0.95
             });
+            const highway = new THREE.Mesh(highwayGeometry, highwayMaterial);
+            highway.rotation.x = -Math.PI / 2;
+            highway.position.set(0, 0.01, 0);
+            highway.receiveShadow = true;
+            scene.add(highway);
+            roads.push(highway);
             
-            // Create multiple road segments for infinite effect
-            for (let x = -3; x <= 3; x++) {
-                for (let z = -3; z <= 3; z++) {
-                    const roadGeometry = new THREE.PlaneGeometry(WORLD_SIZE, 40);
-                    const road = new THREE.Mesh(roadGeometry, roadMaterial);
-                    road.rotation.x = -Math.PI / 2;
-                    road.position.set(x * WORLD_SIZE, 0.01, z * WORLD_SIZE);
-                    road.receiveShadow = true;
-                    scene.add(road);
-                    roads.push(road);
-                }
-            }
-            
-            // Add road markings
-            const markingMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
-            for (let x = -3; x <= 3; x++) {
-                for (let z = -3; z <= 3; z++) {
-                    for (let i = -WORLD_SIZE/2; i < WORLD_SIZE/2; i += 20) {
-                        const markingGeometry = new THREE.BoxGeometry(2, 0.02, 8);
-                        const marking = new THREE.Mesh(markingGeometry, markingMaterial);
-                        marking.position.set(x * WORLD_SIZE + i, 0.02, z * WORLD_SIZE);
-                        marking.rotation.x = -Math.PI / 2;
-                        scene.add(marking);
-                    }
-                }
-            }
+            // Vertical road
+            const verticalRoadGeometry = new THREE.PlaneGeometry(30, WORLD_SIZE * 2);
+            const verticalRoad = new THREE.Mesh(verticalRoadGeometry, highwayMaterial);
+            verticalRoad.rotation.x = -Math.PI / 2;
+            verticalRoad.position.set(0, 0.01, 0);
+            verticalRoad.receiveShadow = true;
+            scene.add(verticalRoad);
+            roads.push(verticalRoad);
         }
         
         function createObstacles() {
@@ -677,7 +666,18 @@
             car.rotation.z = 0;
             car.rotation.x = 0;
             
-            // No world boundaries - infinite driving
+            // World boundary collision
+            if (Math.abs(car.position.x) > WORLD_SIZE - 2) {
+                car.position.x = Math.sign(car.position.x) * (WORLD_SIZE - 2);
+                carPhysics.speed *= -0.5;
+                carPhysics.velocity.x *= -0.5;
+            }
+            
+            if (Math.abs(car.position.z) > WORLD_SIZE - 2) {
+                car.position.z = Math.sign(car.position.z) * (WORLD_SIZE - 2);
+                carPhysics.speed *= -0.5;
+                carPhysics.velocity.z *= -0.5;
+            }
             
             // Check collisions with map elements
             checkMapInteractions();
@@ -743,7 +743,13 @@
                 enemy.mesh.position.x += enemy.velocity.x * deltaTime;
                 enemy.mesh.position.z += enemy.velocity.z * deltaTime;
                 
-                // No boundaries for enemy cars - infinite chase
+                // Keep enemy cars within bounds
+                if (Math.abs(enemy.mesh.position.x) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.x = Math.sign(enemy.mesh.position.x) * (WORLD_SIZE - 5);
+                }
+                if (Math.abs(enemy.mesh.position.z) > WORLD_SIZE - 5) {
+                    enemy.mesh.position.z = Math.sign(enemy.mesh.position.z) * (WORLD_SIZE - 5);
+                }
             });
         }
         
