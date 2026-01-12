@@ -149,6 +149,18 @@
                 <span class="stat-label">Crashes:</span>
                 <span class="stat-value" id="crashes">0/3</span>
             </div>
+            <div class="stat">
+                <span class="stat-label">Time:</span>
+                <span class="stat-value" id="timer">0:00</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Score:</span>
+                <span class="stat-value" id="score">0s</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Best:</span>
+                <span class="stat-value" id="best">0s</span>
+            </div>
         </div>
         
         <div id="controls">
@@ -198,6 +210,12 @@
         let crashCount = 0;
         const maxCrashes = 3;
         let gameRunning = true;
+        
+        // Timer and score system
+        let startTime = Date.now();
+        let currentTime = 0;
+        let bestScore = localStorage.getItem('bestScore') || 0;
+        let lastSpeedIncrease = 0;
         
         // Initialize Three.js
         function init() {
@@ -615,6 +633,21 @@
         }
         
         function updateCarPhysics(deltaTime) {
+            // Update timer
+            if (gameRunning) {
+                currentTime = Math.floor((Date.now() - startTime) / 1000);
+                
+                // Increase chaser speed every minute
+                const minutesPassed = Math.floor(currentTime / 60);
+                if (minutesPassed > lastSpeedIncrease) {
+                    lastSpeedIncrease = minutesPassed;
+                    enemyCars.forEach(enemy => {
+                        enemy.speed += 1;
+                        enemy.targetSpeed += 1;
+                    });
+                }
+            }
+            
             // Input
             const accelerate = keys['w'] || keys['arrowup'];
             const brake = keys['s'] || keys['arrowdown'];
@@ -887,6 +920,12 @@
         function gameOver() {
             gameRunning = false;
             
+            // Save best score
+            if (currentTime > bestScore) {
+                bestScore = currentTime;
+                localStorage.setItem('bestScore', bestScore);
+            }
+            
             // Create game over overlay
             const gameOverDiv = document.createElement('div');
             gameOverDiv.style.position = 'fixed';
@@ -907,7 +946,9 @@
             gameOverDiv.innerHTML = `
                 <div style="font-size: 48px; margin-bottom: 20px;">🚗💥</div>
                 <div style="font-size: 36px; margin-bottom: 20px;">CAR WRECKED!</div>
-                <div style="font-size: 20px; margin-bottom: 30px;">You crashed ${crashCount} times</div>
+                <div style="font-size: 20px; margin-bottom: 15px;">You crashed ${crashCount} times</div>
+                <div style="font-size: 24px; margin-bottom: 10px; color: #ffff00;">Time: ${currentTime}s</div>
+                <div style="font-size: 18px; margin-bottom: 30px; color: #00ff00;">Best: ${bestScore}s</div>
                 <button onclick="location.reload()" style="
                     background: linear-gradient(45deg, #ff0000, #cc0000);
                     color: white;
@@ -935,7 +976,16 @@
             // Update rotation display
             document.getElementById('rotation').textContent = (car.rotation.y * 180 / Math.PI).toFixed(0) + '°';
             
-            // Remove drift status - no longer needed
+            // Update timer display
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = currentTime % 60;
+            document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update current score
+            document.getElementById('score').textContent = currentTime + 's';
+            
+            // Update best score
+            document.getElementById('best').textContent = bestScore + 's';
             
             // Update crash counter
             const crashElement = document.getElementById('crashes');
