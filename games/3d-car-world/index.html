@@ -183,6 +183,7 @@
         let car, carModel;
         let world, borders = [];
         let keys = {};
+        let clock;
         
         // Car physics
         const carPhysics = {
@@ -232,6 +233,9 @@
         
         // Initialize Three.js
         function init() {
+            // Initialize clock for animation timing
+            clock = new THREE.Clock();
+            
             // Create scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
