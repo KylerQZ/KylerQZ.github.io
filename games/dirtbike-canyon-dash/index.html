@@ -115,6 +115,10 @@
       cameraHeight: 6,
       cameraBack: 14,
       cameraLookAhead: -20,
+      firstPerson: true,
+      fpHeight: 1.65,
+      fpForward: -2.0,
+      fpLookAhead: -45,
       obstacleSpawnMinZ: -220,
       obstacleSpawnMaxZ: -60,
       obstacleSpawnInterval: 0.35,
@@ -138,6 +142,7 @@
       x: 0,
       vx: 0,
       radius: 1.1,
+      visible: true,
     };
 
     const world = {
@@ -257,6 +262,7 @@
       player.mesh = group;
       player.x = 0;
       player.vx = 0;
+      player.visible = true;
     }
 
     function createGround() {
@@ -338,6 +344,9 @@
       player.vx = 0;
       player.mesh.position.set(0, 0, 0);
 
+      player.visible = !settings.firstPerson;
+      player.mesh.visible = player.visible;
+
       document.getElementById('overlay').style.display = 'none';
       document.getElementById('hud').style.display = 'block';
       document.getElementById('tip').style.display = 'block';
@@ -358,6 +367,10 @@
       state.restartIn = 1.15;
       state.shakeTime = 0.35;
       state.shakeStrength = 0.45;
+
+      if (!player.mesh.visible) {
+        player.mesh.visible = true;
+      }
     }
 
     function triggerExplosion(position) {
@@ -602,15 +615,24 @@
       document.getElementById('best').textContent = state.best;
       document.getElementById('speed').textContent = Math.round(settings.forwardSpeed);
 
-      camera.position.x = player.mesh.position.x * 0.65;
-      camera.position.y = settings.cameraHeight;
-      camera.position.z = settings.cameraBack;
-      camera.lookAt(player.mesh.position.x * 0.4, 1.0, settings.cameraLookAhead);
+      if (settings.firstPerson) {
+        camera.position.x = player.mesh.position.x * 0.55;
+        camera.position.y = settings.fpHeight;
+        camera.position.z = settings.fpForward;
+        camera.lookAt(player.mesh.position.x * 0.55, settings.fpHeight, settings.fpLookAhead);
+      } else {
+        camera.position.x = player.mesh.position.x * 0.65;
+        camera.position.y = settings.cameraHeight;
+        camera.position.z = settings.cameraBack;
+        camera.lookAt(player.mesh.position.x * 0.4, 1.0, settings.cameraLookAhead);
+      }
     }
 
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(0.05, clock.getDelta());
+      const baseCamX = camera.position.x;
+      const baseCamY = camera.position.y;
       update(dt);
       updateFlames(dt);
       updateExplosion(dt);
@@ -621,8 +643,8 @@
       const shakeT = clamp(state.shakeTime / 0.35, 0, 1);
       if (shakeT > 0) {
         const s = state.shakeStrength * shakeT;
-        camera.position.x += (Math.random() - 0.5) * s;
-        camera.position.y += (Math.random() - 0.5) * s;
+        camera.position.x = baseCamX + (Math.random() - 0.5) * s;
+        camera.position.y = baseCamY + (Math.random() - 0.5) * s;
       }
       renderer.render(scene, camera);
     }
