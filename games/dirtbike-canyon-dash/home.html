@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dirtbike Canyon Dash</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 50% 35%, rgba(255, 140, 0, 0.22), rgba(0,0,0,0.88)),
+                  linear-gradient(180deg, #0b1020, #02040a);
+      color: #fff;
+      overflow: hidden;
+    }
+    .wrap {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+    .card {
+      width: min(760px, calc(100vw - 32px));
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+      backdrop-filter: blur(12px);
+      padding: 18px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0; font-size: 26px; letter-spacing: 0.3px; }
+    .tag {
+      font-size: 12px;
+      opacity: 0.85;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.05);
+    }
+    p { margin: 10px 0 0; opacity: 0.9; line-height: 1.45; }
+
+    .grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; opacity: 0.9; }
+    .panel .row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin: 6px 0; }
+    .panel .k { opacity: 0.7; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #ff7a00, #ff2d55);
+      box-shadow: 0 12px 34px rgba(255, 70, 80, 0.25);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: none;
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+
+    .bg {
+      position: fixed;
+      inset: -2px;
+      pointer-events: none;
+      background:
+        radial-gradient(900px 420px at 25% 30%, rgba(127,190,243,0.25), transparent 60%),
+        radial-gradient(900px 420px at 80% 45%, rgba(255,140,0,0.18), transparent 60%);
+      filter: blur(0.5px);
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="top">
+        <h1>Dirtbike Canyon Dash</h1>
+        <div class="tag">First-Person • SnowRider-style</div>
+      </div>
+      <p>
+        Auto-forward canyon runner with smooth movement, jumping, landing dust, and an increasing speed curve.
+        Crash = explosion + instant restart.
+      </p>
+
+      <div class="grid">
+        <div class="panel">
+          <h3>Controls</h3>
+          <div class="row"><span class="k">Move</span><span>A/D or  (Left/Right)</span></div>
+          <div class="row"><span class="k">Jump</span><span>Space or  (Up)</span></div>
+          <div class="row"><span class="k">Goal</span><span>Survive + high score</span></div>
+        </div>
+        <div class="panel">
+          <h3>Tips</h3>
+          <div class="row"><span class="k">Jump timing</span><span>Jump late, land clean</span></div>
+          <div class="row"><span class="k">Movement</span><span>Stay centered at high speed</span></div>
+          <div class="row"><span class="k">Score</span><span>Distance-based</span></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a class="btn" href="index.html">Play Now →</a>
+        <a class="btn secondary" href="../">Back to Games</a>
+      </div>
+
+      <div class="footer">Made with Three.js • Runs in your browser</div>
+    </div>
+  </div>
+</body>
+</html>
