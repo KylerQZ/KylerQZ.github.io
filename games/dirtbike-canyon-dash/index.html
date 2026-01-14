@@ -88,7 +88,7 @@
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">0</span></div>
   </div>
 
-  <div id="tip" style="display:none;">Move: A/D or &larr;/&rarr;  |  Restart on crash: automatic</div>
+  <div id="tip" style="display:none;">Move: A/D or &larr;/&rarr;  |  Jump: Space / &uarr;  |  Restart on crash: automatic</div>
 
   <div id="overlay">
     <div id="card">
@@ -105,20 +105,23 @@
     let keys = {};
 
     const settings = {
-      roadHalfWidth: 9,
+      roadHalfWidth: 16,
       forwardSpeed: 45,
       forwardSpeedMax: 100,
       forwardAccel: 6,
       lateralAccel: 55,
       lateralFriction: 10,
-      lateralMaxSpeed: 30,
+      lateralMaxSpeed: 40,
       cameraHeight: 6,
       cameraBack: 14,
       cameraLookAhead: -20,
       firstPerson: true,
-      fpHeight: 1.65,
-      fpForward: -2.0,
-      fpLookAhead: -45,
+      fpHeight: 1.45,
+      fpForward: -1.9,
+      fpLookAhead: -55,
+      gravity: 22,
+      jumpVelocity: 11.5,
+      jumpClearance: 1.05,
       obstacleSpawnMinZ: -220,
       obstacleSpawnMaxZ: -60,
       obstacleSpawnInterval: 0.35,
@@ -141,8 +144,13 @@
       mesh: null,
       x: 0,
       vx: 0,
+      y: 0,
+      vy: 0,
+      grounded: true,
+      jumpHeld: false,
       radius: 1.1,
       visible: true,
+      fpRig: null,
     };
 
     const world = {
@@ -162,7 +170,7 @@
       scene.background = new THREE.Color(0x7fbef3);
       scene.fog = new THREE.Fog(0x7fbef3, 70, 340);
 
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 800);
+      camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 800);
 
       renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -192,7 +200,10 @@
       scene.add(fill);
 
       createPlayer();
+      createFirstPersonRig();
       createGround();
+
+      scene.add(camera);
 
       window.addEventListener('resize', onResize);
 
@@ -262,13 +273,41 @@
       player.mesh = group;
       player.x = 0;
       player.vx = 0;
+      player.y = 0;
+      player.vy = 0;
+      player.grounded = true;
+      player.jumpHeld = false;
       player.visible = true;
+    }
+
+    function createFirstPersonRig() {
+      const rig = new THREE.Group();
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.95, metalness: 0.05 });
+      const accentMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, roughness: 0.55, metalness: 0.15 });
+
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 10), darkMat);
+      bar.rotation.z = Math.PI / 2;
+      bar.position.set(0, 0.0, -0.65);
+      rig.add(bar);
+
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.35, 10), darkMat);
+      stem.position.set(0, -0.15, -0.72);
+      rig.add(stem);
+
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.1), accentMat);
+      plate.position.set(0, 0.08, -0.95);
+      rig.add(plate);
+
+      rig.position.set(0, -0.25, -0.15);
+      camera.add(rig);
+      player.fpRig = rig;
     }
 
     function createGround() {
       const roadMat = new THREE.MeshStandardMaterial({ color: 0x8a5a3a, roughness: 0.98, metalness: 0.0 });
       const stripeMat = new THREE.MeshStandardMaterial({ color: 0x3b2a1f, roughness: 1.0, metalness: 0.0 });
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x8ea4b9, roughness: 0.95, metalness: 0.0, emissive: 0x0b1b2a, emissiveIntensity: 0.08 });
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x6e7f90, roughness: 0.9, metalness: 0.0, emissive: 0x0a1016, emissiveIntensity: 0.06 });
 
       for (let i = 0; i < world.segmentCount; i++) {
         const seg = new THREE.Group();
@@ -286,30 +325,21 @@
         stripe.position.y = 0.01;
         seg.add(stripe);
 
-        const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 10, world.segmentLength), wallMat);
-        wallLeft.position.set(-settings.roadHalfWidth - 6.5, 5, 0);
-        wallLeft.castShadow = true;
-        wallLeft.receiveShadow = true;
-        seg.add(wallLeft);
-
-        const wallRight = new THREE.Mesh(new THREE.BoxGeometry(8, 10, world.segmentLength), wallMat);
-        wallRight.position.set(settings.roadHalfWidth + 6.5, 5, 0);
-        wallRight.castShadow = true;
-        wallRight.receiveShadow = true;
-        seg.add(wallRight);
-
-        if (Math.random() < 0.65) {
-          const rockCount = 1 + Math.floor(Math.random() * 2);
-          for (let r = 0; r < rockCount; r++) {
-            const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2 + Math.random() * 2.2, 0), wallMat);
-            rock.castShadow = true;
-            rock.receiveShadow = true;
-            const side = Math.random() < 0.5 ? -1 : 1;
-            rock.position.set(side * (settings.roadHalfWidth + 10 + Math.random() * 8), 1.4 + Math.random() * 2.0, (Math.random() - 0.5) * world.segmentLength);
-            rock.rotation.set(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.6);
-            rock.scale.setScalar(0.8 + Math.random() * 1.2);
-            seg.add(rock);
-          }
+        // Side rocks / canyon clutter (visible, but no hard border walls)
+        const rockCount = 3 + Math.floor(Math.random() * 3);
+        for (let r = 0; r < rockCount; r++) {
+          const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6 + Math.random() * 2.6, 0), rockMat);
+          rock.castShadow = true;
+          rock.receiveShadow = true;
+          const side = Math.random() < 0.5 ? -1 : 1;
+          rock.position.set(
+            side * (settings.roadHalfWidth + 5 + Math.random() * 10),
+            0.8 + Math.random() * 2.8,
+            (Math.random() - 0.5) * world.segmentLength
+          );
+          rock.rotation.set(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.6);
+          rock.scale.setScalar(0.9 + Math.random() * 1.4);
+          seg.add(rock);
         }
 
         seg.position.z = -i * world.segmentLength;
@@ -317,13 +347,7 @@
         world.groundSegments.push(seg);
       }
 
-      const rimMat = new THREE.MeshStandardMaterial({ color: 0x08060a, roughness: 1.0, metalness: 0.0 });
-      const rimLeft = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, world.segmentCount * world.segmentLength), rimMat);
-      rimLeft.position.set(-settings.roadHalfWidth, 0.15, -(world.segmentCount * world.segmentLength) / 2);
-      scene.add(rimLeft);
-      const rimRight = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, world.segmentCount * world.segmentLength), rimMat);
-      rimRight.position.set(settings.roadHalfWidth, 0.15, -(world.segmentCount * world.segmentLength) / 2);
-      scene.add(rimRight);
+      // No visible hard border rims; boundaries are handled by physics.
     }
 
     function startGame() {
@@ -342,10 +366,16 @@
 
       player.x = 0;
       player.vx = 0;
+      player.y = 0;
+      player.vy = 0;
+      player.grounded = true;
+      player.jumpHeld = false;
       player.mesh.position.set(0, 0, 0);
 
+      // First-person: keep the world view clean, but show handlebars.
       player.visible = !settings.firstPerson;
       player.mesh.visible = player.visible;
+      if (player.fpRig) player.fpRig.visible = true;
 
       document.getElementById('overlay').style.display = 'none';
       document.getElementById('hud').style.display = 'block';
@@ -368,9 +398,9 @@
       state.shakeTime = 0.35;
       state.shakeStrength = 0.45;
 
-      if (!player.mesh.visible) {
-        player.mesh.visible = true;
-      }
+      // Show bike briefly during the explosion.
+      player.mesh.visible = true;
+      if (player.fpRig) player.fpRig.visible = false;
     }
 
     function triggerExplosion(position) {
@@ -438,6 +468,7 @@
       if (type < 0.6) {
         const mat = new THREE.MeshStandardMaterial({ color: 0x3b2f2f, roughness: 0.95, metalness: 0.0 });
         mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1.3, 0), mat);
+        mesh.position.y = 1.05;
       } else {
         const mat = new THREE.MeshStandardMaterial({ color: 0x2b3d2a, roughness: 0.95, metalness: 0.0 });
         mesh = new THREE.Mesh(new THREE.ConeGeometry(1.0, 2.6, 10), mat);
@@ -558,6 +589,23 @@
       const right = keys['d'] || keys['arrowright'];
       const ax = (right ? 1 : 0) - (left ? 1 : 0);
 
+      const jumpKey = keys[' '] || keys['arrowup'];
+      if (jumpKey && !player.jumpHeld && player.grounded) {
+        player.vy = settings.jumpVelocity;
+        player.grounded = false;
+      }
+      player.jumpHeld = !!jumpKey;
+
+      if (!player.grounded) {
+        player.vy -= settings.gravity * dt;
+        player.y += player.vy * dt;
+        if (player.y <= 0) {
+          player.y = 0;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+
       player.vx += ax * settings.lateralAccel * dt;
       player.vx = clamp(player.vx, -settings.lateralMaxSpeed, settings.lateralMaxSpeed);
 
@@ -572,6 +620,7 @@
       player.x = clamp(player.x, -settings.roadHalfWidth + player.radius, settings.roadHalfWidth - player.radius);
 
       player.mesh.position.x = player.x;
+      player.mesh.position.y = player.y;
       player.mesh.rotation.y = (-player.vx / settings.lateralMaxSpeed) * 0.25;
       player.mesh.rotation.z = (-player.vx / settings.lateralMaxSpeed) * 0.18;
 
@@ -598,12 +647,14 @@
           continue;
         }
 
-        const dx = o.mesh.position.x - player.mesh.position.x;
-        const dz = o.mesh.position.z - player.mesh.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < (o.radius + player.radius)) {
-          crash();
-          break;
+        if (player.y < settings.jumpClearance) {
+          const dx = o.mesh.position.x - player.mesh.position.x;
+          const dz = o.mesh.position.z - player.mesh.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist < (o.radius + player.radius)) {
+            crash();
+            break;
+          }
         }
       }
 
@@ -617,9 +668,9 @@
 
       if (settings.firstPerson) {
         camera.position.x = player.mesh.position.x * 0.55;
-        camera.position.y = settings.fpHeight;
+        camera.position.y = settings.fpHeight + player.y;
         camera.position.z = settings.fpForward;
-        camera.lookAt(player.mesh.position.x * 0.55, settings.fpHeight, settings.fpLookAhead);
+        camera.lookAt(player.mesh.position.x * 0.55, settings.fpHeight + player.y * 0.7, settings.fpLookAhead);
       } else {
         camera.position.x = player.mesh.position.x * 0.65;
         camera.position.y = settings.cameraHeight;
@@ -631,11 +682,12 @@
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(0.05, clock.getDelta());
-      const baseCamX = camera.position.x;
-      const baseCamY = camera.position.y;
       update(dt);
       updateFlames(dt);
       updateExplosion(dt);
+
+      const baseCamX = camera.position.x;
+      const baseCamY = camera.position.y;
 
       if (state.shakeTime > 0) {
         state.shakeTime -= dt;
