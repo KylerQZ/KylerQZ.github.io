@@ -128,6 +128,9 @@
       distance: 0,
       time: 0,
       nextSpawnIn: 0,
+      restartIn: 0,
+      shakeTime: 0,
+      shakeStrength: 0,
     };
 
     const player = {
@@ -143,14 +146,16 @@
       segmentCount: 18,
       obstacles: [],
       flames: [],
+      explosionParticles: [],
+      explosionLight: null,
     };
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
     function init() {
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0b1020);
-      scene.fog = new THREE.Fog(0x0b1020, 40, 260);
+      scene.background = new THREE.Color(0x7fbef3);
+      scene.fog = new THREE.Fog(0x7fbef3, 70, 340);
 
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 800);
 
@@ -162,11 +167,11 @@
 
       clock = new THREE.Clock();
 
-      const hemi = new THREE.HemisphereLight(0xffffff, 0x223355, 0.65);
+      const hemi = new THREE.HemisphereLight(0xcfeaff, 0x5a3d2a, 0.9);
       scene.add(hemi);
 
-      const sun = new THREE.DirectionalLight(0xffffff, 0.95);
-      sun.position.set(25, 40, 30);
+      const sun = new THREE.DirectionalLight(0xfff2d2, 1.05);
+      sun.position.set(40, 55, 25);
       sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
       sun.shadow.camera.near = 1;
@@ -176,6 +181,10 @@
       sun.shadow.camera.top = 60;
       sun.shadow.camera.bottom = -60;
       scene.add(sun);
+
+      const fill = new THREE.DirectionalLight(0x88aaff, 0.25);
+      fill.position.set(-35, 25, 10);
+      scene.add(fill);
 
       createPlayer();
       createGround();
@@ -251,14 +260,16 @@
     }
 
     function createGround() {
-      const roadMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.95, metalness: 0.0 });
-      const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffc24a, roughness: 0.8, metalness: 0.05, emissive: 0x331500, emissiveIntensity: 0.25 });
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x1b1420, roughness: 0.95, metalness: 0.0 });
+      const roadMat = new THREE.MeshStandardMaterial({ color: 0x8a5a3a, roughness: 0.98, metalness: 0.0 });
+      const stripeMat = new THREE.MeshStandardMaterial({ color: 0x3b2a1f, roughness: 1.0, metalness: 0.0 });
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x8ea4b9, roughness: 0.95, metalness: 0.0, emissive: 0x0b1b2a, emissiveIntensity: 0.08 });
 
       for (let i = 0; i < world.segmentCount; i++) {
         const seg = new THREE.Group();
 
         const road = new THREE.Mesh(new THREE.PlaneGeometry(settings.roadHalfWidth * 2.4, world.segmentLength), roadMat);
+        road.material = roadMat.clone();
+        road.material.color.offsetHSL((Math.random() - 0.5) * 0.02, (Math.random() - 0.5) * 0.05, (Math.random() - 0.5) * 0.04);
         road.rotation.x = -Math.PI / 2;
         road.receiveShadow = true;
         road.position.y = 0;
@@ -280,6 +291,20 @@
         wallRight.castShadow = true;
         wallRight.receiveShadow = true;
         seg.add(wallRight);
+
+        if (Math.random() < 0.65) {
+          const rockCount = 1 + Math.floor(Math.random() * 2);
+          for (let r = 0; r < rockCount; r++) {
+            const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2 + Math.random() * 2.2, 0), wallMat);
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            const side = Math.random() < 0.5 ? -1 : 1;
+            rock.position.set(side * (settings.roadHalfWidth + 10 + Math.random() * 8), 1.4 + Math.random() * 2.0, (Math.random() - 0.5) * world.segmentLength);
+            rock.rotation.set(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.6);
+            rock.scale.setScalar(0.8 + Math.random() * 1.2);
+            seg.add(rock);
+          }
+        }
 
         seg.position.z = -i * world.segmentLength;
         scene.add(seg);
@@ -329,15 +354,65 @@
       }
       document.getElementById('best').textContent = state.best;
 
-      const overlay = document.getElementById('overlay');
-      overlay.style.display = 'flex';
-      document.getElementById('card').innerHTML = `
-        <div class="small">Crashed</div>
-        <h1>Run Over</h1>
-        <p>Your score: <b>${state.score}</b><br/>Best: <b>${state.best}</b></p>
-        <button class="btn" id="restart">Restart</button>
-      `;
-      document.getElementById('restart').addEventListener('click', startGame);
+      triggerExplosion(player.mesh.position.clone());
+      state.restartIn = 1.15;
+      state.shakeTime = 0.35;
+      state.shakeStrength = 0.45;
+    }
+
+    function triggerExplosion(position) {
+      for (const p of world.explosionParticles) {
+        scene.remove(p.mesh);
+      }
+      world.explosionParticles = [];
+
+      if (world.explosionLight) {
+        scene.remove(world.explosionLight);
+        world.explosionLight = null;
+      }
+
+      const light = new THREE.PointLight(0xffb14a, 7.0, 35, 2);
+      light.position.copy(position);
+      light.position.y = 2.0;
+      scene.add(light);
+      world.explosionLight = light;
+
+      const fireCount = 55;
+      const smokeCount = 28;
+
+      for (let i = 0; i < fireCount; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(0.12 + Math.random() * 0.22, 8, 8),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(0.02 + Math.random() * 0.06, 1.0, 0.55),
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false,
+          })
+        );
+        mesh.position.copy(position);
+        mesh.position.y = 1.0;
+        const v = new THREE.Vector3((Math.random() - 0.5) * 10, 4 + Math.random() * 6, (Math.random() - 0.5) * 10);
+        world.explosionParticles.push({ mesh, vel: v, life: 0.55 + Math.random() * 0.25, age: 0, drag: 1.35 });
+        scene.add(mesh);
+      }
+
+      for (let i = 0; i < smokeCount; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(0.28 + Math.random() * 0.35, 7, 7),
+          new THREE.MeshBasicMaterial({
+            color: 0x2a2a2a,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false,
+          })
+        );
+        mesh.position.copy(position);
+        mesh.position.y = 1.1;
+        const v = new THREE.Vector3((Math.random() - 0.5) * 4, 2.0 + Math.random() * 3.5, (Math.random() - 0.5) * 4);
+        world.explosionParticles.push({ mesh, vel: v, life: 1.2 + Math.random() * 0.6, age: 0, drag: 0.6 });
+        scene.add(mesh);
+      }
     }
 
     function spawnObstacle() {
@@ -373,7 +448,7 @@
         mesh: new THREE.Mesh(
           new THREE.SphereGeometry(0.14 + Math.random() * 0.12, 6, 6),
           new THREE.MeshBasicMaterial({
-            color: new THREE.Color().setHSL(0.06 + Math.random() * 0.05, 1.0, 0.55),
+            color: new THREE.Color().setHSL(0.09 + Math.random() * 0.03, 0.55, 0.52),
             transparent: true,
             opacity: 0.65 * intensity,
             depthWrite: false,
@@ -382,9 +457,9 @@
         life: 0.55 + Math.random() * 0.25,
         age: 0,
         vel: new THREE.Vector3(
-          (Math.random() - 0.5) * 2.0,
-          (Math.random()) * 1.2,
-          (1.2 + Math.random() * 1.5) * intensity
+          (Math.random() - 0.5) * 1.4,
+          Math.random() * 0.65,
+          (1.1 + Math.random() * 1.1) * intensity
         ),
       };
 
@@ -408,8 +483,8 @@
         const p = world.flames[i];
         p.age += dt;
         p.mesh.position.addScaledVector(p.vel, dt);
-        p.vel.y -= 3.0 * dt;
-        p.vel.z += 1.8 * dt;
+        p.vel.y -= 2.2 * dt;
+        p.vel.z += 1.4 * dt;
         const t = p.age / p.life;
         p.mesh.material.opacity = (1 - t) * 0.6;
         p.mesh.scale.setScalar(1 + t * 1.8);
@@ -423,8 +498,41 @@
       }
     }
 
+    function updateExplosion(dt) {
+      for (let i = world.explosionParticles.length - 1; i >= 0; i--) {
+        const p = world.explosionParticles[i];
+        p.age += dt;
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.vel.multiplyScalar(1 - clamp(p.drag * dt, 0, 0.85));
+        p.vel.y -= 9.8 * dt * (p.drag > 1 ? 0.55 : 0.25);
+        const t = p.age / p.life;
+        p.mesh.material.opacity = (1 - t) * (p.drag > 1 ? 0.95 : 0.55);
+        p.mesh.scale.setScalar(1 + t * (p.drag > 1 ? 1.6 : 2.4));
+        if (p.age >= p.life || p.mesh.material.opacity <= 0.02) {
+          scene.remove(p.mesh);
+          world.explosionParticles.splice(i, 1);
+        }
+      }
+
+      if (world.explosionLight) {
+        world.explosionLight.intensity *= Math.pow(0.05, dt);
+        if (world.explosionLight.intensity < 0.05) {
+          scene.remove(world.explosionLight);
+          world.explosionLight = null;
+        }
+      }
+    }
+
     function update(dt) {
-      if (!state.running) return;
+      if (!state.running) {
+        if (state.restartIn > 0) {
+          state.restartIn -= dt;
+          if (state.restartIn <= 0) {
+            startGame();
+          }
+        }
+        return;
+      }
 
       state.time += dt;
       state.distance += settings.forwardSpeed * dt;
@@ -486,8 +594,8 @@
         }
       }
 
-      if (Math.abs(player.vx) > 1 || settings.forwardSpeed > 50) {
-        spawnFlame(dt);
+      if (Math.abs(player.vx) > 6 || settings.forwardSpeed > 65) {
+        if (Math.random() < 0.35) spawnFlame(dt);
       }
 
       document.getElementById('score').textContent = state.score;
@@ -505,6 +613,17 @@
       const dt = Math.min(0.05, clock.getDelta());
       update(dt);
       updateFlames(dt);
+      updateExplosion(dt);
+
+      if (state.shakeTime > 0) {
+        state.shakeTime -= dt;
+      }
+      const shakeT = clamp(state.shakeTime / 0.35, 0, 1);
+      if (shakeT > 0) {
+        const s = state.shakeStrength * shakeT;
+        camera.position.x += (Math.random() - 0.5) * s;
+        camera.position.y += (Math.random() - 0.5) * s;
+      }
       renderer.render(scene, camera);
     }
 
