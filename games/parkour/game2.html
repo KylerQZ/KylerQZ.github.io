@@ -58,12 +58,16 @@
     const maxSpeedX = 400; // px/s
     const frictionGround = 1400; // px/s^2
     const jumpSpeed = 660; // px/s (slightly lower, harder)
+    const coyoteTime = 0.1;
+    const jumpBufferTime = 0.12;
 
     const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
     let jumpsLeft = 1;
     let hasDoubleJump = false;
     let doubleJumpTimer = 0; // seconds remaining when active
     let jumpHeld = false; // for edge detection
+    let coyoteTimer = 0;
+    let jumpBufferTimer = 0;
 
     // Procedural infinite level
     function ground(y) { return { x: -1e6, y, w: 2e6, h: 40, type: 'ground' }; }
@@ -182,6 +186,7 @@
       player.x = lastCheckpoint.x; player.y = lastCheckpoint.y; player.vx = 0; player.vy = 0; player.onGround = false;
       gameOver = false;
       hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
+      coyoteTimer = 0; jumpBufferTimer = 0;
       resetWorld();
     }
 
@@ -190,6 +195,7 @@
       player.y = lastCheckpoint.y;
       player.vx = 0; player.vy = 0; player.onGround = false;
       gameOver = false; jumpHeld = false; // don't trigger jump immediately
+      coyoteTimer = 0; jumpBufferTimer = 0;
     }
 
     function update(dt) {
@@ -200,6 +206,9 @@
       const jumpPressed = keys.has(' ') || keys.has('arrowup') || keys.has('w');
       const jumpEdge = jumpPressed && !jumpHeld; // only on press, not hold
       jumpHeld = jumpPressed;
+      if (jumpEdge) {
+        jumpBufferTimer = jumpBufferTime;
+      }
 
       // Horizontal accel
       if (left && !right) {
@@ -222,11 +231,9 @@
         if (doubleJumpTimer <= 0) { doubleJumpTimer = 0; hasDoubleJump = false; if (jumpsLeft > 1) jumpsLeft = 1; }
       }
 
-      // Jump logic with double-jump
-      if (jumpEdge && jumpsLeft > 0) {
-        player.vy = -jumpSpeed;
-        player.onGround = false;
-        jumpsLeft -= 1;
+      if (jumpBufferTimer > 0) {
+        jumpBufferTimer -= dt;
+        if (jumpBufferTimer < 0) jumpBufferTimer = 0;
       }
 
       // Gravity
@@ -235,6 +242,26 @@
       // Integrate and collide
       const wasOnGround = player.onGround;
       resolveCollisions(player, dt);
+
+      if (player.onGround) {
+        coyoteTimer = coyoteTime;
+      } else {
+        coyoteTimer -= dt;
+        if (coyoteTimer < 0) coyoteTimer = 0;
+      }
+
+      if (jumpBufferTimer > 0 && jumpsLeft > 0) {
+        const canGroundJump = player.onGround || coyoteTimer > 0;
+        const canDoubleJump = hasDoubleJump && !player.onGround && coyoteTimer <= 0 && jumpsLeft === 1;
+        if (canGroundJump || canDoubleJump) {
+          player.vy = -jumpSpeed;
+          player.onGround = false;
+          jumpsLeft -= 1;
+          jumpBufferTimer = 0;
+          coyoteTimer = 0;
+        }
+      }
+
       if (player.onGround && !wasOnGround) {
         jumpsLeft = hasDoubleJump ? 2 : 1;
       }
