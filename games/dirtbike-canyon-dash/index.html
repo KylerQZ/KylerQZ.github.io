@@ -125,6 +125,13 @@
       obstacleSpawnMaxZ: -60,
       obstacleSpawnInterval: 0.35,
       obstacleRadius: 1.25,
+      rampWidth: 5.0,
+      rampLength: 6.5,
+      rampHeight: 1.15,
+      logWidth: 5.2,
+      logRadius: 0.65,
+      gapWidth: 7.0,
+      gapLength: 7.5,
     };
 
     const state = {
@@ -158,6 +165,7 @@
       segmentLength: 40,
       segmentCount: 18,
       obstacles: [],
+      obstacleMats: null,
       flames: [],
       explosionParticles: [],
       dustParticles: [],
@@ -336,6 +344,14 @@
       const stripeMat = new THREE.MeshStandardMaterial({ color: 0x3b2a1f, roughness: 1.0, metalness: 0.0 });
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x8ea4b9, roughness: 0.95, metalness: 0.0, emissive: 0x0b1b2a, emissiveIntensity: 0.08 });
 
+      world.obstacleMats = {
+        rock: new THREE.MeshStandardMaterial({ color: 0x3b2f2f, roughness: 0.95, metalness: 0.0 }),
+        log: new THREE.MeshStandardMaterial({ color: 0x4a2d1a, roughness: 0.98, metalness: 0.0 }),
+        ramp: new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.98, metalness: 0.0 }),
+        gap: new THREE.MeshStandardMaterial({ color: 0x141015, roughness: 1.0, metalness: 0.0 }),
+        edge: new THREE.MeshStandardMaterial({ color: 0xd7b07a, roughness: 0.9, metalness: 0.0, emissive: 0x2a1a0a, emissiveIntensity: 0.08 }),
+      };
+
       for (let i = 0; i < world.segmentCount; i++) {
         const seg = new THREE.Group();
 
@@ -485,29 +501,122 @@
     }
 
     function spawnObstacle() {
-      const x = (Math.random() * 2 - 1) * (settings.roadHalfWidth - 1.6);
+      const x = (Math.random() * 2 - 1) * (settings.roadHalfWidth - 2.5);
       const z = -(settings.obstacleSpawnMinZ + Math.random() * (settings.obstacleSpawnMaxZ - settings.obstacleSpawnMinZ));
 
-      const type = Math.random();
-      let mesh;
+      const speedT = clamp(settings.forwardSpeed / 55, 0, 1);
+      const roll = Math.random();
+      let kind = 'rock';
 
-      if (type < 0.6) {
-        const mat = new THREE.MeshStandardMaterial({ color: 0x3b2f2f, roughness: 0.95, metalness: 0.0 });
-        mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1.3, 0), mat);
-        mesh.position.y = 1.05;
+      if (roll < 0.38) {
+        kind = 'log';
+      } else if (roll < 0.68) {
+        kind = 'ramp';
+      } else if (roll < (0.78 + speedT * 0.18)) {
+        kind = 'gap';
       } else {
-        const mat = new THREE.MeshStandardMaterial({ color: 0x2b3d2a, roughness: 0.95, metalness: 0.0 });
-        mesh = new THREE.Mesh(new THREE.ConeGeometry(1.0, 2.6, 10), mat);
-        mesh.position.y = 0.8;
+        kind = 'rock';
       }
 
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.position.x = x;
-      mesh.position.z = z;
-      scene.add(mesh);
+      if (kind === 'log') {
+        const log = new THREE.Mesh(
+          new THREE.CylinderGeometry(settings.logRadius, settings.logRadius, settings.logWidth, 14),
+          world.obstacleMats.log
+        );
+        log.rotation.z = Math.PI / 2;
+        log.position.set(0, settings.logRadius, 0);
 
-      world.obstacles.push({ mesh, radius: settings.obstacleRadius });
+        const group = new THREE.Group();
+        group.add(log);
+        group.position.x = x;
+        group.position.z = z;
+        group.castShadow = true;
+        group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        scene.add(group);
+
+        world.obstacles.push({
+          type: 'log',
+          mesh: group,
+          width: settings.logWidth,
+          depth: settings.logRadius * 2,
+          used: false,
+        });
+        return;
+      }
+
+      if (kind === 'ramp') {
+        const geo = new THREE.BoxGeometry(settings.rampWidth, settings.rampHeight, settings.rampLength);
+        const ramp = new THREE.Mesh(geo, world.obstacleMats.ramp);
+
+        // Make it look like a wedge by tilting it.
+        ramp.rotation.x = -0.35;
+        ramp.position.set(0, settings.rampHeight * 0.5, 0);
+
+        const lip = new THREE.Mesh(new THREE.BoxGeometry(settings.rampWidth * 0.95, 0.08, 0.3), world.obstacleMats.edge);
+        lip.position.set(0, settings.rampHeight * 0.95, -settings.rampLength * 0.45);
+
+        const group = new THREE.Group();
+        group.add(ramp);
+        group.add(lip);
+        group.position.x = x;
+        group.position.z = z;
+        group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        scene.add(group);
+
+        world.obstacles.push({
+          type: 'ramp',
+          mesh: group,
+          width: settings.rampWidth,
+          depth: settings.rampLength,
+          used: false,
+        });
+        return;
+      }
+
+      if (kind === 'gap') {
+        const hole = new THREE.Mesh(new THREE.PlaneGeometry(settings.gapWidth, settings.gapLength), world.obstacleMats.gap);
+        hole.rotation.x = -Math.PI / 2;
+        hole.position.y = 0.015;
+
+        const edgeF = new THREE.Mesh(new THREE.BoxGeometry(settings.gapWidth, 0.14, 0.28), world.obstacleMats.edge);
+        edgeF.position.set(0, 0.07, -settings.gapLength * 0.5);
+        const edgeB = new THREE.Mesh(new THREE.BoxGeometry(settings.gapWidth, 0.14, 0.28), world.obstacleMats.edge);
+        edgeB.position.set(0, 0.07, settings.gapLength * 0.5);
+
+        const group = new THREE.Group();
+        group.add(hole);
+        group.add(edgeF);
+        group.add(edgeB);
+        group.position.x = x;
+        group.position.z = z;
+        group.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; } });
+        scene.add(group);
+
+        world.obstacles.push({
+          type: 'gap',
+          mesh: group,
+          width: settings.gapWidth,
+          depth: settings.gapLength,
+          used: false,
+        });
+        return;
+      }
+
+      // Default: rock (sphere-ish collision)
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.3, 0), world.obstacleMats.rock);
+      rock.position.y = 1.05;
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      rock.position.x = x;
+      rock.position.z = z;
+      scene.add(rock);
+
+      world.obstacles.push({
+        type: 'rock',
+        mesh: rock,
+        radius: settings.obstacleRadius,
+        used: false,
+      });
     }
 
     function spawnDustBurst(position, amount, strength) {
@@ -723,11 +832,42 @@
           continue;
         }
 
+        const dx = o.mesh.position.x - player.mesh.position.x;
+        const dz = o.mesh.position.z - player.mesh.position.z;
+
+        if (o.type === 'ramp') {
+          if (!o.used && player.grounded && Math.abs(dx) < o.width * 0.5 && Math.abs(dz) < o.depth * 0.55) {
+            const boost = 1.0 + clamp(settings.forwardSpeed / 80, 0, 1.25);
+            player.vy = Math.max(player.vy, settings.jumpVelocity * boost);
+            player.grounded = false;
+            o.used = true;
+            spawnDustBurst(player.mesh.position.clone(), 10, 1.2);
+          }
+          continue;
+        }
+
+        if (o.type === 'gap') {
+          if (Math.abs(dx) < o.width * 0.5 && Math.abs(dz) < o.depth * 0.55) {
+            if (player.grounded) {
+              crash();
+              break;
+            }
+          }
+          continue;
+        }
+
+        if (o.type === 'log') {
+          if (player.y < settings.jumpClearance && Math.abs(dx) < o.width * 0.5 && Math.abs(dz) < o.depth * 1.2) {
+            crash();
+            break;
+          }
+          continue;
+        }
+
+        // Rock
         if (player.y < settings.jumpClearance) {
-          const dx = o.mesh.position.x - player.mesh.position.x;
-          const dz = o.mesh.position.z - player.mesh.position.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist < (o.radius + player.radius)) {
+          if (dist < ((o.radius || settings.obstacleRadius) + player.radius)) {
             crash();
             break;
           }
