@@ -144,6 +144,8 @@
       restartIn: 0,
       shakeTime: 0,
       shakeStrength: 0,
+      falling: false,
+      fallIn: 0,
     };
 
     const player = {
@@ -397,6 +399,8 @@
       state.distance = 0;
       state.time = 0;
       state.nextSpawnIn = 0;
+      state.falling = false;
+      state.fallIn = 0;
       settings.forwardSpeed = 1;
 
       world.obstacles.forEach(o => scene.remove(o.mesh));
@@ -426,16 +430,19 @@
       clock.getDelta();
     }
 
-    function crash() {
+    function crash(atPosition) {
       if (!state.running) return;
       state.running = false;
+      state.falling = false;
+      state.fallIn = 0;
       if (state.score > state.best) {
         state.best = state.score;
         localStorage.setItem('dirtbike_best', String(state.best));
       }
       document.getElementById('best').textContent = state.best;
 
-      triggerExplosion(player.mesh.position.clone());
+      const pos = (atPosition ? atPosition.clone() : player.mesh.position.clone());
+      triggerExplosion(pos);
       state.restartIn = 1.15;
       state.shakeTime = 0.35;
       state.shakeStrength = 0.45;
@@ -443,6 +450,15 @@
       // Show bike briefly during the explosion.
       player.mesh.visible = true;
       if (player.fpRig) player.fpRig.visible = false;
+    }
+
+    function startGapFall() {
+      if (state.falling) return;
+      state.falling = true;
+      state.fallIn = 0.4;
+      player.grounded = false;
+      player.vy = Math.min(player.vy, -2.0);
+      spawnDustBurst(player.mesh.position.clone(), 10, 1.1);
     }
 
     function triggerExplosion(position) {
@@ -752,6 +768,32 @@
         return;
       }
 
+      if (state.falling) {
+        state.fallIn -= dt;
+        player.vy -= settings.gravity * 1.35 * dt;
+        player.y += player.vy * dt;
+        player.mesh.position.y = player.y;
+
+        if (settings.firstPerson) {
+          camera.position.x = player.mesh.position.x * 0.55;
+          camera.position.y = settings.fpHeight + player.y;
+          camera.position.z = settings.fpForward;
+          camera.lookAt(player.mesh.position.x * 0.55, settings.fpHeight + player.y * 0.7, settings.fpLookAhead);
+        } else {
+          camera.position.x = player.mesh.position.x * 0.65;
+          camera.position.y = settings.cameraHeight + player.y;
+          camera.position.z = settings.cameraBack;
+          camera.lookAt(player.mesh.position.x * 0.4, 1.0 + player.y * 0.2, settings.cameraLookAhead);
+        }
+
+        if (state.fallIn <= 0) {
+          const pos = player.mesh.position.clone();
+          pos.y = Math.max(pos.y, 0.35);
+          crash(pos);
+        }
+        return;
+      }
+
       state.time += dt;
       state.distance += settings.forwardSpeed * dt;
       state.score = Math.floor(state.distance);
@@ -849,8 +891,7 @@
         if (o.type === 'gap') {
           if (Math.abs(dx) < o.width * 0.5 && Math.abs(dz) < o.depth * 0.55) {
             if (player.grounded) {
-              crash();
-              break;
+              startGapFall();
             }
           }
           continue;
