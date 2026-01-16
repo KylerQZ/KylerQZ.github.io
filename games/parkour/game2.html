@@ -4,7 +4,7 @@
   <title>Parkour</title>
   <style>
     body {
-      background: #eee;
+      background: #0a0a0a;
       margin: 0;
       padding: 0;
       overflow: hidden; /* 防止出现滚动条 */
@@ -146,6 +146,64 @@
     // Camera
     const camera = { x: 0, y: 0 };
 
+    let t = 0;
+    let shakeTime = 0;
+    let shakeStrength = 0;
+    const particles = [];
+    const trail = [];
+
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function hexToRgb(hex) {
+      const h = hex.replace('#', '');
+      const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+    function rgba(hex, a) {
+      const c = hexToRgb(hex);
+      return `rgba(${c.r},${c.g},${c.b},${a})`;
+    }
+
+    function worldToScreenX(x) { return Math.floor(x - camera.x); }
+    function worldToScreenY(y) { return Math.floor(y - camera.y); }
+
+    function roundRectPath(x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    function spawnParticles(type, x, y, amount) {
+      const base = type === 'power' ? '#06b6d4' : (type === 'land' ? '#6b7280' : '#ffffff');
+      for (let i = 0; i < amount; i++) {
+        const ang = rand(-Math.PI, 0);
+        const spd = type === 'power' ? rand(80, 190) : (type === 'land' ? rand(140, 360) : rand(100, 260));
+        const vx = Math.cos(ang) * spd * rand(0.5, 1.2);
+        const vy = Math.sin(ang) * spd * rand(0.4, 1.1);
+        const ttl = type === 'power' ? rand(0.5, 1.2) : (type === 'land' ? rand(0.3, 0.7) : rand(0.25, 0.6));
+        particles.push({ x, y, vx, vy, life: ttl, ttl, size: rand(2, type === 'land' ? 6 : 4), color: base, gravity: type === 'power' ? -80 : 900, drag: type === 'power' ? 0.88 : 0.82 });
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        p.vx *= Math.pow(p.drag, dt * 60);
+        p.vy *= Math.pow(p.drag, dt * 60);
+        p.vy += p.gravity * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+      }
+    }
+
     function rectsOverlap(a, b) {
       return !(a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h);
     }
@@ -200,6 +258,7 @@
 
     function update(dt) {
       if (gameOver) return;
+      t += dt;
       // Input: left/right
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
@@ -259,11 +318,17 @@
           jumpsLeft -= 1;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
+          spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
+          shakeTime = 0.07;
+          shakeStrength = Math.max(shakeStrength, 1.5);
         }
       }
 
       if (player.onGround && !wasOnGround) {
         jumpsLeft = hasDoubleJump ? 2 : 1;
+        spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
+        shakeTime = 0.10;
+        shakeStrength = Math.max(shakeStrength, 3.5);
       }
 
       // Hazards
@@ -280,6 +345,9 @@
             hasDoubleJump = true;
             doubleJumpTimer = 20; // seconds
             jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+            spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
+            shakeTime = 0.12;
+            shakeStrength = Math.max(shakeStrength, 4);
           }
           powerups.splice(i, 1);
         }
@@ -310,57 +378,281 @@
       camera.x = player.x - canvas.width * 0.4;
       camera.y = Math.max(0, player.y - canvas.height * 0.5);
       if (camera.x < 0) camera.x = 0;
+
+      updateParticles(dt);
+
+      trail.push({ x: player.x, y: player.y, t });
+      while (trail.length > 14) trail.shift();
     }
 
     function draw() {
       // Clear to sky gradient (already via CSS background). Draw world elements.
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      if (shakeTime > 0) {
+        const dtShake = Math.min(shakeTime, 1/60);
+        shakeTime -= dtShake;
+        if (shakeTime <= 0) { shakeTime = 0; shakeStrength = 0; }
+      }
+      const sx = shakeStrength ? (Math.sin(t * 60) * shakeStrength) : 0;
+      const sy = shakeStrength ? (Math.cos(t * 73) * shakeStrength) : 0;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+
       // Helper to draw rect in world coords
       function drawRect(x, y, w, h, fill, stroke) {
         ctx.fillStyle = fill;
-        ctx.fillRect(Math.floor(x - camera.x), Math.floor(y - camera.y), w, h);
+        ctx.fillRect(worldToScreenX(x), worldToScreenY(y), w, h);
         if (stroke) {
           ctx.strokeStyle = stroke;
-          ctx.strokeRect(Math.floor(x - camera.x), Math.floor(y - camera.y), w, h);
+          ctx.strokeRect(worldToScreenX(x), worldToScreenY(y), w, h);
         }
       }
 
-      // Draw platforms
-      for (const s of platforms) {
-        const color = s.type === 'ground' ? '#4b5563' : '#6b7280';
-        drawRect(s.x, s.y, s.w, s.h, color);
+      function drawPanel(x, y, w, h) {
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        roundRectPath(x, y, w, h, 12);
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.fill();
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.stroke();
+        ctx.restore();
       }
-      // Draw hazards (spikes as red bars)
-      for (const hz of hazards) {
-        drawRect(hz.x, hz.y, hz.w, hz.h, '#ef4444');
+
+      function drawParallax() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const ox = -(camera.x * 0.12) % 220;
+        const oy = -(camera.y * 0.12) % 220;
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 1;
+        for (let x = -220; x < w + 220; x += 44) {
+          ctx.beginPath();
+          ctx.moveTo(x + ox, 0);
+          ctx.lineTo(x + ox + h, h);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        for (let y = -220; y < h + 220; y += 44) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + oy);
+          ctx.lineTo(w, y + oy);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
-      // Draw powerups (double-jump = cyan diamond)
-      for (const pu of powerups) {
+
+      function drawVignette() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.save();
+        const g = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.2, w * 0.5, h * 0.5, Math.max(w, h) * 0.75);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, 'rgba(0,0,0,0.42)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+
+      function drawPlatform(s) {
+        const x = worldToScreenX(s.x);
+        const y = worldToScreenY(s.y);
+        const base = s.type === 'ground' ? '#4b5563' : '#6b7280';
+        const top = s.type === 'ground' ? '#9ca3af' : '#d1d5db';
+        const bottom = s.type === 'ground' ? '#111827' : '#1f2937';
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+        roundRectPath(x, y, s.w, s.h, 6);
+        const g = ctx.createLinearGradient(0, y, 0, y + s.h);
+        g.addColorStop(0, top);
+        g.addColorStop(0.38, base);
+        g.addColorStop(1, bottom);
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawHazard(hz) {
+        const x = worldToScreenX(hz.x);
+        const y = worldToScreenY(hz.y);
+        const spikes = Math.max(3, Math.floor(hz.w / 14));
+        const step = hz.w / spikes;
+        ctx.save();
+        ctx.shadowColor = 'rgba(239,68,68,0.55)';
+        ctx.shadowBlur = 14;
+        const g = ctx.createLinearGradient(0, y, 0, y + hz.h);
+        g.addColorStop(0, '#fecaca');
+        g.addColorStop(0.35, '#ef4444');
+        g.addColorStop(1, '#7f1d1d');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(x, y + hz.h);
+        for (let i = 0; i < spikes; i++) {
+          const x0 = x + i * step;
+          const x1 = x0 + step;
+          const xm = (x0 + x1) / 2;
+          ctx.lineTo(x0, y + hz.h);
+          ctx.lineTo(xm, y);
+          ctx.lineTo(x1, y + hz.h);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPowerup(pu) {
         const cx = pu.x - camera.x, cy = pu.y - camera.y;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 5);
         ctx.save();
         ctx.translate(Math.floor(cx + pu.w/2), Math.floor(cy + pu.h/2));
         ctx.rotate(Math.PI/4);
-        ctx.fillStyle = '#06b6d4';
+        ctx.shadowColor = 'rgba(6,182,212,0.75)';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = `rgba(6,182,212,${lerp(0.65, 0.95, pulse)})`;
         ctx.fillRect(-pu.w/2, -pu.h/2, pu.w, pu.h);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-pu.w/2, -pu.h/2, pu.w, pu.h);
         ctx.restore();
+      }
+
+      function drawCheckpoint(cp) {
+        const x = worldToScreenX(cp.x);
+        const y = worldToScreenY(cp.y);
+        ctx.save();
+        const pulse = 0.45 + 0.55 * Math.sin(t * 3.3);
+        ctx.shadowColor = 'rgba(34,197,94,0.55)';
+        ctx.shadowBlur = 14;
+        const g = ctx.createLinearGradient(0, y, 0, y + cp.h);
+        g.addColorStop(0, `rgba(34,197,94,${lerp(0.55, 0.95, pulse)})`);
+        g.addColorStop(1, 'rgba(21,128,61,0.95)');
+        roundRectPath(x, y, cp.w, cp.h, 6);
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        for (let i = 0; i < trail.length; i++) {
+          const p = trail[i];
+          const a = i / trail.length;
+          const x = worldToScreenX(p.x);
+          const y = worldToScreenY(p.y);
+          ctx.save();
+          ctx.globalAlpha = a * 0.18;
+          roundRectPath(x, y, player.w, player.h, 10);
+          ctx.fillStyle = 'rgba(17,17,17,1)';
+          ctx.fill();
+          ctx.restore();
+        }
+
+        const x = worldToScreenX(player.x);
+        const y = worldToScreenY(player.y);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 6;
+        roundRectPath(x, y, player.w, player.h, 10);
+        const g = ctx.createLinearGradient(0, y, 0, y + player.h);
+        g.addColorStop(0, '#111');
+        g.addColorStop(1, '#000');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.globalAlpha = 0.9;
+        const visorH = 10;
+        roundRectPath(x + 8, y + 12, player.w - 16, visorH, 6);
+        const vg = ctx.createLinearGradient(x, 0, x + player.w, 0);
+        vg.addColorStop(0, 'rgba(29,78,216,0.75)');
+        vg.addColorStop(1, 'rgba(239,68,68,0.75)');
+        ctx.fillStyle = vg;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          const a = clamp(p.life / p.ttl, 0, 1);
+          const x = worldToScreenX(p.x);
+          const y = worldToScreenY(p.y);
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.fillStyle = rgba(p.color, 0.95);
+          ctx.shadowColor = rgba(p.color, 0.65);
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(x, y, p.size * lerp(0.6, 1.0, a), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      drawParallax();
+
+      // Draw platforms
+      for (const s of platforms) {
+        drawPlatform(s);
+      }
+      // Draw hazards (spikes as red bars)
+      for (const hz of hazards) {
+        drawHazard(hz);
+      }
+      // Draw powerups (double-jump = cyan diamond)
+      for (const pu of powerups) {
+        drawPowerup(pu);
       }
       // Draw checkpoints
       for (const cp of checkpoints) {
-        drawRect(cp.x, cp.y, cp.w, cp.h, '#22c55e');
+        drawCheckpoint(cp);
       }
 
       // Draw player
-      drawRect(player.x, player.y, player.w, player.h, '#111', '#000');
+      drawPlayer();
+
+      drawParticles();
 
       // UI overlays
+      const panelW = 430;
+      const panelH = hasDoubleJump ? 86 : 64;
+      drawPanel(12, 12, panelW, panelH);
       ctx.font = '16px sans-serif';
       ctx.fillStyle = '#111';
-      ctx.fillText('Touch green posts to set checkpoint | R respawn | Shift+R restart', 16, 24);
-      ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px`, 16, 44);
+      ctx.fillText('Touch green posts to set checkpoint', 26, 36);
+      ctx.fillText('R respawn | Shift+R restart', 26, 56);
+      ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px`, 26, 76);
       if (hasDoubleJump) {
         ctx.fillStyle = '#0f766e';
-        ctx.fillText(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`, 16, 64);
+        ctx.fillText(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`, 26, 96);
         ctx.fillStyle = '#111';
       }
 
@@ -387,6 +679,10 @@
         ctx.fillText('Press R to respawn at last checkpoint', canvas.width/2, canvas.height/2 + 24);
         ctx.textAlign = 'left';
       }
+
+      ctx.restore();
+
+      drawVignette();
     }
 
     let last = performance.now();
