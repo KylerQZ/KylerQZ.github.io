@@ -25,7 +25,6 @@
   </style>
 </head>
 <body>
-  <h2 style="margin:10px; font-family:sans-serif;">Parkour: Arrows/WASD to move, Space to jump, R to restart</h2>
   <canvas id="game"></canvas>
 
   <script>
@@ -37,7 +36,7 @@
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      if (screen === 'shop') rebuildShopStands();
+      if (screen === 'menu') rebuildShopStands();
     }
     window.addEventListener('resize', resize);
     resize();
@@ -50,8 +49,21 @@
     });
     window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
+    let pointerWorldX = 0;
+    let pointerWorldY = 0;
+    let pointerActive = false;
+
     function pointInRect(wx, wy, r) {
       return wx >= r.x && wx <= r.x + r.w && wy >= r.y && wy <= r.y + r.h;
+    }
+
+    function updatePointerWorld(clientX, clientY) {
+      const r = canvas.getBoundingClientRect();
+      const sx = (clientX - r.left) * (canvas.width / r.width);
+      const sy = (clientY - r.top) * (canvas.height / r.height);
+      pointerWorldX = sx + camera.x;
+      pointerWorldY = sy + camera.y;
+      pointerActive = true;
     }
 
     function activateShopSkinId(skinId) {
@@ -81,19 +93,14 @@
       if (screen === 'menu') {
         if (id === 'playClassic') startGame('classic');
         else if (id === 'playNoCP') startGame('nocp');
-        else if (id === 'shop') enterShop();
-      } else if (screen === 'shop') {
-        if (id === 'back') enterMenu();
       }
     }
 
     function handlePointerSelect(clientX, clientY) {
-      if (!(screen === 'menu' || screen === 'shop')) return;
-      const r = canvas.getBoundingClientRect();
-      const sx = (clientX - r.left) * (canvas.width / r.width);
-      const sy = (clientY - r.top) * (canvas.height / r.height);
-      const wx = sx + camera.x;
-      const wy = sy + camera.y;
+      if (screen !== 'menu') return;
+      updatePointerWorld(clientX, clientY);
+      const wx = pointerWorldX;
+      const wy = pointerWorldY;
 
       for (const z of menuZones) {
         if (pointInRect(wx, wy, z)) {
@@ -101,12 +108,10 @@
           return;
         }
       }
-      if (screen === 'shop') {
-        for (const st of shopStands) {
-          if (pointInRect(wx, wy, st)) {
-            activateShopSkinId(st.skinId);
-            return;
-          }
+      for (const st of shopStands) {
+        if (pointInRect(wx, wy, st)) {
+          activateShopSkinId(st.skinId);
+          return;
         }
       }
     }
@@ -114,12 +119,28 @@
     canvas.addEventListener('mousedown', (e) => {
       handlePointerSelect(e.clientX, e.clientY);
     });
+    canvas.addEventListener('mousemove', (e) => {
+      if (screen !== 'menu') return;
+      updatePointerWorld(e.clientX, e.clientY);
+    });
+    canvas.addEventListener('mouseleave', () => {
+      pointerActive = false;
+    });
     canvas.addEventListener('touchstart', (e) => {
       if (e.touches && e.touches.length) {
         handlePointerSelect(e.touches[0].clientX, e.touches[0].clientY);
         e.preventDefault();
       }
     }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      if (screen !== 'menu') return;
+      if (e.touches && e.touches.length) {
+        updatePointerWorld(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+    canvas.addEventListener('touchend', () => {
+      pointerActive = false;
+    }, { passive: true });
 
     // World
     const gravity = 2000; // px/s^2 (harder)
@@ -263,7 +284,7 @@
         shopStands.push({
           skinId: s.id,
           x,
-          y: baseY - 92,
+          y: baseY - 190,
           w: 160,
           h: 72,
         });
@@ -561,12 +582,11 @@
       screen = 'menu';
       setMode('classic');
       setupHubWorld();
-      shopStands.length = 0;
+      rebuildShopStands();
       const h = canvas.height;
       const baseY = h - 40;
       menuZones.push({ id: 'playClassic', label: 'PLAY\n(Checkpoints)', x: 220, y: baseY - 92, w: 180, h: 72 });
       menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
-      menuZones.push({ id: 'shop', label: 'SHOP', x: 670, y: baseY - 92, w: 150, h: 72 });
       player.x = 140;
       player.y = baseY - player.h - 2;
       player.vx = 0;
@@ -580,37 +600,6 @@
       deathTimer = 0;
       deathPieces = [];
       interactLatch = 0;
-      golemLives = 4;
-      golemInvuln = 0;
-      golemHitFlash = 0;
-      teleportCooldown = 0;
-      teleportFxTime = 0;
-    }
-
-    function enterShop() {
-      screen = 'shop';
-      setMode('classic');
-      setupHubWorld();
-      rebuildShopStands();
-      menuZones.length = 0;
-      const h = canvas.height;
-      const baseY = h - 40;
-      menuZones.push({ id: 'back', label: 'BACK', x: 60, y: baseY - 92, w: 130, h: 72 });
-      player.x = 140;
-      player.y = baseY - player.h - 2;
-      player.vx = 0;
-      player.vy = 0;
-      jumpsLeft = 1;
-      hasDoubleJump = false;
-      doubleJumpTimer = 0;
-      coyoteTimer = 0;
-      jumpBufferTimer = 0;
-      gameOver = false;
-      deathTimer = 0;
-      deathPieces = [];
-      interactLatch = 0;
-      shopMessage = '';
-      shopMessageTime = 0;
       golemLives = 4;
       golemInvuln = 0;
       golemHitFlash = 0;
@@ -728,49 +717,7 @@
         shakeStrength = Math.max(shakeStrength, 4);
       }
 
-      if (interactLatch > 0) interactLatch = Math.max(0, interactLatch - dt);
-      if (interactLatch <= 0) {
-        for (const z of menuZones) {
-          if (rectsOverlap(player, z)) {
-            interactLatch = 0.35;
-            if (screen === 'menu') {
-              if (z.id === 'playClassic') startGame('classic');
-              else if (z.id === 'playNoCP') startGame('nocp');
-              else if (z.id === 'shop') enterShop();
-            } else if (screen === 'shop') {
-              if (z.id === 'back') enterMenu();
-            }
-            return;
-          }
-        }
-        if (screen === 'shop') {
-          for (const st of shopStands) {
-            if (!rectsOverlap(player, st)) continue;
-            interactLatch = 0.35;
-            const skinItem = getSkin(st.skinId);
-            if (!isSkinUnlocked(skinItem.id)) {
-              if (coins >= skinItem.price) {
-                coins -= skinItem.price;
-                saveCoins();
-                unlockedSkins.add(skinItem.id);
-                selectedSkinId = skinItem.id;
-                saveSkins();
-                shopMessage = `Bought ${skinItem.name}!`;
-                shopMessageTime = 1.7;
-              } else {
-                shopMessage = `Need ${skinItem.price - coins} more coins`;
-                shopMessageTime = 1.7;
-              }
-            } else {
-              selectedSkinId = skinItem.id;
-              saveSkins();
-              shopMessage = `Selected ${skinItem.name}`;
-              shopMessageTime = 1.2;
-            }
-            return;
-          }
-        }
-      }
+      // Selection is handled via click/tap (not by walking into UI elements)
 
       camera.x = Math.max(0, player.x - canvas.width * 0.45);
       camera.y = 0;
@@ -1400,11 +1347,11 @@
 
       const skin = getSkin(selectedSkinId);
 
-      if (screen === 'menu' || screen === 'shop') {
+      if (screen === 'menu') {
         for (const z of menuZones) {
           const zx = worldToScreenX(z.x);
           const zy = worldToScreenY(z.y);
-          const over = rectsOverlap(player, z);
+          const over = pointerActive && pointInRect(pointerWorldX, pointerWorldY, z);
           ctx.save();
           ctx.globalAlpha = over ? 0.95 : 0.78;
           roundRectPath(zx, zy, z.w, z.h, 14);
@@ -1425,50 +1372,48 @@
           ctx.restore();
         }
 
-        if (screen === 'shop') {
-          for (const st of shopStands) {
-            const s = getSkin(st.skinId);
-            const unlocked = isSkinUnlocked(s.id);
-            const over = rectsOverlap(player, st);
-            const sx = worldToScreenX(st.x);
-            const sy = worldToScreenY(st.y);
-            ctx.save();
-            ctx.globalAlpha = over ? 0.95 : 0.8;
-            roundRectPath(sx, sy, st.w, st.h, 12);
-            ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
+        for (const st of shopStands) {
+          const s = getSkin(st.skinId);
+          const unlocked = isSkinUnlocked(s.id);
+          const over = pointerActive && pointInRect(pointerWorldX, pointerWorldY, st);
+          const sx = worldToScreenX(st.x);
+          const sy = worldToScreenY(st.y);
+          ctx.save();
+          ctx.globalAlpha = over ? 0.95 : 0.8;
+          roundRectPath(sx, sy, st.w, st.h, 12);
+          ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
+          ctx.fill();
+          ctx.globalAlpha = 0.45;
+          ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(s.name, sx + 12, sy + 22);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = unlocked ? 'rgba(34,197,94,0.95)' : 'rgba(251,191,36,0.95)';
+          ctx.fillText(unlocked ? 'OWNED' : `${s.price}`, sx + st.w - 12, sy + 22);
+          ctx.textAlign = 'left';
+          ctx.fillStyle = s.body;
+          roundRectPath(sx + 12, sy + 32, 24, 30, 6);
+          ctx.fill();
+          ctx.fillStyle = s.accent;
+          roundRectPath(sx + 18, sy + 42, 12, 8, 4);
+          ctx.fill();
+          if (selectedSkinId === s.id) {
+            ctx.globalAlpha = 0.85;
+            ctx.fillStyle = 'rgba(59,130,246,0.9)';
+            roundRectPath(sx + st.w - 52, sy + st.h - 24, 40, 16, 6);
             ctx.fill();
-            ctx.globalAlpha = 0.45;
-            ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
             ctx.globalAlpha = 1;
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(s.name, sx + 12, sy + 22);
-            ctx.textAlign = 'right';
-            ctx.fillStyle = unlocked ? 'rgba(34,197,94,0.95)' : 'rgba(251,191,36,0.95)';
-            ctx.fillText(unlocked ? 'OWNED' : `${s.price}`, sx + st.w - 12, sy + 22);
-            ctx.textAlign = 'left';
-            ctx.fillStyle = s.body;
-            roundRectPath(sx + 12, sy + 32, 24, 30, 6);
-            ctx.fill();
-            ctx.fillStyle = s.accent;
-            roundRectPath(sx + 18, sy + 42, 12, 8, 4);
-            ctx.fill();
-            if (selectedSkinId === s.id) {
-              ctx.globalAlpha = 0.85;
-              ctx.fillStyle = 'rgba(59,130,246,0.9)';
-              roundRectPath(sx + st.w - 52, sy + st.h - 24, 40, 16, 6);
-              ctx.fill();
-              ctx.globalAlpha = 1;
-              ctx.fillStyle = '#fff';
-              ctx.font = 'bold 11px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.fillText('ON', sx + st.w - 32, sy + st.h - 12);
-            }
-            ctx.restore();
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ON', sx + st.w - 32, sy + st.h - 12);
           }
+          ctx.restore();
         }
       }
 
@@ -1494,7 +1439,6 @@
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
       } else if (screen === 'menu') {
-      } else if (screen === 'shop') {
         if (shopMessageTime > 0 && shopMessage) lines.push(shopMessage);
       }
 
