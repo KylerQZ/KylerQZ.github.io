@@ -35,6 +35,8 @@
     const menuZones = [];
     const shopStands = [];
     let menuView = 'main';
+    let shopOwnedSkinId = 'none';
+    let shopPreviewSkinId = null;
 
     let audioCtx = null;
     function ensureAudio() {
@@ -129,6 +131,14 @@
     function activateShopSkinId(skinId) {
       const skinItem = getSkin(skinId);
       if (!isSkinUnlocked(skinItem.id)) {
+        if (menuView === 'shop' && shopPreviewSkinId !== skinItem.id) {
+          shopPreviewSkinId = skinItem.id;
+          selectedSkinId = skinItem.id;
+          shopMessage = `Previewing ${skinItem.name} - click again to buy`;
+          shopMessageTime = 1.7;
+          sfxSelect();
+          return;
+        }
         if (coins >= skinItem.price) {
           coins -= skinItem.price;
           saveCoins();
@@ -138,6 +148,7 @@
           shopMessage = `Bought ${skinItem.name}!`;
           shopMessageTime = 1.7;
           sfxBuy();
+          shopPreviewSkinId = null;
         } else {
           shopMessage = `Need ${skinItem.price - coins} more coins`;
           shopMessageTime = 1.7;
@@ -149,6 +160,7 @@
         shopMessage = `Selected ${skinItem.name}`;
         shopMessageTime = 1.2;
         sfxSelect();
+        shopPreviewSkinId = null;
       }
     }
 
@@ -158,15 +170,35 @@
         else if (id === 'playNoCP') { sfxClick(); startGame('nocp'); }
         else if (id === 'openSkinsShop') {
           sfxClick();
+          shopOwnedSkinId = selectedSkinId;
+          shopPreviewSkinId = null;
+          setupShopWorld();
+          rebuildShopStands();
           setMenuView('shop');
+          const h = canvas.height;
+          const baseY = h - 40;
           player.x = 140;
+          player.y = baseY - player.h - 2;
           player.vx = 0;
+          player.vy = 0;
+          jumpsLeft = 1;
+          hasDoubleJump = false;
+          doubleJumpTimer = 0;
+          coyoteTimer = 0;
+          jumpBufferTimer = 0;
           camera.x = 0;
           shopMessage = '';
           shopMessageTime = 0;
         }
         else if (id === 'backToMain') {
           sfxClick();
+          if (!isSkinUnlocked(selectedSkinId)) {
+            selectedSkinId = shopOwnedSkinId || 'none';
+            saveSkins();
+          }
+          shopPreviewSkinId = null;
+          setupHubWorld();
+          rebuildShopStands();
           setMenuView('main');
           shopMessage = '';
           shopMessageTime = 0;
@@ -647,6 +679,25 @@
       camera.y = 0;
     }
 
+    function setupShopWorld() {
+      platforms = [];
+      hazards = [];
+      checkpoints = [];
+      powerups = [];
+      nextSpawnX = 0;
+      chunksSpawned = 0;
+      const h = canvas.height;
+      const baseY = h - 40;
+      platforms.push(ground(baseY));
+      platforms.push({ x: 220, y: baseY - 120, w: 240, h: 20, type: 'plat' });
+      platforms.push({ x: 520, y: baseY - 200, w: 220, h: 20, type: 'plat' });
+      platforms.push({ x: 820, y: baseY - 280, w: 240, h: 20, type: 'plat' });
+      platforms.push({ x: 1140, y: baseY - 200, w: 220, h: 20, type: 'plat' });
+      powerups.push({ x: 330, y: baseY - 160, w: 20, h: 20, type: 'double' });
+      camera.x = 0;
+      camera.y = 0;
+    }
+
     function setMenuView(view) {
       menuView = view;
       menuZones.length = 0;
@@ -713,6 +764,18 @@
       if (golemHitFlash > 0) golemHitFlash = Math.max(0, golemHitFlash - dt);
       if (shopMessageTime > 0) shopMessageTime = Math.max(0, shopMessageTime - dt);
 
+      if (isMonks) {
+        hasDoubleJump = true;
+        doubleJumpTimer = 999999;
+        if (player.onGround) jumpsLeft = 999;
+        else jumpsLeft = Math.max(jumpsLeft, 2);
+      }
+
+      if (doubleJumpTimer > 0) {
+        doubleJumpTimer -= dt;
+        if (doubleJumpTimer <= 0) { doubleJumpTimer = 0; hasDoubleJump = false; if (jumpsLeft > 1) jumpsLeft = 1; }
+      }
+
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
       const jumpPressed = keys.has(' ') || keys.has('arrowup') || keys.has('w');
@@ -756,7 +819,8 @@
       if (jumpBufferTimer > 0 && jumpsLeft > 0) {
         const canGroundJump = player.onGround || coyoteTimer > 0;
         const canExtraJump = isMonks ? !player.onGround : false;
-        if (canGroundJump || canExtraJump) {
+        const canDouble = hasDoubleJump && doubleJumpTimer > 0 && !canGroundJump && jumpsLeft > 0;
+        if (canGroundJump || canExtraJump || canDouble) {
           player.vy = -jSp;
           player.onGround = false;
           if (!isMonks) jumpsLeft -= 1;
@@ -772,12 +836,29 @@
       }
 
       if (player.onGround && !wasOnGround) {
-        jumpsLeft = isMonks ? 999 : 1;
+        jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
         spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
         sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
+        }
+      }
+
+      if (menuView === 'shop') {
+        for (let i = powerups.length - 1; i >= 0; i--) {
+          const pu = powerups[i];
+          if (rectsOverlap(player, pu)) {
+            if (pu.type === 'double') {
+              hasDoubleJump = true;
+              doubleJumpTimer = 20;
+              jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+              spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
+              shakeTime = 0.10;
+              shakeStrength = Math.max(shakeStrength, 3);
+            }
+            powerups.splice(i, 1);
+          }
         }
       }
 
@@ -901,12 +982,11 @@
       if (jumpBufferTimer > 0 && jumpsLeft > 0) {
         const canGroundJump = player.onGround || coyoteTimer > 0;
         const canExtraJump = isMonks ? !player.onGround : false;
-        const canDouble = hasDoubleJump && doubleJumpTimer > 0 && jumpsLeft > 1;
+        const canDouble = hasDoubleJump && doubleJumpTimer > 0 && !canGroundJump && jumpsLeft > 0;
         if (canGroundJump || canExtraJump || canDouble) {
           player.vy = -jSp;
           player.onGround = false;
           if (!isMonks) jumpsLeft -= 1;
-          if (canDouble && !canGroundJump) doubleJumpTimer = 0;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
           spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
