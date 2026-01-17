@@ -175,6 +175,22 @@
           sfxSelect();
           return;
         }
+
+        if (skinItem.reqBestDist && bestDistanceAll < skinItem.reqBestDist) {
+          shopMessage = `Need Best Distance ${skinItem.reqBestDist}+`;
+          shopMessageTime = 1.7;
+          sfxDeny();
+          return;
+        }
+
+        if (skinItem.reqSkin && !isSkinUnlocked(skinItem.reqSkin)) {
+          const reqName = getSkin(skinItem.reqSkin).name;
+          shopMessage = `Need ${reqName} first`;
+          shopMessageTime = 1.7;
+          sfxDeny();
+          return;
+        }
+
         if (coins >= skinItem.price) {
           coins -= skinItem.price;
           saveCoins();
@@ -243,10 +259,42 @@
     }
 
     function handlePointerSelect(clientX, clientY) {
-      if (screen !== 'menu') return;
+      if (screen !== 'menu' && !evoTargeting) return;
       updatePointerWorld(clientX, clientY);
       const wx = pointerWorldX;
       const wy = pointerWorldY;
+
+      if (evoTargeting) {
+        evoTargeting = false;
+        evoTargetX = wx - player.w * 0.5;
+        evoTargetY = wy - player.h * 0.5;
+        evoBurstReady = false;
+        evoBurstWait = 0;
+        evoTeleportUses = 0;
+        const sx = player.x;
+        const sy = player.y;
+        const tx = evoTargetX;
+        const ty = evoTargetY;
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const px = -dy / dist;
+        const py = dx / dist;
+        const amp = Math.min(180, Math.max(70, dist * 0.22));
+        evoDashPts.length = 0;
+        for (let i = 1; i <= 3; i++) {
+          const t = i / 3;
+          const zig = (i % 2 === 1 ? 1 : -1);
+          const ix = sx + dx * t + px * amp * zig;
+          const iy = sy + dy * t + py * amp * zig;
+          evoDashPts.push({ x: i === 3 ? tx : ix, y: i === 3 ? ty : iy });
+        }
+        evoDashActive = true;
+        evoDashStep = 0;
+        evoDashTimer = 0;
+        canvas.style.cursor = 'default';
+        return;
+      }
 
       for (const z of menuZones) {
         if (pointInRect(wx, wy, z)) {
@@ -308,6 +356,7 @@
     const SKINS = [
       { id: 'none', name: 'Nothing', price: 0, type: 'base', body: '#111', accent: '#3b82f6' },
       { id: 'ninja', name: 'Ninja', price: 500, type: 'power', body: '#050505', accent: '#ef4444', desc: 'Swift movement and higher jumps. Use Teleport (E) to dash through danger.' },
+      { id: 'evo-ninja', name: 'Evo Ninja', price: 800, type: 'power', body: '#090014', accent: '#a855f7', desc: 'Evil shadow ninja. Teleport cooldown -5s. After 3 teleports, wait 10s then press G to target a triple zig-zag teleport.', reqBestDist: 12000, reqSkin: 'ninja' },
       { id: 'monks', name: 'Monks', price: 500, type: 'power', body: '#f8fafc', accent: '#f59e0b', desc: 'Blessed feet: infinite double-jump. No jump shake, silent landings.' },
       { id: 'iron-golem', name: 'Iron Golem', price: 500, type: 'power', body: '#374151', accent: '#1d4ed8', desc: 'Heavy body with a 4-hit shield vs spikes. Slow but powerful crashes.' },
       { id: 'knight', name: 'Knight', price: 200, type: 'cosmetic', body: '#9ca3af', accent: '#374151' },
@@ -375,6 +424,13 @@
     const bestDistAnimDuration = 0.9;
     const BEST_SCORE_KEY = 'parkour_nocp_bestScore';
     const BEST_DISTANCE_KEY = 'parkour_nocp_bestDistance';
+    const BEST_DISTANCE_ALL_KEY = 'parkour_bestDistance';
+    let bestDistanceAll = 0;
+    try {
+      bestDistanceAll = parseInt(localStorage.getItem(BEST_DISTANCE_ALL_KEY) || '0', 10) || 0;
+    } catch (e) {
+      bestDistanceAll = 0;
+    }
     setMode(gameMode);
 
     const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
@@ -390,6 +446,18 @@
     const teleportFxDuration = 0.22;
     let teleportFrom = { x: 0, y: 0 };
     let teleportTo = { x: 0, y: 0 };
+    let gHeld = false;
+    let evoTeleportUses = 0;
+    let evoBurstWait = 0;
+    let evoBurstReady = false;
+    let evoTargeting = false;
+    let evoTargetX = 0;
+    let evoTargetY = 0;
+    let evoDashActive = false;
+    let evoDashStep = 0;
+    let evoDashTimer = 0;
+    const evoDashPts = [];
+    let doubleJumpAura = 0;
     let golemLives = 4;
     let golemInvuln = 0;
     let golemHitFlash = 0;
@@ -813,7 +881,8 @@
 
     function updateHub(dt) {
       const skin = getSkin(selectedSkinId);
-      const isNinja = skin.id === 'ninja';
+      const isEvo = skin.id === 'evo-ninja';
+      const isNinja = skin.id === 'ninja' || isEvo;
       const isMonks = skin.id === 'monks';
       const isGolem = skin.id === 'iron-golem';
 
@@ -821,13 +890,27 @@
       let maxSp = maxSpeedX;
       let jSp = jumpSpeed;
       if (isNinja) { accel *= 1.3; maxSp *= 1.35; jSp *= 1.25; }
-      if (isGolem) { accel *= 0.85; maxSp *= 0.75; jSp *= 0.95; }
+
 
       if (teleportCooldown > 0) teleportCooldown = Math.max(0, teleportCooldown - dt);
       if (teleportFxTime > 0) teleportFxTime = Math.max(0, teleportFxTime - dt);
       if (golemInvuln > 0) golemInvuln = Math.max(0, golemInvuln - dt);
       if (golemHitFlash > 0) golemHitFlash = Math.max(0, golemHitFlash - dt);
       if (shopMessageTime > 0) shopMessageTime = Math.max(0, shopMessageTime - dt);
+      if (doubleJumpAura > 0) doubleJumpAura = Math.max(0, doubleJumpAura - dt);
+
+      if (isEvo) {
+        if (evoBurstWait > 0) {
+          evoBurstWait = Math.max(0, evoBurstWait - dt);
+          if (evoBurstWait <= 0 && evoTeleportUses >= 3) evoBurstReady = true;
+        }
+      } else {
+        evoTargeting = false;
+        evoDashActive = false;
+        evoBurstReady = false;
+        evoBurstWait = 0;
+        evoTeleportUses = 0;
+      }
 
       if (isMonks) {
         hasDoubleJump = true;
@@ -851,6 +934,50 @@
       const teleportPressed = keys.has('e');
       const teleportEdge = teleportPressed && !teleportHeld;
       teleportHeld = teleportPressed;
+
+      const gPressed = keys.has('g');
+      const gEdge = gPressed && !gHeld;
+      gHeld = gPressed;
+      if (isEvo && gEdge && evoBurstReady && !evoTargeting && !evoDashActive && !gameOver) {
+        evoTargeting = true;
+        canvas.style.cursor = 'crosshair';
+      }
+
+      if (evoDashActive) {
+        evoDashTimer -= dt;
+        while (evoDashActive && evoDashTimer <= 0) {
+          const fromX = player.x;
+          const fromY = player.y;
+          const pt = evoDashPts[evoDashStep];
+          teleportFrom.x = fromX;
+          teleportFrom.y = fromY;
+          player.x = pt.x;
+          player.y = pt.y;
+          player.vx = 0;
+          player.vy = 0;
+          for (let k = 0; k < 6; k++) {
+            let minY = Infinity;
+            for (const s of platforms) {
+              if (rectsOverlap(player, s)) minY = Math.min(minY, s.y - player.h - 2);
+            }
+            if (minY !== Infinity) player.y = minY;
+            else break;
+          }
+          teleportTo.x = player.x;
+          teleportTo.y = player.y;
+          teleportFxTime = teleportFxDuration;
+          sfxTeleport();
+          spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
+          shakeTime = 0.10;
+          shakeStrength = Math.max(shakeStrength, 4);
+          evoDashStep += 1;
+          evoDashTimer = 0.09;
+          if (evoDashStep >= 3) {
+            evoDashActive = false;
+            break;
+          }
+        }
+      }
 
       if (left && !right) {
         player.vx -= accel * dt;
@@ -945,6 +1072,7 @@
                 doubleJumpTimer = 15;
                 jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
               }
+              doubleJumpAura = Math.max(doubleJumpAura, 15);
               spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
               shakeTime = 0.10;
               shakeStrength = Math.max(shakeStrength, 3);
@@ -954,7 +1082,7 @@
         }
       }
 
-      if (isNinja && teleportEdge && teleportCooldown <= 0) {
+      if (isNinja && teleportEdge && teleportCooldown <= 0 && !evoDashActive) {
         teleportFrom.x = player.x;
         teleportFrom.y = player.y;
         const dist = 480;
@@ -967,12 +1095,17 @@
         }
         teleportTo.x = player.x;
         teleportTo.y = player.y;
-        teleportCooldown = 20;
+        teleportCooldown = isEvo ? 15 : 20;
         teleportFxTime = teleportFxDuration;
         sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
         shakeTime = 0.10;
         shakeStrength = Math.max(shakeStrength, 4);
+
+        if (isEvo) {
+          evoTeleportUses += 1;
+          if (evoTeleportUses >= 3 && !evoBurstReady && evoBurstWait <= 0) evoBurstWait = 10;
+        }
       }
 
       // Selection is handled via click/tap (not by walking into UI elements)
@@ -1010,7 +1143,8 @@
       }
 
       const skin = getSkin(selectedSkinId);
-      const isNinja = skin.id === 'ninja';
+      const isEvo = skin.id === 'evo-ninja';
+      const isNinja = skin.id === 'ninja' || isEvo;
       const isMonks = skin.id === 'monks';
       const isGolem = skin.id === 'iron-golem';
 
@@ -1018,6 +1152,20 @@
       if (teleportFxTime > 0) teleportFxTime = Math.max(0, teleportFxTime - dt);
       if (golemInvuln > 0) golemInvuln = Math.max(0, golemInvuln - dt);
       if (golemHitFlash > 0) golemHitFlash = Math.max(0, golemHitFlash - dt);
+      if (doubleJumpAura > 0) doubleJumpAura = Math.max(0, doubleJumpAura - dt);
+
+      if (isEvo) {
+        if (evoBurstWait > 0) {
+          evoBurstWait = Math.max(0, evoBurstWait - dt);
+          if (evoBurstWait <= 0 && evoTeleportUses >= 3) evoBurstReady = true;
+        }
+      } else {
+        evoTargeting = false;
+        evoDashActive = false;
+        evoBurstReady = false;
+        evoBurstWait = 0;
+        evoTeleportUses = 0;
+      }
 
       if (isMonks) {
         hasDoubleJump = true;
@@ -1030,11 +1178,54 @@
       const teleportEdge = teleportPressed && !teleportHeld;
       teleportHeld = teleportPressed;
 
+      const gPressed = keys.has('g');
+      const gEdge = gPressed && !gHeld;
+      gHeld = gPressed;
+      if (isEvo && gEdge && evoBurstReady && !evoTargeting && !evoDashActive && !gameOver) {
+        evoTargeting = true;
+        canvas.style.cursor = 'crosshair';
+      }
+
+      if (evoDashActive) {
+        evoDashTimer -= dt;
+        while (evoDashActive && evoDashTimer <= 0) {
+          const fromX = player.x;
+          const fromY = player.y;
+          const pt = evoDashPts[evoDashStep];
+          teleportFrom.x = fromX;
+          teleportFrom.y = fromY;
+          player.x = pt.x;
+          player.y = pt.y;
+          player.vx = 0;
+          player.vy = 0;
+          for (let k = 0; k < 6; k++) {
+            let minY = Infinity;
+            for (const s of platforms) {
+              if (rectsOverlap(player, s)) minY = Math.min(minY, s.y - player.h - 2);
+            }
+            if (minY !== Infinity) player.y = minY;
+            else break;
+          }
+          teleportTo.x = player.x;
+          teleportTo.y = player.y;
+          teleportFxTime = teleportFxDuration;
+          sfxTeleport();
+          spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
+          shakeTime = 0.10;
+          shakeStrength = Math.max(shakeStrength, 4);
+          evoDashStep += 1;
+          evoDashTimer = 0.09;
+          if (evoDashStep >= 3) {
+            evoDashActive = false;
+            break;
+          }
+        }
+      }
+
       let accel = moveAccel;
       let maxSp = maxSpeedX;
       let jSp = jumpSpeed;
       if (isNinja) { accel *= 1.3; maxSp *= 1.35; jSp *= 1.25; }
-      if (isGolem) { accel *= 0.85; maxSp *= 0.75; jSp *= 0.95; }
 
       // Horizontal accel
       if (left && !right) {
@@ -1109,7 +1300,7 @@
         }
       }
 
-      if (isNinja && teleportEdge && teleportCooldown <= 0) {
+      if (isNinja && teleportEdge && teleportCooldown <= 0 && !evoDashActive) {
         teleportFrom.x = player.x;
         teleportFrom.y = player.y;
         const dist = 480;
@@ -1122,12 +1313,17 @@
         }
         teleportTo.x = player.x;
         teleportTo.y = player.y;
-        teleportCooldown = 20;
+        teleportCooldown = isEvo ? 15 : 20;
         teleportFxTime = teleportFxDuration;
         sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 22);
         shakeTime = 0.12;
         shakeStrength = Math.max(shakeStrength, 5);
+
+        if (isEvo) {
+          evoTeleportUses += 1;
+          if (evoTeleportUses >= 3 && !evoBurstReady && evoBurstWait <= 0) evoBurstWait = 10;
+        }
       }
 
       // Hazards
@@ -1163,6 +1359,7 @@
               doubleJumpTimer = 15; // seconds
               jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
             }
+            doubleJumpAura = Math.max(doubleJumpAura, 15);
             spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
             shakeTime = 0.12;
             shakeStrength = Math.max(shakeStrength, 4);
@@ -1176,6 +1373,12 @@
       // Update max distance and checkpoints
       if (player.x > maxReachedX) maxReachedX = player.x;
       const distNow = Math.floor(maxReachedX);
+      if (distNow > bestDistanceAll) {
+        bestDistanceAll = distNow;
+        try {
+          localStorage.setItem(BEST_DISTANCE_ALL_KEY, String(bestDistanceAll));
+        } catch (e) {}
+      }
       if (!noCheckpointsMode) {
         for (const cp of checkpoints) {
           if (rectsOverlap(player, cp)) {
@@ -1520,6 +1723,18 @@
         const x = worldToScreenX(player.x);
         const y = worldToScreenY(player.y);
 
+        if (doubleJumpAura > 0) {
+          const a = Math.min(1, doubleJumpAura / 15);
+          ctx.save();
+          ctx.globalAlpha = 0.35 * a;
+          ctx.shadowColor = 'rgba(59,130,246,0.9)';
+          ctx.shadowBlur = 22;
+          ctx.fillStyle = 'rgba(59,130,246,0.25)';
+          roundRectPath(x - 6, y - 6, player.w + 12, player.h + 12, 14);
+          ctx.fill();
+          ctx.restore();
+        }
+
         if (isNinja) {
           const cx = x + player.w * 0.5;
           const cy = y + player.h * 0.58;
@@ -1535,9 +1750,9 @@
 
           const eyeY = y + player.h * 0.36;
           const eyeDx = 9;
-          ctx.fillStyle = 'rgba(239,68,68,0.98)';
-          ctx.shadowColor = 'rgba(239,68,68,0.9)';
-          ctx.shadowBlur = 16;
+          ctx.fillStyle = isEvo ? 'rgba(168,85,247,0.98)' : 'rgba(239,68,68,0.98)';
+          ctx.shadowColor = isEvo ? 'rgba(168,85,247,0.95)' : 'rgba(239,68,68,0.9)';
+          ctx.shadowBlur = isEvo ? 20 : 16;
           ctx.beginPath();
           ctx.arc(cx - eyeDx, eyeY, 2.6, 0, Math.PI * 2);
           ctx.arc(cx + eyeDx, eyeY, 2.6, 0, Math.PI * 2);
