@@ -50,6 +50,77 @@
     });
     window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
+    function pointInRect(wx, wy, r) {
+      return wx >= r.x && wx <= r.x + r.w && wy >= r.y && wy <= r.y + r.h;
+    }
+
+    function activateShopSkinId(skinId) {
+      const skinItem = getSkin(skinId);
+      if (!isSkinUnlocked(skinItem.id)) {
+        if (coins >= skinItem.price) {
+          coins -= skinItem.price;
+          saveCoins();
+          unlockedSkins.add(skinItem.id);
+          selectedSkinId = skinItem.id;
+          saveSkins();
+          shopMessage = `Bought ${skinItem.name}!`;
+          shopMessageTime = 1.7;
+        } else {
+          shopMessage = `Need ${skinItem.price - coins} more coins`;
+          shopMessageTime = 1.7;
+        }
+      } else {
+        selectedSkinId = skinItem.id;
+        saveSkins();
+        shopMessage = `Selected ${skinItem.name}`;
+        shopMessageTime = 1.2;
+      }
+    }
+
+    function activateMenuZoneId(id) {
+      if (screen === 'menu') {
+        if (id === 'playClassic') startGame('classic');
+        else if (id === 'playNoCP') startGame('nocp');
+        else if (id === 'shop') enterShop();
+      } else if (screen === 'shop') {
+        if (id === 'back') enterMenu();
+      }
+    }
+
+    function handlePointerSelect(clientX, clientY) {
+      if (!(screen === 'menu' || screen === 'shop')) return;
+      const r = canvas.getBoundingClientRect();
+      const sx = (clientX - r.left) * (canvas.width / r.width);
+      const sy = (clientY - r.top) * (canvas.height / r.height);
+      const wx = sx + camera.x;
+      const wy = sy + camera.y;
+
+      for (const z of menuZones) {
+        if (pointInRect(wx, wy, z)) {
+          activateMenuZoneId(z.id);
+          return;
+        }
+      }
+      if (screen === 'shop') {
+        for (const st of shopStands) {
+          if (pointInRect(wx, wy, st)) {
+            activateShopSkinId(st.skinId);
+            return;
+          }
+        }
+      }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      handlePointerSelect(e.clientX, e.clientY);
+    });
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length) {
+        handlePointerSelect(e.touches[0].clientX, e.touches[0].clientY);
+        e.preventDefault();
+      }
+    }, { passive: false });
+
     // World
     const gravity = 2000; // px/s^2 (harder)
     const moveAccel = 2200; // px/s^2
@@ -538,8 +609,8 @@
       deathTimer = 0;
       deathPieces = [];
       interactLatch = 0;
-      shopMessage = 'Touch a stand to buy/select';
-      shopMessageTime = 2.2;
+      shopMessage = '';
+      shopMessageTime = 0;
       golemLives = 4;
       golemInvuln = 0;
       golemHitFlash = 0;
@@ -1423,9 +1494,7 @@
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
       } else if (screen === 'menu') {
-        lines.push('Main Menu: move into a button');
       } else if (screen === 'shop') {
-        lines.push('Shop: touch a stand');
         if (shopMessageTime > 0 && shopMessage) lines.push(shopMessage);
       }
 
