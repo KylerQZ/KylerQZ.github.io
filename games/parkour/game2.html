@@ -448,17 +448,12 @@
     }
 
     let score = 0;
-    let nonstopForwardTime = 0;
-    let scoreTick = 0;
     let bestScore = 0;
     let bestDistance = 0;
     let bestSaved = false;
     let bestDistanceStart = 0;
     let bestDistanceBeaten = false;
-    let comboActive = false;
-    let comboAnimTime = 0;
     let bestDistAnimTime = 0;
-    const comboAnimDuration = 0.8;
     const bestDistAnimDuration = 0.9;
     const BEST_SCORE_KEY = 'parkour_nocp_bestScore';
     const BEST_DISTANCE_KEY = 'parkour_nocp_bestDistance';
@@ -541,15 +536,11 @@
         modeLabel,
         selectedSkinId,
         score,
-        nonstopForwardTime,
-        scoreTick,
         bestScore,
         bestDistance,
         bestSaved,
         bestDistanceStart,
         bestDistanceBeaten,
-        comboActive,
-        comboAnimTime,
         bestDistAnimTime,
         player,
         facing,
@@ -613,15 +604,11 @@
       modeLabel = data.modeLabel || (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints');
       selectedSkinId = data.selectedSkinId || selectedSkinId;
       score = data.score || 0;
-      nonstopForwardTime = data.nonstopForwardTime || 0;
-      scoreTick = data.scoreTick || 0;
       bestScore = data.bestScore || 0;
       bestDistance = data.bestDistance || 0;
       bestSaved = !!data.bestSaved;
       bestDistanceStart = data.bestDistanceStart || 0;
       bestDistanceBeaten = !!data.bestDistanceBeaten;
-      comboActive = !!data.comboActive;
-      comboAnimTime = data.comboAnimTime || 0;
       bestDistAnimTime = data.bestDistAnimTime || 0;
 
       if (data.player) {
@@ -938,13 +925,9 @@
       deathTimer = 0;
       deathPieces = [];
       score = 0;
-      nonstopForwardTime = 0;
-      scoreTick = 0;
       bestSaved = false;
       bestDistanceStart = bestDistance;
       bestDistanceBeaten = false;
-      comboActive = false;
-      comboAnimTime = 0;
       bestDistAnimTime = 0;
       teleportCooldown = 0;
       teleportFxTime = 0;
@@ -965,10 +948,6 @@
       gameOver = false; jumpHeld = false; // don't trigger jump immediately
       deathTimer = 0;
       deathPieces = [];
-      nonstopForwardTime = 0;
-      scoreTick = 0;
-      comboActive = false;
-      comboAnimTime = 0;
       bestDistAnimTime = 0;
       teleportCooldown = 0;
       teleportFxTime = 0;
@@ -1616,6 +1595,7 @@
       if (!noCheckpointsMode) {
         for (const cp of checkpoints) {
           if (rectsOverlap(player, cp)) {
+            if (lastCheckpoint.x !== cp.x) addCoins(10);
             // Place checkpoint spawn on top of nearest platform below this cp
             let spawnY = canvas.height - 40 - player.h;
             for (const s of platforms) {
@@ -1627,27 +1607,6 @@
             lastCheckpoint.y = spawnY;
             checkpointFlashTime = 1.2;
           }
-        }
-      }
-
-      const movingForward = player.vx > 20;
-      if (movingForward) {
-        nonstopForwardTime += dt;
-      } else {
-        nonstopForwardTime = 0;
-        scoreTick = 0;
-        comboActive = false;
-      }
-      if (nonstopForwardTime > 3) {
-        if (!comboActive) {
-          comboActive = true;
-          comboAnimTime = comboAnimDuration;
-        }
-        scoreTick += dt;
-        while (scoreTick >= 1) {
-          score += 10;
-          addCoins(1);
-          scoreTick -= 1;
         }
       }
 
@@ -1668,7 +1627,6 @@
         }
       }
 
-      comboAnimTime = Math.max(0, comboAnimTime - dt);
       bestDistAnimTime = Math.max(0, bestDistAnimTime - dt);
 
       // Generate world ahead and move camera
@@ -2213,8 +2171,6 @@
         }
         lines.push(`Distance: ${Math.floor(maxReachedX)} px`);
         lines.push(`Score: ${score}`);
-        if (nonstopForwardTime >= 3) lines.push('Nonstop: +10/s');
-        else lines.push(`Nonstop: ${nonstopForwardTime.toFixed(1)}/3.0s`);
         if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
         if (skin.id === 'ninja' || skin.id === 'evo-ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
@@ -2242,7 +2198,7 @@
           for (const ln of wrapText(skin.desc, 44)) lines.push(ln);
         }
         if (menuView === 'shop') {
-          if (skin.id === 'ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
+          if (skin.id === 'ninja' || skin.id === 'evo-ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
           if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
         }
       }
@@ -2307,7 +2263,6 @@
       }
 
       if (!gameOver) {
-        if (comboAnimTime > 0) drawPopText('NONSTOP COMBO!', comboAnimTime, comboAnimDuration, 128, '#f97316');
         if (bestDistAnimTime > 0) drawPopText('NEW BEST DISTANCE!', bestDistAnimTime, bestDistAnimDuration, 164, '#fbbf24');
       }
 
