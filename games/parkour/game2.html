@@ -202,8 +202,8 @@
     saveSkins();
 
     if (cheatEnabled) {
+      coins = Math.max(coins, 99999);
       try {
-        coins = Math.max(coins, 99999);
         localStorage.setItem(COINS_KEY, String(coins));
       } catch (e) {}
       unlockedSkins = new Set(SKINS.map(s => s.id));
