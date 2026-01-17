@@ -535,7 +535,6 @@
         noCheckpointsMode,
         modeLabel,
         selectedSkinId,
-        score,
         bestScore,
         bestDistance,
         bestSaved,
@@ -603,7 +602,7 @@
       noCheckpointsMode = !!data.noCheckpointsMode;
       modeLabel = data.modeLabel || (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints');
       selectedSkinId = data.selectedSkinId || selectedSkinId;
-      score = data.score || 0;
+      score = 0;
       bestScore = data.bestScore || 0;
       bestDistance = data.bestDistance || 0;
       bestSaved = !!data.bestSaved;
@@ -2173,6 +2172,10 @@
         lines.push(`Score: ${score}`);
         if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
         if (skin.id === 'ninja' || skin.id === 'evo-ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
+        if (skin.id === 'evo-ninja') {
+          const superCd = evoBurstWait > 0 ? `${Math.ceil(evoBurstWait)}s` : (evoBurstReady ? 'READY' : `${Math.min(3, evoTeleportUses)}/3`);
+          lines.push(`Super Teleport (G): ${superCd}`);
+        }
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
       } else if (screen === 'menu') {
