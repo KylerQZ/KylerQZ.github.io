@@ -87,8 +87,9 @@
     function sfxDeny() { playTone(220, 160, 0.16, 'sawtooth', 0.05); }
     function sfxJump() { playTone(300, 620, 0.09, 'triangle', 0.04); }
     function sfxLand() { playNoise(0.08, 0.05); playTone(120, 90, 0.10, 'sine', 0.03); }
-    function sfxTeleport() { playTone(180, 1200, 0.18, 'sawtooth', 0.05); playNoise(0.06, 0.03); }
+    function sfxTeleport() { playTone(140, 1600, 0.20, 'sawtooth', 0.06); playTone(900, 220, 0.16, 'triangle', 0.03, -12); playNoise(0.07, 0.03); }
     function sfxShieldHit() { playTone(160, 70, 0.12, 'square', 0.06); playNoise(0.05, 0.03); }
+    function sfxGolemCrash() { playNoise(0.14, 0.09); playTone(95, 55, 0.22, 'square', 0.08); playTone(55, 40, 0.25, 'sawtooth', 0.05, -6); }
     function sfxDeath() { playNoise(0.22, 0.07); playTone(220, 60, 0.30, 'sawtooth', 0.06); }
 
     function resize() {
@@ -694,6 +695,7 @@
       platforms.push({ x: 820, y: baseY - 280, w: 240, h: 20, type: 'plat' });
       platforms.push({ x: 1140, y: baseY - 200, w: 220, h: 20, type: 'plat' });
       powerups.push({ x: 330, y: baseY - 160, w: 20, h: 20, type: 'double' });
+      hazards.push({ x: 720, y: baseY - 20, w: 120, h: 20 });
       camera.x = 0;
       camera.y = 0;
     }
@@ -826,8 +828,10 @@
           if (!isMonks) jumpsLeft -= 1;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
-          spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 12);
-          sfxJump();
+          if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 34);
+          else spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 12);
+          if (isGolem) sfxGolemCrash();
+          else if (!isMonks && !isNinja) sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -837,8 +841,8 @@
 
       if (player.onGround && !wasOnGround) {
         jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
-        spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
-        sfxLand();
+        if (!isMonks) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
+        if (!isNinja) sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -846,13 +850,36 @@
       }
 
       if (menuView === 'shop') {
+        for (const hz of hazards) {
+          if (rectsOverlap(player, hz)) {
+            if (isGolem && golemInvuln <= 0) {
+              if (golemLives > 0) {
+                golemLives -= 1;
+                golemInvuln = 0.6;
+                golemHitFlash = 0.25;
+                sfxGolemCrash();
+                spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 46);
+                shakeTime = 0.14;
+                shakeStrength = Math.max(shakeStrength, 7);
+              }
+            } else {
+              sfxDeny();
+              player.vx = -player.vx * 0.2;
+              player.vy = -180;
+              shakeTime = 0.08;
+              shakeStrength = Math.max(shakeStrength, 3);
+            }
+          }
+        }
         for (let i = powerups.length - 1; i >= 0; i--) {
           const pu = powerups[i];
           if (rectsOverlap(player, pu)) {
             if (pu.type === 'double') {
-              hasDoubleJump = true;
-              doubleJumpTimer = 20;
-              jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+              if (!isMonks) {
+                hasDoubleJump = true;
+                doubleJumpTimer = 15;
+                jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+              }
               spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
               shakeTime = 0.10;
               shakeStrength = Math.max(shakeStrength, 3);
@@ -989,8 +1016,10 @@
           if (!isMonks) jumpsLeft -= 1;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
-          spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
-          sfxJump();
+          if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 44);
+          else spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
+          if (isGolem) sfxGolemCrash();
+          else if (!isMonks && !isNinja) sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -1000,8 +1029,9 @@
 
       if (player.onGround && !wasOnGround) {
         jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
-        spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
-        sfxLand();
+        if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 42);
+        else if (!isMonks) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
+        if (!isNinja) sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -1037,10 +1067,10 @@
               golemLives -= 1;
               golemInvuln = 0.6;
               golemHitFlash = 0.25;
-              sfxShieldHit();
-              spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 26);
+              sfxGolemCrash();
+              spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 52);
               shakeTime = 0.12;
-              shakeStrength = Math.max(shakeStrength, 5);
+              shakeStrength = Math.max(shakeStrength, 7);
             } else {
               spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 42);
               shakeTime = 0.22;
@@ -1057,9 +1087,11 @@
         const pu = powerups[i];
         if (rectsOverlap(player, pu)) {
           if (pu.type === 'double') {
-            hasDoubleJump = true;
-            doubleJumpTimer = 20; // seconds
-            jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+            if (!isMonks) {
+              hasDoubleJump = true;
+              doubleJumpTimer = 15; // seconds
+              jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+            }
             spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
             shakeTime = 0.12;
             shakeStrength = Math.max(shakeStrength, 4);
