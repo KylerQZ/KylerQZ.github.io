@@ -152,6 +152,7 @@
     const jumpBufferTime = 0.12;
 
     const urlParams = new URLSearchParams(window.location.search);
+    const cheatEnabled = urlParams.get('cheat') === '1';
     const modeParam = urlParams.get('mode');
     let gameMode = (modeParam || 'classic').toLowerCase();
     let noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
@@ -199,6 +200,16 @@
     if (!getSkin(selectedSkinId)) selectedSkinId = 'none';
     if (!isSkinUnlocked(selectedSkinId)) selectedSkinId = 'none';
     saveSkins();
+
+    if (cheatEnabled) {
+      try {
+        coins = Math.max(coins, 99999);
+        localStorage.setItem(COINS_KEY, String(coins));
+      } catch (e) {}
+      unlockedSkins = new Set(SKINS.map(s => s.id));
+      if (!selectedSkinId || selectedSkinId === 'none') selectedSkinId = 'ninja';
+      saveSkins();
+    }
 
     function setMode(mode) {
       gameMode = (mode || 'classic').toLowerCase();
