@@ -14,17 +14,12 @@
       display: block;
       width: 100vw;
       height: 100vh;
-      background: linear-gradient(
-        135deg,
-        #ef4444 0%,   /* red */
-        #ef4444 25%,
-        #1d4ed8 25%,  /* blue */
-        #1d4ed8 50%,
-        #ffffff 50%,  /* white */
-        #ffffff 75%,
-        #0a0a0a 75%,  /* black */
-        #0a0a0a 100%
-      );
+      background:
+        radial-gradient(circle at 18% 82%, rgba(255, 140, 0, 0.35), rgba(0,0,0,0) 55%),
+        radial-gradient(circle at 78% 28%, rgba(255, 60, 0, 0.25), rgba(0,0,0,0) 60%),
+        linear-gradient(180deg, #1a0f0b 0%, #050203 100%),
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.45) 0 2px, rgba(0,0,0,0) 2px 64px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.42) 0 2px, rgba(0,0,0,0) 2px 140px);
       cursor: default;
     }
   </style>
@@ -236,6 +231,60 @@
     }
 
     let gameOver = false;
+    let deathTimer = 0;
+    const deathDuration = 0.9;
+    let deathPieces = [];
+    let deathCamX = 0;
+    let deathCamY = 0;
+
+    function triggerDeath() {
+      if (gameOver) return;
+      gameOver = true;
+      deathTimer = 0;
+      deathCamX = camera.x;
+      deathCamY = camera.y;
+      deathPieces = [];
+      const cols = 6;
+      const rows = 7;
+      const pw = player.w / cols;
+      const ph = player.h / rows;
+      for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const px = player.x + cx * pw;
+          const py = player.y + cy * ph;
+          const dx = (cx - (cols - 1) / 2) / ((cols - 1) / 2);
+          const dy = (cy - (rows - 1) / 2) / ((rows - 1) / 2);
+          const spd = rand(220, 620);
+          deathPieces.push({
+            x: px,
+            y: py,
+            w: pw,
+            h: ph,
+            vx: dx * spd + rand(-120, 120),
+            vy: dy * spd + rand(-520, -220),
+            rot: rand(-1.6, 1.6),
+            vr: rand(-7, 7),
+          });
+        }
+      }
+      spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 36);
+      shakeTime = 0.18;
+      shakeStrength = Math.max(shakeStrength, 6);
+    }
+
+    function updateDeath(dt) {
+      deathTimer += dt;
+      for (const p of deathPieces) {
+        p.vy += 2200 * dt;
+        p.vx *= Math.pow(0.92, dt * 60);
+        p.vy *= Math.pow(0.92, dt * 60);
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.rot += p.vr * dt;
+      }
+      camera.x = deathCamX;
+      camera.y = deathCamY;
+    }
 
     function hardReset() {
       // Full reset back to start
@@ -243,6 +292,8 @@
       maxReachedX = 0;
       player.x = lastCheckpoint.x; player.y = lastCheckpoint.y; player.vx = 0; player.vy = 0; player.onGround = false;
       gameOver = false;
+      deathTimer = 0;
+      deathPieces = [];
       hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
       resetWorld();
@@ -253,12 +304,18 @@
       player.y = lastCheckpoint.y;
       player.vx = 0; player.vy = 0; player.onGround = false;
       gameOver = false; jumpHeld = false; // don't trigger jump immediately
+      deathTimer = 0;
+      deathPieces = [];
       coyoteTimer = 0; jumpBufferTimer = 0;
     }
 
     function update(dt) {
-      if (gameOver) return;
       t += dt;
+      if (gameOver) {
+        updateDeath(dt);
+        updateParticles(dt);
+        return;
+      }
       // Input: left/right
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
@@ -334,7 +391,7 @@
       // Hazards
       for (const hz of hazards) {
         if (rectsOverlap(player, hz)) {
-          gameOver = true;
+          triggerDeath();
         }
       }
       // Powerups
@@ -426,26 +483,32 @@
       function drawParallax() {
         const w = canvas.width;
         const h = canvas.height;
-        const ox = -(camera.x * 0.12) % 220;
-        const oy = -(camera.y * 0.12) % 220;
+        const ox = -(camera.x * 0.18) % 120;
+        const oy = -(camera.y * 0.18) % 72;
         ctx.save();
-        ctx.globalAlpha = 0.16;
-        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-        ctx.lineWidth = 1;
-        for (let x = -220; x < w + 220; x += 44) {
-          ctx.beginPath();
-          ctx.moveTo(x + ox, 0);
-          ctx.lineTo(x + ox + h, h);
-          ctx.stroke();
-        }
-        ctx.globalAlpha = 0.08;
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
         ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-        for (let y = -220; y < h + 220; y += 44) {
-          ctx.beginPath();
-          ctx.moveTo(0, y + oy);
-          ctx.lineTo(w, y + oy);
-          ctx.stroke();
+        ctx.lineWidth = 1;
+        const brickW = 120;
+        const brickH = 72;
+        for (let y = -brickH; y < h + brickH; y += brickH) {
+          const row = Math.floor((y + oy) / brickH);
+          const rowShift = (row % 2) * (brickW / 2);
+          for (let x = -brickW; x < w + brickW; x += brickW) {
+            const bx = Math.floor(x + ox + rowShift);
+            const by = Math.floor(y + oy);
+            ctx.fillRect(bx + 1, by + 1, brickW - 2, brickH - 2);
+            ctx.strokeRect(bx + 0.5, by + 0.5, brickW, brickH);
+          }
         }
+        ctx.globalAlpha = 0.65;
+        const glow = ctx.createRadialGradient(w * 0.18, h * 0.92, 20, w * 0.18, h * 0.92, h * 0.75);
+        glow.addColorStop(0, 'rgba(255,120,0,0.25)');
+        glow.addColorStop(0.4, 'rgba(255,40,0,0.14)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, w, h);
         ctx.restore();
       }
 
@@ -559,6 +622,28 @@
       }
 
       function drawPlayer() {
+        if (gameOver && deathPieces.length) {
+          const a = clamp(1 - (deathTimer / deathDuration), 0, 1);
+          for (const p of deathPieces) {
+            const x = worldToScreenX(p.x);
+            const y = worldToScreenY(p.y);
+            ctx.save();
+            ctx.translate(Math.floor(x + p.w * 0.5), Math.floor(y + p.h * 0.5));
+            ctx.rotate(p.rot);
+            ctx.globalAlpha = a;
+            ctx.fillStyle = '#111';
+            ctx.shadowColor = 'rgba(0,0,0,0.55)';
+            ctx.shadowBlur = 10;
+            ctx.fillRect(-p.w * 0.5, -p.h * 0.5, p.w, p.h);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = a * 0.25;
+            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-p.w * 0.5, -p.h * 0.5, p.w, p.h);
+            ctx.restore();
+          }
+          return;
+        }
         for (let i = 0; i < trail.length; i++) {
           const p = trail[i];
           const a = i / trail.length;
@@ -668,7 +753,7 @@
         ctx.restore();
       }
 
-      if (gameOver) {
+      if (gameOver && deathTimer >= deathDuration) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#fff';
@@ -690,7 +775,9 @@
       const dt = Math.min(1/30, (ts - last) / 1000);
       last = ts;
       if (keys.has('r')) {
-        if (keys.has('shift')) hardReset(); else respawnAtCheckpoint();
+        if (!gameOver || deathTimer >= deathDuration) {
+          if (keys.has('shift')) hardReset(); else respawnAtCheckpoint();
+        }
       }
       update(dt);
       draw();
