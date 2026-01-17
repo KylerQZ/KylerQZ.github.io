@@ -67,6 +67,13 @@
     let bestScore = 0;
     let bestDistance = 0;
     let bestSaved = false;
+    let bestDistanceStart = 0;
+    let bestDistanceBeaten = false;
+    let comboActive = false;
+    let comboAnimTime = 0;
+    let bestDistAnimTime = 0;
+    const comboAnimDuration = 0.8;
+    const bestDistAnimDuration = 0.9;
     const BEST_SCORE_KEY = 'parkour_nocp_bestScore';
     const BEST_DISTANCE_KEY = 'parkour_nocp_bestDistance';
     if (noCheckpointsMode) {
@@ -78,6 +85,7 @@
         bestDistance = 0;
       }
     }
+    bestDistanceStart = bestDistance;
 
     const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
     let jumpsLeft = 1;
@@ -321,6 +329,11 @@
       nonstopForwardTime = 0;
       scoreTick = 0;
       bestSaved = false;
+      bestDistanceStart = bestDistance;
+      bestDistanceBeaten = false;
+      comboActive = false;
+      comboAnimTime = 0;
+      bestDistAnimTime = 0;
       hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
       resetWorld();
@@ -335,6 +348,9 @@
       deathPieces = [];
       nonstopForwardTime = 0;
       scoreTick = 0;
+      comboActive = false;
+      comboAnimTime = 0;
+      bestDistAnimTime = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
     }
 
@@ -443,6 +459,7 @@
 
       // Update max distance and checkpoints
       if (player.x > maxReachedX) maxReachedX = player.x;
+      const distNow = Math.floor(maxReachedX);
       if (!noCheckpointsMode) {
         for (const cp of checkpoints) {
           if (rectsOverlap(player, cp)) {
@@ -466,14 +483,39 @@
       } else {
         nonstopForwardTime = 0;
         scoreTick = 0;
+        comboActive = false;
       }
       if (nonstopForwardTime > 3) {
+        if (!comboActive) {
+          comboActive = true;
+          comboAnimTime = comboAnimDuration;
+        }
         scoreTick += dt;
         while (scoreTick >= 1) {
           score += 10;
           scoreTick -= 1;
         }
       }
+
+      if (noCheckpointsMode) {
+        if (!bestDistanceBeaten && distNow > bestDistanceStart && distNow >= 1) {
+          bestDistanceBeaten = true;
+          bestDistAnimTime = bestDistAnimDuration;
+          bestDistance = Math.max(bestDistance, distNow);
+          try {
+            localStorage.setItem(BEST_DISTANCE_KEY, String(bestDistance));
+          } catch (e) {}
+        }
+        if (bestDistanceBeaten && distNow > bestDistance) {
+          bestDistance = distNow;
+          try {
+            localStorage.setItem(BEST_DISTANCE_KEY, String(bestDistance));
+          } catch (e) {}
+        }
+      }
+
+      comboAnimTime = Math.max(0, comboAnimTime - dt);
+      bestDistAnimTime = Math.max(0, bestDistAnimTime - dt);
 
       // Generate world ahead and move camera
       ensureWorldAhead();
@@ -799,6 +841,29 @@
       for (const s of lines) {
         ctx.fillText(s, 26, yy);
         yy += lineH;
+      }
+
+      function drawPopText(text, timeLeft, duration, y, color) {
+        const a = clamp(timeLeft / duration, 0, 1);
+        const p = 1 - a;
+        const ease = 1 - Math.pow(1 - p, 3);
+        const scale = lerp(0.92, 1.14, ease);
+        ctx.save();
+        ctx.translate(canvas.width / 2, y);
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = a;
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = color;
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      }
+
+      if (!gameOver) {
+        if (comboAnimTime > 0) drawPopText('NONSTOP COMBO!', comboAnimTime, comboAnimDuration, 128, '#f97316');
+        if (bestDistAnimTime > 0) drawPopText('NEW BEST DISTANCE!', bestDistAnimTime, bestDistAnimDuration, 164, '#fbbf24');
       }
 
       // Checkpoint flash
