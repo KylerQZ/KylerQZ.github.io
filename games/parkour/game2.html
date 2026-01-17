@@ -36,6 +36,59 @@
     const shopStands = [];
     let menuView = 'main';
 
+    let audioCtx = null;
+    function ensureAudio() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+    function playTone(f0, f1, dur, type, gain, detune = 0) {
+      if (!audioCtx) return;
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(f0, t);
+      if (f1 != null) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + Math.max(0.01, dur));
+      if (detune) o.detune.setValueAtTime(detune, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain || 0.08), t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + Math.max(0.03, dur) + 0.02);
+    }
+    function playNoise(dur, gain) {
+      if (!audioCtx) return;
+      const t = audioCtx.currentTime;
+      const sr = audioCtx.sampleRate;
+      const len = Math.max(1, Math.floor(sr * dur));
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(Math.max(0.0002, gain || 0.08), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
+      src.connect(g);
+      g.connect(audioCtx.destination);
+      src.start(t);
+      src.stop(t + Math.max(0.03, dur) + 0.02);
+    }
+
+    function sfxClick() { playTone(520, 380, 0.07, 'square', 0.04); }
+    function sfxSelect() { playTone(520, 760, 0.09, 'triangle', 0.05); }
+    function sfxBuy() { playTone(420, 980, 0.14, 'sine', 0.06); playTone(980, 1180, 0.10, 'sine', 0.03, 8); }
+    function sfxDeny() { playTone(220, 160, 0.16, 'sawtooth', 0.05); }
+    function sfxJump() { playTone(300, 620, 0.09, 'triangle', 0.04); }
+    function sfxLand() { playNoise(0.08, 0.05); playTone(120, 90, 0.10, 'sine', 0.03); }
+    function sfxTeleport() { playTone(180, 1200, 0.18, 'sawtooth', 0.05); playNoise(0.06, 0.03); }
+    function sfxShieldHit() { playTone(160, 70, 0.12, 'square', 0.06); playNoise(0.05, 0.03); }
+    function sfxDeath() { playNoise(0.22, 0.07); playTone(220, 60, 0.30, 'sawtooth', 0.06); }
+
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -50,6 +103,7 @@
     // Input
     const keys = new Set();
     window.addEventListener('keydown', (e) => {
+      ensureAudio();
       keys.add(e.key.toLowerCase());
       if ([' ', 'arrowup'].includes(e.key.toLowerCase())) e.preventDefault();
     });
@@ -83,23 +137,27 @@
           saveSkins();
           shopMessage = `Bought ${skinItem.name}!`;
           shopMessageTime = 1.7;
+          sfxBuy();
         } else {
           shopMessage = `Need ${skinItem.price - coins} more coins`;
           shopMessageTime = 1.7;
+          sfxDeny();
         }
       } else {
         selectedSkinId = skinItem.id;
         saveSkins();
         shopMessage = `Selected ${skinItem.name}`;
         shopMessageTime = 1.2;
+        sfxSelect();
       }
     }
 
     function activateMenuZoneId(id) {
       if (screen === 'menu') {
-        if (id === 'playClassic') startGame('classic');
-        else if (id === 'playNoCP') startGame('nocp');
+        if (id === 'playClassic') { sfxClick(); startGame('classic'); }
+        else if (id === 'playNoCP') { sfxClick(); startGame('nocp'); }
         else if (id === 'openSkinsShop') {
+          sfxClick();
           setMenuView('shop');
           player.x = 140;
           player.vx = 0;
@@ -108,6 +166,7 @@
           shopMessageTime = 0;
         }
         else if (id === 'backToMain') {
+          sfxClick();
           setMenuView('main');
           shopMessage = '';
           shopMessageTime = 0;
@@ -138,6 +197,7 @@
     }
 
     canvas.addEventListener('mousedown', (e) => {
+      ensureAudio();
       handlePointerSelect(e.clientX, e.clientY);
     });
     canvas.addEventListener('mousemove', (e) => {
@@ -148,19 +208,9 @@
       pointerActive = false;
     });
     canvas.addEventListener('touchstart', (e) => {
-      if (e.touches && e.touches.length) {
-        handlePointerSelect(e.touches[0].clientX, e.touches[0].clientY);
-        e.preventDefault();
-      }
-    }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => {
-      if (screen !== 'menu') return;
-      if (e.touches && e.touches.length) {
-        updatePointerWorld(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    }, { passive: true });
-    canvas.addEventListener('touchend', () => {
-      pointerActive = false;
+      ensureAudio();
+      const t = e.touches[0];
+      handlePointerSelect(t.clientX, t.clientY);
     }, { passive: true });
 
     // World
@@ -490,6 +540,7 @@
       deathCamX = camera.x;
       deathCamY = camera.y;
       deathPieces = [];
+      sfxDeath();
       const cols = 6;
       const rows = 7;
       const pw = player.w / cols;
@@ -712,6 +763,7 @@
           jumpBufferTimer = 0;
           coyoteTimer = 0;
           spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 12);
+          sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -722,6 +774,7 @@
       if (player.onGround && !wasOnGround) {
         jumpsLeft = isMonks ? 999 : 1;
         spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
+        sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -743,6 +796,7 @@
         teleportTo.y = player.y;
         teleportCooldown = 20;
         teleportFxTime = teleportFxDuration;
+        sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
         shakeTime = 0.10;
         shakeStrength = Math.max(shakeStrength, 4);
@@ -837,7 +891,6 @@
       // Integrate and collide
       const wasOnGround = player.onGround;
       resolveCollisions(player, dt);
-
       if (player.onGround) {
         coyoteTimer = coyoteTime;
       } else {
@@ -847,14 +900,17 @@
 
       if (jumpBufferTimer > 0 && jumpsLeft > 0) {
         const canGroundJump = player.onGround || coyoteTimer > 0;
-        const canDoubleJump = isMonks ? (!player.onGround) : (hasDoubleJump && !player.onGround && coyoteTimer <= 0 && jumpsLeft === 1);
-        if (canGroundJump || canDoubleJump) {
+        const canExtraJump = isMonks ? !player.onGround : false;
+        const canDouble = hasDoubleJump && doubleJumpTimer > 0 && jumpsLeft > 1;
+        if (canGroundJump || canExtraJump || canDouble) {
           player.vy = -jSp;
           player.onGround = false;
           if (!isMonks) jumpsLeft -= 1;
+          if (canDouble && !canGroundJump) doubleJumpTimer = 0;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
           spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
+          sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -865,6 +921,7 @@
       if (player.onGround && !wasOnGround) {
         jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
         spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
+        sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -886,6 +943,7 @@
         teleportTo.y = player.y;
         teleportCooldown = 20;
         teleportFxTime = teleportFxDuration;
+        sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 22);
         shakeTime = 0.12;
         shakeStrength = Math.max(shakeStrength, 5);
@@ -899,6 +957,7 @@
               golemLives -= 1;
               golemInvuln = 0.6;
               golemHitFlash = 0.25;
+              sfxShieldHit();
               spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 26);
               shakeTime = 0.12;
               shakeStrength = Math.max(shakeStrength, 5);
