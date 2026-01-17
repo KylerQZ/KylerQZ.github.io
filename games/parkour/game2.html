@@ -153,6 +153,7 @@
     let doubleJumpTimer = 0; // seconds remaining when active
     let jumpHeld = false; // for edge detection
     let teleportHeld = false;
+    let escapeHeld = false;
     let teleportCooldown = 0;
     let teleportFxTime = 0;
     const teleportFxDuration = 0.22;
@@ -1511,6 +1512,13 @@
     function loop(ts) {
       const dt = Math.min(1/30, (ts - last) / 1000);
       last = ts;
+
+      const escapePressed = keys.has('escape');
+      const escapeEdge = escapePressed && !escapeHeld;
+      escapeHeld = escapePressed;
+      if (escapeEdge) {
+        if (screen === 'play') enterMenu();
+      }
       if (keys.has('r')) {
         if (screen === 'play') {
           if (!gameOver || deathTimer >= deathDuration) {
