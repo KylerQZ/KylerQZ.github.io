@@ -173,6 +173,7 @@
           shopMessage = `Previewing ${skinItem.name} - click again to buy`;
           shopMessageTime = 1.7;
           sfxSelect();
+          if (menuView === 'shop') shopRespawn();
           return;
         }
 
@@ -201,6 +202,7 @@
           shopMessageTime = 1.7;
           sfxBuy();
           shopPreviewSkinId = null;
+          if (menuView === 'shop') shopRespawn();
         } else {
           shopMessage = `Need ${skinItem.price - coins} more coins`;
           shopMessageTime = 1.7;
@@ -213,6 +215,7 @@
         shopMessageTime = 1.2;
         sfxSelect();
         shopPreviewSkinId = null;
+        if (menuView === 'shop') shopRespawn();
       }
     }
 
@@ -241,6 +244,7 @@
           camera.x = 0;
           shopMessage = '';
           shopMessageTime = 0;
+          shopRespawn();
         }
         else if (id === 'backToMain') {
           sfxClick();
@@ -814,8 +818,7 @@
       jumpsLeft = 1;
       hasDoubleJump = false;
       if (getSkin(selectedSkinId).id === 'monks') {
-        hasDoubleJump = true;
-        doubleJumpTimer = 999999;
+        doubleJumpTimer = 0;
         jumpsLeft = 999;
       } else {
         doubleJumpTimer = 0;
@@ -827,6 +830,15 @@
       golemHitFlash = 0;
       teleportCooldown = 0;
       teleportFxTime = 0;
+      jumpHeld = false;
+      teleportHeld = false;
+      gHeld = false;
+      evoTargeting = false;
+      evoDashActive = false;
+      evoBurstReady = false;
+      evoBurstWait = 0;
+      evoTeleportUses = 0;
+      canvas.style.cursor = 'default';
       camera.x = 0;
       camera.y = 0;
     }
@@ -910,11 +922,12 @@
         evoBurstReady = false;
         evoBurstWait = 0;
         evoTeleportUses = 0;
+        canvas.style.cursor = 'default';
       }
 
       if (isMonks) {
-        hasDoubleJump = true;
-        doubleJumpTimer = 999999;
+        hasDoubleJump = false;
+        doubleJumpTimer = 0;
         if (player.onGround) jumpsLeft = 999;
         else jumpsLeft = Math.max(jumpsLeft, 2);
       }
@@ -1168,8 +1181,8 @@
       }
 
       if (isMonks) {
-        hasDoubleJump = true;
-        doubleJumpTimer = 999999;
+        hasDoubleJump = false;
+        doubleJumpTimer = 0;
         if (player.onGround) jumpsLeft = 999;
         else jumpsLeft = Math.max(jumpsLeft, 2);
       }
@@ -1654,7 +1667,8 @@
         }
 
         const skin = getSkin(selectedSkinId);
-        const isNinja = skin.id === 'ninja';
+        const isEvo = skin.id === 'evo-ninja';
+        const isNinja = skin.id === 'ninja' || isEvo;
         const isMonks = skin.id === 'monks';
         const isGolem = skin.id === 'iron-golem';
         const body = skin.body || '#111';
@@ -1677,7 +1691,7 @@
           const fxToX = worldToScreenX(to.x);
           const fxToY = worldToScreenY(to.y);
           ctx.globalAlpha = fxA * 0.7;
-          ctx.strokeStyle = 'rgba(239,68,68,0.55)';
+          ctx.strokeStyle = isEvo ? 'rgba(168,85,247,0.6)' : 'rgba(239,68,68,0.55)';
           ctx.lineWidth = 3;
           ctx.beginPath();
           ctx.moveTo(fxFromX, fxFromY);
@@ -1685,8 +1699,8 @@
           ctx.stroke();
           ctx.globalAlpha = elapsed < half ? lerp(1, 0.1, p) : lerp(0.1, 1, p);
           ctx.fillStyle = body;
-          ctx.shadowColor = 'rgba(239,68,68,0.55)';
-          ctx.shadowBlur = 18;
+          ctx.shadowColor = isEvo ? 'rgba(168,85,247,0.75)' : 'rgba(239,68,68,0.55)';
+          ctx.shadowBlur = isEvo ? 26 : 18;
           ctx.beginPath();
           ctx.arc(x, y, r, 0, Math.PI * 2);
           ctx.fill();
@@ -1705,8 +1719,8 @@
             const cy = y + player.h * 0.55;
             const rr = player.w * 0.95;
             const tg = ctx.createRadialGradient(cx, cy, player.w * 0.15, cx, cy, rr);
-            tg.addColorStop(0, `rgba(0,0,0,${a * 0.22})`);
-            tg.addColorStop(0.65, `rgba(0,0,0,${a * 0.08})`);
+            tg.addColorStop(0, isEvo ? `rgba(0,0,0,${a * 0.38})` : `rgba(0,0,0,${a * 0.22})`);
+            tg.addColorStop(0.55, isEvo ? `rgba(168,85,247,${a * 0.12})` : `rgba(0,0,0,${a * 0.08})`);
             tg.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.globalAlpha = 1;
             ctx.fillStyle = tg;
@@ -1738,12 +1752,13 @@
         if (isNinja) {
           const cx = x + player.w * 0.5;
           const cy = y + player.h * 0.58;
-          const rr = Math.max(player.w, player.h) * 0.9;
+          const rr = Math.max(player.w, player.h) * (isEvo ? 1.05 : 0.9);
           ctx.save();
           ctx.globalAlpha = 1;
           const sg = ctx.createRadialGradient(cx, cy, player.w * 0.12, cx, cy, rr);
-          sg.addColorStop(0, 'rgba(0,0,0,0.85)');
-          sg.addColorStop(0.55, 'rgba(0,0,0,0.35)');
+          sg.addColorStop(0, isEvo ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.85)');
+          sg.addColorStop(0.35, isEvo ? 'rgba(168,85,247,0.16)' : 'rgba(0,0,0,0.35)');
+          sg.addColorStop(0.6, isEvo ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.35)');
           sg.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = sg;
           ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
