@@ -149,6 +149,8 @@
 
     let pointerWorldX = 0;
     let pointerWorldY = 0;
+    let pointerScreenX = 0;
+    let pointerScreenY = 0;
     let pointerActive = false;
 
     function pointInRect(wx, wy, r) {
@@ -159,6 +161,8 @@
       const r = canvas.getBoundingClientRect();
       const sx = (clientX - r.left) * (canvas.width / r.width);
       const sy = (clientY - r.top) * (canvas.height / r.height);
+      pointerScreenX = sx;
+      pointerScreenY = sy;
       pointerWorldX = sx + camera.x;
       pointerWorldY = sy + camera.y;
       pointerActive = true;
@@ -263,6 +267,39 @@
     }
 
     function handlePointerSelect(clientX, clientY) {
+      const r = canvas.getBoundingClientRect();
+      const sx = (clientX - r.left) * (canvas.width / r.width);
+      const sy = (clientY - r.top) * (canvas.height / r.height);
+
+      if (screen === 'play' && !evoTargeting) {
+        for (const b of getHudButtons()) {
+          if (sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h) {
+            if (b.id === 'exit') {
+              sfxClick();
+              canvas.style.cursor = 'default';
+              enterMenu();
+            } else if (b.id === 'save') {
+              sfxSelect();
+              saveRunState();
+              shopMessage = 'Saved run!';
+              shopMessageTime = 1.2;
+            } else if (b.id === 'load') {
+              const ok = loadRunState();
+              if (ok) {
+                sfxSelect();
+                shopMessage = 'Loaded run!';
+                shopMessageTime = 1.2;
+              } else {
+                sfxDeny();
+                shopMessage = 'No save found';
+                shopMessageTime = 1.2;
+              }
+            }
+            return;
+          }
+        }
+      }
+
       if (screen !== 'menu' && !evoTargeting) return;
       updatePointerWorld(clientX, clientY);
       const wx = pointerWorldX;
@@ -270,6 +307,7 @@
 
       if (evoTargeting) {
         evoTargeting = false;
+        canvas.style.cursor = 'default';
         evoTargetX = wx - player.w * 0.5;
         evoTargetY = wy - player.h * 0.5;
         evoBurstReady = false;
@@ -286,17 +324,13 @@
         const py = dx / dist;
         const amp = Math.min(180, Math.max(70, dist * 0.22));
         evoDashPts.length = 0;
-        for (let i = 1; i <= 3; i++) {
-          const t = i / 3;
-          const zig = (i % 2 === 1 ? 1 : -1);
-          const ix = sx + dx * t + px * amp * zig;
-          const iy = sy + dy * t + py * amp * zig;
-          evoDashPts.push({ x: i === 3 ? tx : ix, y: i === 3 ? ty : iy });
-        }
-        evoDashActive = true;
+        evoDashPts.push({ x: sx + dx * 0.33, y: sy + dy * 0.33 + 60 });
+        evoDashPts.push({ x: sx + dx * 0.66, y: sy + dy * 0.66 - 60 });
+        evoDashPts.push({ x: tx, y: ty });
         evoDashStep = 0;
         evoDashTimer = 0;
-        canvas.style.cursor = 'default';
+        evoDashActive = true;
+        spawnParticles('smoke', player.x + player.w * 0.5, player.y + player.h * 0.6, 22);
         return;
       }
 
@@ -321,7 +355,6 @@
       handlePointerSelect(e.clientX, e.clientY);
     });
     canvas.addEventListener('mousemove', (e) => {
-      if (screen !== 'menu') return;
       updatePointerWorld(e.clientX, e.clientY);
     });
     canvas.addEventListener('mouseleave', () => {
@@ -350,6 +383,7 @@
     screen = modeParam ? 'play' : 'menu';
 
     const COINS_KEY = 'parkour_coins';
+    const SAVE_STATE_KEY = 'parkour_saveState_v1';
     let coins = 0;
     try {
       coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0;
@@ -461,6 +495,7 @@
     let evoDashStep = 0;
     let evoDashTimer = 0;
     const evoDashPts = [];
+    let evoSmokeTimer = 0;
     let doubleJumpAura = 0;
     let golemLives = 4;
     let golemInvuln = 0;
@@ -480,6 +515,177 @@
       coins += n;
       if (coins < 0) coins = 0;
       saveCoins();
+    }
+
+    function getHudButtons() {
+      const pad = 12;
+      const gap = 10;
+      const w = 86;
+      const h = 34;
+      const y = 12;
+      const x3 = canvas.width - pad - w;
+      const x2 = x3 - gap - w;
+      const x1 = x2 - gap - w;
+      return [
+        { id: 'exit', label: 'EXIT', x: x1, y, w, h },
+        { id: 'save', label: 'SAVE', x: x2, y, w, h },
+        { id: 'load', label: 'LOAD', x: x3, y, w, h },
+      ];
+    }
+
+    function saveRunState() {
+      const data = {
+        v: 1,
+        gameMode,
+        noCheckpointsMode,
+        modeLabel,
+        selectedSkinId,
+        score,
+        nonstopForwardTime,
+        scoreTick,
+        bestScore,
+        bestDistance,
+        bestSaved,
+        bestDistanceStart,
+        bestDistanceBeaten,
+        comboActive,
+        comboAnimTime,
+        bestDistAnimTime,
+        player,
+        facing,
+        jumpsLeft,
+        hasDoubleJump,
+        doubleJumpTimer,
+        teleportCooldown,
+        teleportFxTime,
+        teleportFrom,
+        teleportTo,
+        evoTeleportUses,
+        evoBurstWait,
+        evoBurstReady,
+        evoTargeting,
+        evoTargetX,
+        evoTargetY,
+        evoDashActive,
+        evoDashStep,
+        evoDashTimer,
+        evoDashPts,
+        evoSmokeTimer,
+        doubleJumpAura,
+        golemLives,
+        golemInvuln,
+        golemHitFlash,
+        coyoteTimer,
+        jumpBufferTimer,
+        lastCheckpoint,
+        maxReachedX,
+        nextSpawnX,
+        chunksSpawned,
+        checkpointFlashTime,
+        platforms,
+        hazards,
+        checkpoints,
+        powerups,
+      };
+      try {
+        localStorage.setItem(SAVE_STATE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    function loadRunState() {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(SAVE_STATE_KEY);
+      } catch (e) {
+        raw = null;
+      }
+      if (!raw) return false;
+      let data = null;
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        data = null;
+      }
+      if (!data || data.v !== 1) return false;
+
+      gameMode = (data.gameMode || 'classic').toLowerCase();
+      noCheckpointsMode = !!data.noCheckpointsMode;
+      modeLabel = data.modeLabel || (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints');
+      selectedSkinId = data.selectedSkinId || selectedSkinId;
+      score = data.score || 0;
+      nonstopForwardTime = data.nonstopForwardTime || 0;
+      scoreTick = data.scoreTick || 0;
+      bestScore = data.bestScore || 0;
+      bestDistance = data.bestDistance || 0;
+      bestSaved = !!data.bestSaved;
+      bestDistanceStart = data.bestDistanceStart || 0;
+      bestDistanceBeaten = !!data.bestDistanceBeaten;
+      comboActive = !!data.comboActive;
+      comboAnimTime = data.comboAnimTime || 0;
+      bestDistAnimTime = data.bestDistAnimTime || 0;
+
+      if (data.player) {
+        player.x = data.player.x || 0;
+        player.y = data.player.y || 0;
+        player.w = data.player.w || player.w;
+        player.h = data.player.h || player.h;
+        player.vx = data.player.vx || 0;
+        player.vy = data.player.vy || 0;
+        player.onGround = !!data.player.onGround;
+      }
+      facing = data.facing || 1;
+      jumpsLeft = data.jumpsLeft || 1;
+      hasDoubleJump = !!data.hasDoubleJump;
+      doubleJumpTimer = data.doubleJumpTimer || 0;
+      teleportCooldown = data.teleportCooldown || 0;
+      teleportFxTime = data.teleportFxTime || 0;
+      teleportFrom = data.teleportFrom || teleportFrom;
+      teleportTo = data.teleportTo || teleportTo;
+      evoTeleportUses = data.evoTeleportUses || 0;
+      evoBurstWait = data.evoBurstWait || 0;
+      evoBurstReady = !!data.evoBurstReady;
+      evoTargeting = !!data.evoTargeting;
+      evoTargetX = data.evoTargetX || 0;
+      evoTargetY = data.evoTargetY || 0;
+      evoDashActive = !!data.evoDashActive;
+      evoDashStep = data.evoDashStep || 0;
+      evoDashTimer = data.evoDashTimer || 0;
+      evoDashPts.length = 0;
+      if (Array.isArray(data.evoDashPts)) {
+        for (const p of data.evoDashPts) {
+          if (p && typeof p.x === 'number' && typeof p.y === 'number') evoDashPts.push({ x: p.x, y: p.y });
+        }
+      }
+      evoSmokeTimer = data.evoSmokeTimer || 0;
+      doubleJumpAura = data.doubleJumpAura || 0;
+      golemLives = (typeof data.golemLives === 'number') ? data.golemLives : 4;
+      golemInvuln = data.golemInvuln || 0;
+      golemHitFlash = data.golemHitFlash || 0;
+      coyoteTimer = data.coyoteTimer || 0;
+      jumpBufferTimer = data.jumpBufferTimer || 0;
+      lastCheckpoint = data.lastCheckpoint || lastCheckpoint;
+      maxReachedX = data.maxReachedX || 0;
+      nextSpawnX = data.nextSpawnX || 0;
+      chunksSpawned = data.chunksSpawned || 0;
+      checkpointFlashTime = data.checkpointFlashTime || 0;
+      platforms = Array.isArray(data.platforms) ? data.platforms : platforms;
+      hazards = Array.isArray(data.hazards) ? data.hazards : hazards;
+      checkpoints = Array.isArray(data.checkpoints) ? data.checkpoints : checkpoints;
+      powerups = Array.isArray(data.powerups) ? data.powerups : powerups;
+
+      screen = 'play';
+      menuView = 'main';
+      gameOver = false;
+      deathTimer = 0;
+      deathPieces = [];
+      interactLatch = 0;
+      evoTargeting = false;
+      evoDashActive = false;
+      jumpHeld = false;
+      teleportHeld = false;
+      gHeld = false;
+      canvas.style.cursor = 'default';
+      return true;
     }
 
     function rebuildShopStands() {
@@ -611,14 +817,14 @@
     }
 
     function spawnParticles(type, x, y, amount) {
-      const base = type === 'power' ? '#06b6d4' : (type === 'land' ? '#6b7280' : '#ffffff');
+      const base = type === 'power' ? '#06b6d4' : (type === 'land' ? '#6b7280' : (type === 'smoke' ? '#a855f7' : '#ffffff'));
       for (let i = 0; i < amount; i++) {
-        const ang = rand(-Math.PI, 0);
-        const spd = type === 'power' ? rand(80, 190) : (type === 'land' ? rand(140, 360) : rand(100, 260));
+        const ang = type === 'smoke' ? rand(-Math.PI * 0.85, -Math.PI * 0.15) : rand(-Math.PI, 0);
+        const spd = type === 'power' ? rand(80, 190) : (type === 'land' ? rand(140, 360) : (type === 'smoke' ? rand(40, 120) : rand(100, 260)));
         const vx = Math.cos(ang) * spd * rand(0.5, 1.2);
         const vy = Math.sin(ang) * spd * rand(0.4, 1.1);
-        const ttl = type === 'power' ? rand(0.5, 1.2) : (type === 'land' ? rand(0.3, 0.7) : rand(0.25, 0.6));
-        particles.push({ x, y, vx, vy, life: ttl, ttl, size: rand(2, type === 'land' ? 6 : 4), color: base, gravity: type === 'power' ? -80 : 900, drag: type === 'power' ? 0.88 : 0.82 });
+        const ttl = type === 'power' ? rand(0.5, 1.2) : (type === 'land' ? rand(0.3, 0.7) : (type === 'smoke' ? rand(0.6, 1.25) : rand(0.25, 0.6)));
+        particles.push({ x, y, vx, vy, life: ttl, ttl, size: rand(type === 'smoke' ? 5 : 2, type === 'land' ? 6 : (type === 'smoke' ? 12 : 4)), color: base, gravity: type === 'power' ? -80 : (type === 'smoke' ? -180 : 900), drag: type === 'power' ? 0.88 : (type === 'smoke' ? 0.9 : 0.82) });
       }
     }
 
@@ -981,6 +1187,7 @@
           teleportFxTime = teleportFxDuration;
           sfxTeleport();
           spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
+          spawnParticles('smoke', player.x + player.w * 0.5, player.y + player.h * 0.6, 14);
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 4);
           evoDashStep += 1;
@@ -989,6 +1196,14 @@
             evoDashActive = false;
             break;
           }
+        }
+      }
+
+      if (isEvo) {
+        evoSmokeTimer -= dt;
+        if (evoSmokeTimer <= 0) {
+          evoSmokeTimer = 0.07;
+          spawnParticles('smoke', player.x + player.w * 0.5, player.y + player.h * 0.75, 2);
         }
       }
 
@@ -1144,6 +1359,11 @@
         updateHub(dt);
         updateParticles(dt);
         return;
+      }
+
+      if (shopMessageTime > 0) {
+        shopMessageTime = Math.max(0, shopMessageTime - dt);
+        if (shopMessageTime <= 0) shopMessage = '';
       }
       // Input: left/right
       const left = keys.has('a') || keys.has('arrowleft');
@@ -1330,6 +1550,7 @@
         teleportFxTime = teleportFxDuration;
         sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 22);
+        if (isEvo) spawnParticles('smoke', player.x + player.w * 0.5, player.y + player.h * 0.6, 18);
         shakeTime = 0.12;
         shakeStrength = Math.max(shakeStrength, 5);
 
@@ -1763,6 +1984,21 @@
           ctx.fillStyle = sg;
           ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
 
+          if (isEvo) {
+            ctx.globalAlpha = 0.22;
+            ctx.shadowColor = 'rgba(168,85,247,0.55)';
+            ctx.shadowBlur = 18;
+            roundRectPath(x + 2, y + 2, player.w - 4, player.h - 4, 10);
+            ctx.fillStyle = rgba(body, 1);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 0.14;
+            roundRectPath(x + 8, y + 14, player.w - 16, 10, 6);
+            ctx.fillStyle = 'rgba(168,85,247,0.9)';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+
           const eyeY = y + player.h * 0.36;
           const eyeDx = 9;
           ctx.fillStyle = isEvo ? 'rgba(168,85,247,0.98)' : 'rgba(239,68,68,0.98)';
@@ -1980,7 +2216,7 @@
         if (nonstopForwardTime >= 3) lines.push('Nonstop: +10/s');
         else lines.push(`Nonstop: ${nonstopForwardTime.toFixed(1)}/3.0s`);
         if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
-        if (skin.id === 'ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
+        if (skin.id === 'ninja' || skin.id === 'evo-ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
       } else if (screen === 'menu') {
@@ -2021,6 +2257,35 @@
       for (const s of lines) {
         ctx.fillText(s, 26, yy);
         yy += lineH;
+      }
+
+      if (screen === 'play') {
+        for (const b of getHudButtons()) {
+          const over = pointerActive && pointerScreenX >= b.x && pointerScreenX <= b.x + b.w && pointerScreenY >= b.y && pointerScreenY <= b.y + b.h;
+          ctx.save();
+          ctx.globalAlpha = over ? 0.95 : 0.78;
+          roundRectPath(b.x, b.y, b.w, b.h, 10);
+          ctx.fillStyle = over ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.7)';
+          ctx.fill();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#111';
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText(b.label, b.x + b.w * 0.5, b.y + 22);
+          ctx.restore();
+        }
+        if (shopMessageTime > 0 && shopMessage) {
+          drawPanel(canvas.width - 280, 56, 268, 46);
+          ctx.fillStyle = '#111';
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(shopMessage, canvas.width - 146, 84);
+          ctx.textAlign = 'left';
+        }
       }
 
       function drawPopText(text, timeLeft, duration, y, color) {
