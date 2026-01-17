@@ -120,7 +120,7 @@
     function sfxSelect() { playTone(520, 760, 0.09, 'triangle', 0.05); }
     function sfxBuy() { playTone(420, 980, 0.14, 'sine', 0.06); playTone(980, 1180, 0.10, 'sine', 0.03, 8); }
     function sfxDeny() { playTone(220, 160, 0.16, 'sawtooth', 0.05); }
-    function sfxJump() { playNoise(0.06, 0.03); playTone(180, 520, 0.11, 'triangle', 0.028); }
+    function sfxJump() { playWhoosh(0.09, 0.06); }
     function sfxLand() { playNoise(0.08, 0.05); playTone(120, 90, 0.10, 'sine', 0.03); }
     function sfxTeleport() { playWhoosh(0.22, 0.10); }
     function sfxShieldHit() { playTone(160, 70, 0.12, 'square', 0.06); playNoise(0.05, 0.03); }
@@ -894,7 +894,7 @@
           if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 34);
           else spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 12);
           if (isGolem) sfxGolemCrash();
-          else if (!isMonks && !isNinja) sfxJump();
+          else sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -1090,7 +1090,7 @@
           if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 44);
           else spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
           if (isGolem) sfxGolemCrash();
-          else if (!isMonks && !isNinja) sfxJump();
+          else sfxJump();
           if (!isMonks) {
             shakeTime = 0.07;
             shakeStrength = Math.max(shakeStrength, 1.5);
@@ -1774,6 +1774,10 @@
           };
           lines.push('Power:');
           for (const ln of wrapText(skin.desc, 44)) lines.push(ln);
+        }
+        if (menuView === 'shop') {
+          if (skin.id === 'ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
+          if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
         }
       }
 
