@@ -56,6 +56,29 @@
     const coyoteTime = 0.1;
     const jumpBufferTime = 0.12;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameMode = (urlParams.get('mode') || 'classic').toLowerCase();
+    const noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
+    const modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+
+    let score = 0;
+    let nonstopForwardTime = 0;
+    let scoreTick = 0;
+    let bestScore = 0;
+    let bestDistance = 0;
+    let bestSaved = false;
+    const BEST_SCORE_KEY = 'parkour_nocp_bestScore';
+    const BEST_DISTANCE_KEY = 'parkour_nocp_bestDistance';
+    if (noCheckpointsMode) {
+      try {
+        bestScore = parseInt(localStorage.getItem(BEST_SCORE_KEY) || '0', 10) || 0;
+        bestDistance = parseInt(localStorage.getItem(BEST_DISTANCE_KEY) || '0', 10) || 0;
+      } catch (e) {
+        bestScore = 0;
+        bestDistance = 0;
+      }
+    }
+
     const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
     let jumpsLeft = 1;
     let hasDoubleJump = false;
@@ -126,7 +149,7 @@
       // Add a checkpoint less frequently (every 3 chunks)
       const cpX = nextSpawnX + chunkW - 60;
       chunksSpawned++;
-      if (chunksSpawned % 3 === 0) {
+      if (!noCheckpointsMode && chunksSpawned % 3 === 0) {
         checkpoints.push({ x: cpX, y: baseY - 100, w: 16, h: 60 });
       }
       nextSpawnX += chunkW;
@@ -294,6 +317,10 @@
       gameOver = false;
       deathTimer = 0;
       deathPieces = [];
+      score = 0;
+      nonstopForwardTime = 0;
+      scoreTick = 0;
+      bestSaved = false;
       hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
       resetWorld();
@@ -306,6 +333,8 @@
       gameOver = false; jumpHeld = false; // don't trigger jump immediately
       deathTimer = 0;
       deathPieces = [];
+      nonstopForwardTime = 0;
+      scoreTick = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
     }
 
@@ -410,22 +439,39 @@
         }
       }
       // Bounds fall
-      if (player.y > canvas.height + 200) { gameOver = true; }
+      if (player.y > canvas.height + 200) { triggerDeath(); }
 
       // Update max distance and checkpoints
       if (player.x > maxReachedX) maxReachedX = player.x;
-      for (const cp of checkpoints) {
-        if (rectsOverlap(player, cp)) {
-          // Place checkpoint spawn on top of nearest platform below this cp
-          let spawnY = canvas.height - 40 - player.h;
-          for (const s of platforms) {
-            if (s.x <= cp.x && cp.x <= s.x + s.w) {
-              spawnY = Math.min(spawnY, s.y - player.h);
+      if (!noCheckpointsMode) {
+        for (const cp of checkpoints) {
+          if (rectsOverlap(player, cp)) {
+            // Place checkpoint spawn on top of nearest platform below this cp
+            let spawnY = canvas.height - 40 - player.h;
+            for (const s of platforms) {
+              if (s.x <= cp.x && cp.x <= s.x + s.w) {
+                spawnY = Math.min(spawnY, s.y - player.h);
+              }
             }
+            lastCheckpoint.x = cp.x;
+            lastCheckpoint.y = spawnY;
+            checkpointFlashTime = 1.2;
           }
-          lastCheckpoint.x = cp.x;
-          lastCheckpoint.y = spawnY;
-          checkpointFlashTime = 1.2;
+        }
+      }
+
+      const movingForward = player.vx > 20;
+      if (movingForward) {
+        nonstopForwardTime += dt;
+      } else {
+        nonstopForwardTime = 0;
+        scoreTick = 0;
+      }
+      if (nonstopForwardTime > 3) {
+        scoreTick += dt;
+        while (scoreTick >= 1) {
+          score += 10;
+          scoreTick -= 1;
         }
       }
 
@@ -727,18 +773,32 @@
       drawParticles();
 
       // UI overlays
-      const panelW = 430;
-      const panelH = hasDoubleJump ? 86 : 64;
+      const lines = [];
+      lines.push(`Mode: ${modeLabel}`);
+      if (!noCheckpointsMode) {
+        lines.push('Touch green posts to set checkpoint');
+        lines.push('R respawn | Shift+R restart');
+      } else {
+        lines.push('No checkpoints - one run');
+        lines.push('R restart');
+      }
+      lines.push(`Distance: ${Math.floor(maxReachedX)} px`);
+      lines.push(`Score: ${score}`);
+      if (nonstopForwardTime >= 3) lines.push('Nonstop: +10/s');
+      else lines.push(`Nonstop: ${nonstopForwardTime.toFixed(1)}/3.0s`);
+      if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
+      if (hasDoubleJump) lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
+
+      const panelW = 500;
+      const lineH = 20;
+      const panelH = 18 + lines.length * lineH;
       drawPanel(12, 12, panelW, panelH);
       ctx.font = '16px sans-serif';
       ctx.fillStyle = '#111';
-      ctx.fillText('Touch green posts to set checkpoint', 26, 36);
-      ctx.fillText('R respawn | Shift+R restart', 26, 56);
-      ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px`, 26, 76);
-      if (hasDoubleJump) {
-        ctx.fillStyle = '#0f766e';
-        ctx.fillText(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`, 26, 96);
-        ctx.fillStyle = '#111';
+      let yy = 36;
+      for (const s of lines) {
+        ctx.fillText(s, 26, yy);
+        yy += lineH;
       }
 
       // Checkpoint flash
@@ -754,6 +814,16 @@
       }
 
       if (gameOver && deathTimer >= deathDuration) {
+        if (!bestSaved && noCheckpointsMode) {
+          const dist = Math.floor(maxReachedX);
+          if (score > bestScore) bestScore = score;
+          if (dist > bestDistance) bestDistance = dist;
+          try {
+            localStorage.setItem(BEST_SCORE_KEY, String(bestScore));
+            localStorage.setItem(BEST_DISTANCE_KEY, String(bestDistance));
+          } catch (e) {}
+          bestSaved = true;
+        }
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#fff';
@@ -761,7 +831,12 @@
         ctx.font = '28px sans-serif';
         ctx.fillText('You fell or hit spikes!', canvas.width/2, canvas.height/2 - 10);
         ctx.font = '20px sans-serif';
-        ctx.fillText('Press R to respawn at last checkpoint', canvas.width/2, canvas.height/2 + 24);
+        ctx.fillText(noCheckpointsMode ? 'Press R to restart run' : 'Press R to respawn at last checkpoint', canvas.width/2, canvas.height/2 + 24);
+        ctx.font = '18px sans-serif';
+        ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px   Score: ${score}`, canvas.width/2, canvas.height/2 + 52);
+        if (noCheckpointsMode) {
+          ctx.fillText(`Best Distance: ${bestDistance} px   Best Score: ${bestScore}`, canvas.width/2, canvas.height/2 + 76);
+        }
         ctx.textAlign = 'left';
       }
 
@@ -776,7 +851,11 @@
       last = ts;
       if (keys.has('r')) {
         if (!gameOver || deathTimer >= deathDuration) {
-          if (keys.has('shift')) hardReset(); else respawnAtCheckpoint();
+          if (keys.has('shift')) {
+            hardReset();
+          } else {
+            if (noCheckpointsMode) hardReset(); else respawnAtCheckpoint();
+          }
         }
       }
       update(dt);
