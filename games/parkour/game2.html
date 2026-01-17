@@ -81,13 +81,48 @@
       src.stop(t + Math.max(0.03, dur) + 0.02);
     }
 
+    function playWhoosh(dur, gain) {
+      if (!audioCtx) return;
+      const t = audioCtx.currentTime;
+      const d = Math.max(0.05, dur || 0.22);
+      const sr = audioCtx.sampleRate;
+      const len = Math.max(1, Math.floor(sr * d));
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 0.7);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.setValueAtTime(140, t);
+
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.setValueAtTime(0.9, t);
+      bp.frequency.setValueAtTime(2200, t);
+      bp.frequency.exponentialRampToValueAtTime(260, t + d);
+
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain || 0.09), t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+
+      src.connect(hp);
+      hp.connect(bp);
+      bp.connect(g);
+      g.connect(audioCtx.destination);
+      src.start(t);
+      src.stop(t + d + 0.02);
+    }
+
     function sfxClick() { playTone(520, 380, 0.07, 'square', 0.04); }
     function sfxSelect() { playTone(520, 760, 0.09, 'triangle', 0.05); }
     function sfxBuy() { playTone(420, 980, 0.14, 'sine', 0.06); playTone(980, 1180, 0.10, 'sine', 0.03, 8); }
     function sfxDeny() { playTone(220, 160, 0.16, 'sawtooth', 0.05); }
     function sfxJump() { playNoise(0.06, 0.03); playTone(180, 520, 0.11, 'triangle', 0.028); }
     function sfxLand() { playNoise(0.08, 0.05); playTone(120, 90, 0.10, 'sine', 0.03); }
-    function sfxTeleport() { playTone(140, 1600, 0.20, 'sawtooth', 0.06); playTone(900, 220, 0.16, 'triangle', 0.03, -12); playNoise(0.07, 0.03); }
+    function sfxTeleport() { playWhoosh(0.22, 0.10); }
     function sfxShieldHit() { playTone(160, 70, 0.12, 'square', 0.06); playNoise(0.05, 0.03); }
     function sfxGolemCrash() { playNoise(0.14, 0.09); playTone(95, 55, 0.22, 'square', 0.08); playTone(55, 40, 0.25, 'sawtooth', 0.05, -6); }
     function sfxDeath() { playNoise(0.22, 0.07); playTone(220, 60, 0.30, 'sawtooth', 0.06); }
@@ -870,7 +905,7 @@
       if (player.onGround && !wasOnGround) {
         jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
         if (!isMonks) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
-        if (!isNinja) sfxLand();
+        if (!isMonks && !isNinja) sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -880,7 +915,8 @@
       if (menuView === 'shop') {
         for (const hz of hazards) {
           if (rectsOverlap(player, hz)) {
-            if (isGolem && golemInvuln <= 0) {
+            if (isGolem) {
+              if (golemInvuln > 0) continue;
               if (golemLives > 0) {
                 golemLives -= 1;
                 golemInvuln = 0.6;
@@ -889,19 +925,14 @@
                 spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 46);
                 shakeTime = 0.14;
                 shakeStrength = Math.max(shakeStrength, 7);
+                player.y = hz.y - player.h - 2;
+                player.vy = -260;
+                player.vx = -Math.sign((player.vx || 0) || facing) * 220;
               } else {
-                sfxDeath();
-                spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 40);
-                shakeTime = 0.16;
-                shakeStrength = Math.max(shakeStrength, 8);
-                shopRespawn();
+                triggerDeath();
               }
             } else {
-              sfxDeath();
-              spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 34);
-              shakeTime = 0.14;
-              shakeStrength = Math.max(shakeStrength, 6);
-              shopRespawn();
+              triggerDeath();
             }
           }
         }
@@ -955,6 +986,12 @@
       if (gameOver) {
         updateDeath(dt);
         updateParticles(dt);
+        if (screen === 'menu' && menuView === 'shop' && deathTimer >= deathDuration) {
+          gameOver = false;
+          deathTimer = 0;
+          deathPieces = [];
+          shopRespawn();
+        }
         return;
       }
       if (screen !== 'play') {
@@ -1065,7 +1102,7 @@
         jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
         if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 42);
         else if (!isMonks) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
-        if (!isNinja) sfxLand();
+        if (!isMonks && !isNinja) sfxLand();
         if (!isMonks) {
           shakeTime = 0.10;
           shakeStrength = Math.max(shakeStrength, 3.5);
@@ -1787,7 +1824,7 @@
         ctx.restore();
       }
 
-      if (gameOver && deathTimer >= deathDuration) {
+      if (gameOver && deathTimer >= deathDuration && screen === 'play') {
         if (!bestSaved && noCheckpointsMode) {
           const dist = Math.floor(maxReachedX);
           if (score > bestScore) bestScore = score;
