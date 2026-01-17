@@ -32,11 +32,17 @@
     const ctx = canvas.getContext('2d');
 
     let screen = 'play';
+    const menuZones = [];
+    const shopStands = [];
+    let menuView = 'main';
 
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      if (screen === 'menu') rebuildShopStands();
+      if (screen === 'menu') {
+        rebuildShopStands();
+        setMenuView(menuView);
+      }
     }
     window.addEventListener('resize', resize);
     resize();
@@ -93,6 +99,19 @@
       if (screen === 'menu') {
         if (id === 'playClassic') startGame('classic');
         else if (id === 'playNoCP') startGame('nocp');
+        else if (id === 'openSkinsShop') {
+          setMenuView('shop');
+          player.x = 140;
+          player.vx = 0;
+          camera.x = 0;
+          shopMessage = '';
+          shopMessageTime = 0;
+        }
+        else if (id === 'backToMain') {
+          setMenuView('main');
+          shopMessage = '';
+          shopMessageTime = 0;
+        }
       }
     }
 
@@ -108,10 +127,12 @@
           return;
         }
       }
-      for (const st of shopStands) {
-        if (pointInRect(wx, wy, st)) {
-          activateShopSkinId(st.skinId);
-          return;
+      if (menuView === 'shop') {
+        for (const st of shopStands) {
+          if (pointInRect(wx, wy, st)) {
+            activateShopSkinId(st.skinId);
+            return;
+          }
         }
       }
     }
@@ -258,9 +279,6 @@
     let shopMessageTime = 0;
     let coyoteTimer = 0;
     let jumpBufferTimer = 0;
-
-    const menuZones = [];
-    const shopStands = [];
     let interactLatch = 0;
 
     function saveCoins() {
@@ -578,15 +596,28 @@
       camera.y = 0;
     }
 
+    function setMenuView(view) {
+      menuView = view;
+      menuZones.length = 0;
+      const h = canvas.height;
+      const baseY = h - 40;
+      if (menuView === 'main') {
+        menuZones.push({ id: 'playClassic', label: 'PLAY\n(Checkpoints)', x: 220, y: baseY - 92, w: 180, h: 72 });
+        menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
+        menuZones.push({ id: 'openSkinsShop', label: 'SKINS SHOP', x: 220, y: baseY - 172, w: 420, h: 60 });
+      } else {
+        menuZones.push({ id: 'backToMain', label: 'BACK', x: 220, y: baseY - 92, w: 140, h: 60 });
+      }
+    }
+
     function enterMenu() {
       screen = 'menu';
       setMode('classic');
       setupHubWorld();
       rebuildShopStands();
+      setMenuView('main');
       const h = canvas.height;
       const baseY = h - 40;
-      menuZones.push({ id: 'playClassic', label: 'PLAY\n(Checkpoints)', x: 220, y: baseY - 92, w: 180, h: 72 });
-      menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
       player.x = 140;
       player.y = baseY - player.h - 2;
       player.vx = 0;
@@ -1412,48 +1443,50 @@
           ctx.restore();
         }
 
-        for (const st of shopStands) {
-          const s = getSkin(st.skinId);
-          const unlocked = isSkinUnlocked(s.id);
-          const over = pointerActive && pointInRect(pointerWorldX, pointerWorldY, st);
-          const sx = worldToScreenX(st.x);
-          const sy = worldToScreenY(st.y);
-          ctx.save();
-          ctx.globalAlpha = over ? 0.95 : 0.8;
-          roundRectPath(sx, sy, st.w, st.h, 12);
-          ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
-          ctx.fill();
-          ctx.globalAlpha = 0.45;
-          ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 14px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText(s.name, sx + 12, sy + 22);
-          ctx.textAlign = 'right';
-          ctx.fillStyle = unlocked ? 'rgba(34,197,94,0.95)' : 'rgba(251,191,36,0.95)';
-          ctx.fillText(unlocked ? 'OWNED' : `${s.price}`, sx + st.w - 12, sy + 22);
-          ctx.textAlign = 'left';
-          ctx.fillStyle = s.body;
-          roundRectPath(sx + 12, sy + 32, 24, 30, 6);
-          ctx.fill();
-          ctx.fillStyle = s.accent;
-          roundRectPath(sx + 18, sy + 42, 12, 8, 4);
-          ctx.fill();
-          if (selectedSkinId === s.id) {
-            ctx.globalAlpha = 0.85;
-            ctx.fillStyle = 'rgba(59,130,246,0.9)';
-            roundRectPath(sx + st.w - 52, sy + st.h - 24, 40, 16, 6);
+        if (menuView === 'shop') {
+          for (const st of shopStands) {
+            const s = getSkin(st.skinId);
+            const unlocked = isSkinUnlocked(s.id);
+            const over = pointerActive && pointInRect(pointerWorldX, pointerWorldY, st);
+            const sx = worldToScreenX(st.x);
+            const sy = worldToScreenY(st.y);
+            ctx.save();
+            ctx.globalAlpha = over ? 0.95 : 0.8;
+            roundRectPath(sx, sy, st.w, st.h, 12);
+            ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
             ctx.fill();
+            ctx.globalAlpha = 0.45;
+            ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
             ctx.globalAlpha = 1;
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('ON', sx + st.w - 32, sy + st.h - 12);
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(s.name, sx + 12, sy + 22);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = unlocked ? 'rgba(34,197,94,0.95)' : 'rgba(251,191,36,0.95)';
+            ctx.fillText(unlocked ? 'OWNED' : `${s.price}`, sx + st.w - 12, sy + 22);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = s.body;
+            roundRectPath(sx + 12, sy + 32, 24, 30, 6);
+            ctx.fill();
+            ctx.fillStyle = s.accent;
+            roundRectPath(sx + 18, sy + 42, 12, 8, 4);
+            ctx.fill();
+            if (selectedSkinId === s.id) {
+              ctx.globalAlpha = 0.85;
+              ctx.fillStyle = 'rgba(59,130,246,0.9)';
+              roundRectPath(sx + st.w - 52, sy + st.h - 24, 40, 16, 6);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.fillStyle = '#fff';
+              ctx.font = 'bold 11px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('ON', sx + st.w - 32, sy + st.h - 12);
+            }
+            ctx.restore();
           }
-          ctx.restore();
         }
       }
 
