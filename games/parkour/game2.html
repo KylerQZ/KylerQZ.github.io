@@ -32,9 +32,12 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
+    let screen = 'play';
+
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      if (screen === 'shop') rebuildShopStands();
     }
     window.addEventListener('resize', resize);
     resize();
@@ -57,9 +60,74 @@
     const jumpBufferTime = 0.12;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const gameMode = (urlParams.get('mode') || 'classic').toLowerCase();
-    const noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
-    const modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+    const modeParam = urlParams.get('mode');
+    let gameMode = (modeParam || 'classic').toLowerCase();
+    let noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
+    let modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+    screen = modeParam ? 'play' : 'menu';
+
+    const COINS_KEY = 'parkour_coins';
+    let coins = 0;
+    try {
+      coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0;
+    } catch (e) {
+      coins = 0;
+    }
+
+    const SKINS = [
+      { id: 'none', name: 'Nothing', price: 0, type: 'base', body: '#111', accent: '#3b82f6' },
+      { id: 'ninja', name: 'Ninja', price: 900, type: 'power', body: '#050505', accent: '#ef4444' },
+      { id: 'monks', name: 'Monks', price: 950, type: 'power', body: '#f8fafc', accent: '#f59e0b' },
+      { id: 'iron-golem', name: 'Iron Golem', price: 1100, type: 'power', body: '#374151', accent: '#1d4ed8' },
+      { id: 'knight', name: 'Knight', price: 450, type: 'cosmetic', body: '#9ca3af', accent: '#374151' },
+      { id: 'prince', name: 'Prince', price: 550, type: 'cosmetic', body: '#fbbf24', accent: '#b45309' },
+      { id: 'ember', name: 'Ember', price: 400, type: 'cosmetic', body: '#fb7185', accent: '#f97316' },
+      { id: 'frost', name: 'Frost', price: 400, type: 'cosmetic', body: '#60a5fa', accent: '#22d3ee' },
+    ];
+    const UNLOCKED_SKINS_KEY = 'parkour_unlockedSkins';
+    const SELECTED_SKIN_KEY = 'parkour_selectedSkin';
+    let unlockedSkins = new Set(['none']);
+    let selectedSkinId = 'none';
+    try {
+      const raw = JSON.parse(localStorage.getItem(UNLOCKED_SKINS_KEY) || '[]');
+      if (Array.isArray(raw)) {
+        for (const id of raw) if (typeof id === 'string') unlockedSkins.add(id);
+      }
+      const sel = localStorage.getItem(SELECTED_SKIN_KEY);
+      if (sel) selectedSkinId = sel;
+    } catch (e) {}
+    function getSkin(id) { return SKINS.find(s => s.id === id) || SKINS[0]; }
+    function isSkinUnlocked(id) { return unlockedSkins.has(id); }
+    function saveSkins() {
+      try {
+        localStorage.setItem(UNLOCKED_SKINS_KEY, JSON.stringify(Array.from(unlockedSkins)));
+        localStorage.setItem(SELECTED_SKIN_KEY, selectedSkinId);
+      } catch (e) {}
+    }
+    if (!getSkin(selectedSkinId)) selectedSkinId = 'none';
+    if (!isSkinUnlocked(selectedSkinId)) selectedSkinId = 'none';
+    saveSkins();
+
+    function setMode(mode) {
+      gameMode = (mode || 'classic').toLowerCase();
+      noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
+      modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+
+      bestScore = 0;
+      bestDistance = 0;
+      bestSaved = false;
+      try {
+        if (noCheckpointsMode) {
+          bestScore = parseInt(localStorage.getItem(BEST_SCORE_KEY) || '0', 10) || 0;
+          bestDistance = parseInt(localStorage.getItem(BEST_DISTANCE_KEY) || '0', 10) || 0;
+        }
+      } catch (e) {
+        bestScore = 0;
+        bestDistance = 0;
+      }
+      bestDistanceStart = bestDistance;
+      bestDistanceBeaten = false;
+    }
 
     let score = 0;
     let nonstopForwardTime = 0;
@@ -76,24 +144,60 @@
     const bestDistAnimDuration = 0.9;
     const BEST_SCORE_KEY = 'parkour_nocp_bestScore';
     const BEST_DISTANCE_KEY = 'parkour_nocp_bestDistance';
-    if (noCheckpointsMode) {
-      try {
-        bestScore = parseInt(localStorage.getItem(BEST_SCORE_KEY) || '0', 10) || 0;
-        bestDistance = parseInt(localStorage.getItem(BEST_DISTANCE_KEY) || '0', 10) || 0;
-      } catch (e) {
-        bestScore = 0;
-        bestDistance = 0;
-      }
-    }
-    bestDistanceStart = bestDistance;
+    setMode(gameMode);
 
     const player = { x: 60, y: 0, w: 40, h: 50, vx: 0, vy: 0, onGround: false, color: '#111' };
+    let facing = 1;
     let jumpsLeft = 1;
     let hasDoubleJump = false;
     let doubleJumpTimer = 0; // seconds remaining when active
     let jumpHeld = false; // for edge detection
+    let teleportHeld = false;
+    let teleportCooldown = 0;
+    let teleportFxTime = 0;
+    const teleportFxDuration = 0.22;
+    let teleportFrom = { x: 0, y: 0 };
+    let teleportTo = { x: 0, y: 0 };
+    let golemLives = 4;
+    let golemInvuln = 0;
+    let golemHitFlash = 0;
+    let shopMessage = '';
+    let shopMessageTime = 0;
     let coyoteTimer = 0;
     let jumpBufferTimer = 0;
+
+    const menuZones = [];
+    const shopStands = [];
+    let interactLatch = 0;
+
+    function saveCoins() {
+      try { localStorage.setItem(COINS_KEY, String(coins)); } catch (e) {}
+    }
+
+    function addCoins(n) {
+      if (!n) return;
+      coins += n;
+      if (coins < 0) coins = 0;
+      saveCoins();
+    }
+
+    function rebuildShopStands() {
+      shopStands.length = 0;
+      const items = SKINS;
+      const h = canvas.height;
+      const baseY = h - 40;
+      let x = 140;
+      for (const s of items) {
+        shopStands.push({
+          skinId: s.id,
+          x,
+          y: baseY - 92,
+          w: 160,
+          h: 72,
+        });
+        x += 220;
+      }
+    }
 
     // Procedural infinite level
     function ground(y) { return { x: -1e6, y, w: 2e6, h: 40, type: 'ground' }; }
@@ -334,6 +438,13 @@
       comboActive = false;
       comboAnimTime = 0;
       bestDistAnimTime = 0;
+      teleportCooldown = 0;
+      teleportFxTime = 0;
+      golemLives = 4;
+      golemInvuln = 0;
+      golemHitFlash = 0;
+      shopMessage = '';
+      shopMessageTime = 0;
       hasDoubleJump = false; doubleJumpTimer = 0; jumpsLeft = 1; jumpHeld = false; checkpointFlashTime = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
       resetWorld();
@@ -351,13 +462,257 @@
       comboActive = false;
       comboAnimTime = 0;
       bestDistAnimTime = 0;
+      teleportCooldown = 0;
+      teleportFxTime = 0;
+      golemLives = 4;
+      golemInvuln = 0;
+      golemHitFlash = 0;
       coyoteTimer = 0; jumpBufferTimer = 0;
+    }
+
+    function setupHubWorld() {
+      platforms = [];
+      hazards = [];
+      checkpoints = [];
+      powerups = [];
+      nextSpawnX = 0;
+      chunksSpawned = 0;
+      menuZones.length = 0;
+      const h = canvas.height;
+      const baseY = h - 40;
+      platforms.push(ground(baseY));
+      camera.x = 0;
+      camera.y = 0;
+    }
+
+    function enterMenu() {
+      screen = 'menu';
+      setMode('classic');
+      setupHubWorld();
+      shopStands.length = 0;
+      const h = canvas.height;
+      const baseY = h - 40;
+      menuZones.push({ id: 'playClassic', label: 'PLAY\n(Checkpoints)', x: 220, y: baseY - 92, w: 180, h: 72 });
+      menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
+      menuZones.push({ id: 'shop', label: 'SHOP', x: 670, y: baseY - 92, w: 150, h: 72 });
+      player.x = 140;
+      player.y = baseY - player.h - 2;
+      player.vx = 0;
+      player.vy = 0;
+      jumpsLeft = 1;
+      hasDoubleJump = false;
+      doubleJumpTimer = 0;
+      coyoteTimer = 0;
+      jumpBufferTimer = 0;
+      gameOver = false;
+      deathTimer = 0;
+      deathPieces = [];
+      interactLatch = 0;
+      golemLives = 4;
+      golemInvuln = 0;
+      golemHitFlash = 0;
+      teleportCooldown = 0;
+      teleportFxTime = 0;
+    }
+
+    function enterShop() {
+      screen = 'shop';
+      setMode('classic');
+      setupHubWorld();
+      rebuildShopStands();
+      menuZones.length = 0;
+      const h = canvas.height;
+      const baseY = h - 40;
+      menuZones.push({ id: 'back', label: 'BACK', x: 60, y: baseY - 92, w: 130, h: 72 });
+      player.x = 140;
+      player.y = baseY - player.h - 2;
+      player.vx = 0;
+      player.vy = 0;
+      jumpsLeft = 1;
+      hasDoubleJump = false;
+      doubleJumpTimer = 0;
+      coyoteTimer = 0;
+      jumpBufferTimer = 0;
+      gameOver = false;
+      deathTimer = 0;
+      deathPieces = [];
+      interactLatch = 0;
+      shopMessage = 'Touch a stand to buy/select';
+      shopMessageTime = 2.2;
+      golemLives = 4;
+      golemInvuln = 0;
+      golemHitFlash = 0;
+      teleportCooldown = 0;
+      teleportFxTime = 0;
+    }
+
+    function startGame(mode) {
+      screen = 'play';
+      setMode(mode);
+      hardReset();
+    }
+
+    function updateHub(dt) {
+      const skin = getSkin(selectedSkinId);
+      const isNinja = skin.id === 'ninja';
+      const isMonks = skin.id === 'monks';
+      const isGolem = skin.id === 'iron-golem';
+
+      let accel = moveAccel;
+      let maxSp = maxSpeedX;
+      let jSp = jumpSpeed;
+      if (isNinja) { accel *= 1.3; maxSp *= 1.35; jSp *= 1.25; }
+      if (isGolem) { accel *= 0.85; maxSp *= 0.75; jSp *= 0.95; }
+
+      if (teleportCooldown > 0) teleportCooldown = Math.max(0, teleportCooldown - dt);
+      if (teleportFxTime > 0) teleportFxTime = Math.max(0, teleportFxTime - dt);
+      if (golemInvuln > 0) golemInvuln = Math.max(0, golemInvuln - dt);
+      if (golemHitFlash > 0) golemHitFlash = Math.max(0, golemHitFlash - dt);
+      if (shopMessageTime > 0) shopMessageTime = Math.max(0, shopMessageTime - dt);
+
+      const left = keys.has('a') || keys.has('arrowleft');
+      const right = keys.has('d') || keys.has('arrowright');
+      const jumpPressed = keys.has(' ') || keys.has('arrowup') || keys.has('w');
+      const jumpEdge = jumpPressed && !jumpHeld;
+      jumpHeld = jumpPressed;
+      if (jumpEdge) jumpBufferTimer = jumpBufferTime;
+
+      const teleportPressed = keys.has('e');
+      const teleportEdge = teleportPressed && !teleportHeld;
+      teleportHeld = teleportPressed;
+
+      if (left && !right) {
+        player.vx -= accel * dt;
+        facing = -1;
+      } else if (right && !left) {
+        player.vx += accel * dt;
+        facing = 1;
+      } else {
+        if (player.onGround) {
+          if (Math.abs(player.vx) < frictionGround * dt) player.vx = 0;
+          else player.vx -= Math.sign(player.vx) * frictionGround * dt;
+        }
+      }
+      player.vx = Math.max(-maxSp, Math.min(maxSp, player.vx));
+
+      if (jumpBufferTimer > 0) {
+        jumpBufferTimer -= dt;
+        if (jumpBufferTimer < 0) jumpBufferTimer = 0;
+      }
+
+      player.vy += gravity * dt;
+      const wasOnGround = player.onGround;
+      resolveCollisions(player, dt);
+      if (player.onGround) {
+        coyoteTimer = coyoteTime;
+      } else {
+        coyoteTimer -= dt;
+        if (coyoteTimer < 0) coyoteTimer = 0;
+      }
+
+      if (jumpBufferTimer > 0 && jumpsLeft > 0) {
+        const canGroundJump = player.onGround || coyoteTimer > 0;
+        const canExtraJump = isMonks ? !player.onGround : false;
+        if (canGroundJump || canExtraJump) {
+          player.vy = -jSp;
+          player.onGround = false;
+          if (!isMonks) jumpsLeft -= 1;
+          jumpBufferTimer = 0;
+          coyoteTimer = 0;
+          spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 12);
+          if (!isMonks) {
+            shakeTime = 0.07;
+            shakeStrength = Math.max(shakeStrength, 1.5);
+          }
+        }
+      }
+
+      if (player.onGround && !wasOnGround) {
+        jumpsLeft = isMonks ? 999 : 1;
+        spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 14);
+        if (!isMonks) {
+          shakeTime = 0.10;
+          shakeStrength = Math.max(shakeStrength, 3.5);
+        }
+      }
+
+      if (isNinja && teleportEdge && teleportCooldown <= 0) {
+        teleportFrom.x = player.x;
+        teleportFrom.y = player.y;
+        const dist = 480;
+        player.x += facing * dist;
+        player.vx = 0;
+        for (const s of platforms) {
+          if (!rectsOverlap(player, s)) continue;
+          if (facing > 0) player.x = s.x - player.w - 1;
+          else player.x = s.x + s.w + 1;
+        }
+        teleportTo.x = player.x;
+        teleportTo.y = player.y;
+        teleportCooldown = 20;
+        teleportFxTime = teleportFxDuration;
+        spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 18);
+        shakeTime = 0.10;
+        shakeStrength = Math.max(shakeStrength, 4);
+      }
+
+      if (interactLatch > 0) interactLatch = Math.max(0, interactLatch - dt);
+      if (interactLatch <= 0) {
+        for (const z of menuZones) {
+          if (rectsOverlap(player, z)) {
+            interactLatch = 0.35;
+            if (screen === 'menu') {
+              if (z.id === 'playClassic') startGame('classic');
+              else if (z.id === 'playNoCP') startGame('nocp');
+              else if (z.id === 'shop') enterShop();
+            } else if (screen === 'shop') {
+              if (z.id === 'back') enterMenu();
+            }
+            return;
+          }
+        }
+        if (screen === 'shop') {
+          for (const st of shopStands) {
+            if (!rectsOverlap(player, st)) continue;
+            interactLatch = 0.35;
+            const skinItem = getSkin(st.skinId);
+            if (!isSkinUnlocked(skinItem.id)) {
+              if (coins >= skinItem.price) {
+                coins -= skinItem.price;
+                saveCoins();
+                unlockedSkins.add(skinItem.id);
+                selectedSkinId = skinItem.id;
+                saveSkins();
+                shopMessage = `Bought ${skinItem.name}!`;
+                shopMessageTime = 1.7;
+              } else {
+                shopMessage = `Need ${skinItem.price - coins} more coins`;
+                shopMessageTime = 1.7;
+              }
+            } else {
+              selectedSkinId = skinItem.id;
+              saveSkins();
+              shopMessage = `Selected ${skinItem.name}`;
+              shopMessageTime = 1.2;
+            }
+            return;
+          }
+        }
+      }
+
+      camera.x = Math.max(0, player.x - canvas.width * 0.45);
+      camera.y = 0;
     }
 
     function update(dt) {
       t += dt;
       if (gameOver) {
         updateDeath(dt);
+        updateParticles(dt);
+        return;
+      }
+      if (screen !== 'play') {
+        updateHub(dt);
         updateParticles(dt);
         return;
       }
@@ -371,11 +726,40 @@
         jumpBufferTimer = jumpBufferTime;
       }
 
+      const skin = getSkin(selectedSkinId);
+      const isNinja = skin.id === 'ninja';
+      const isMonks = skin.id === 'monks';
+      const isGolem = skin.id === 'iron-golem';
+
+      if (teleportCooldown > 0) teleportCooldown = Math.max(0, teleportCooldown - dt);
+      if (teleportFxTime > 0) teleportFxTime = Math.max(0, teleportFxTime - dt);
+      if (golemInvuln > 0) golemInvuln = Math.max(0, golemInvuln - dt);
+      if (golemHitFlash > 0) golemHitFlash = Math.max(0, golemHitFlash - dt);
+
+      if (isMonks) {
+        hasDoubleJump = true;
+        doubleJumpTimer = 999999;
+        if (player.onGround) jumpsLeft = 999;
+        else jumpsLeft = Math.max(jumpsLeft, 2);
+      }
+
+      const teleportPressed = keys.has('e');
+      const teleportEdge = teleportPressed && !teleportHeld;
+      teleportHeld = teleportPressed;
+
+      let accel = moveAccel;
+      let maxSp = maxSpeedX;
+      let jSp = jumpSpeed;
+      if (isNinja) { accel *= 1.3; maxSp *= 1.35; jSp *= 1.25; }
+      if (isGolem) { accel *= 0.85; maxSp *= 0.75; jSp *= 0.95; }
+
       // Horizontal accel
       if (left && !right) {
-        player.vx -= moveAccel * dt;
+        player.vx -= accel * dt;
+        facing = -1;
       } else if (right && !left) {
-        player.vx += moveAccel * dt;
+        player.vx += accel * dt;
+        facing = 1;
       } else {
         // apply ground friction when no input
         if (player.onGround) {
@@ -384,7 +768,7 @@
         }
       }
       // Clamp speed
-      player.vx = Math.max(-maxSpeedX, Math.min(maxSpeedX, player.vx));
+      player.vx = Math.max(-maxSp, Math.min(maxSp, player.vx));
 
       // Timers
       if (doubleJumpTimer > 0) {
@@ -413,30 +797,70 @@
 
       if (jumpBufferTimer > 0 && jumpsLeft > 0) {
         const canGroundJump = player.onGround || coyoteTimer > 0;
-        const canDoubleJump = hasDoubleJump && !player.onGround && coyoteTimer <= 0 && jumpsLeft === 1;
+        const canDoubleJump = isMonks ? (!player.onGround) : (hasDoubleJump && !player.onGround && coyoteTimer <= 0 && jumpsLeft === 1);
         if (canGroundJump || canDoubleJump) {
-          player.vy = -jumpSpeed;
+          player.vy = -jSp;
           player.onGround = false;
-          jumpsLeft -= 1;
+          if (!isMonks) jumpsLeft -= 1;
           jumpBufferTimer = 0;
           coyoteTimer = 0;
           spawnParticles('jump', player.x + player.w * 0.5, player.y + player.h, 14);
-          shakeTime = 0.07;
-          shakeStrength = Math.max(shakeStrength, 1.5);
+          if (!isMonks) {
+            shakeTime = 0.07;
+            shakeStrength = Math.max(shakeStrength, 1.5);
+          }
         }
       }
 
       if (player.onGround && !wasOnGround) {
-        jumpsLeft = hasDoubleJump ? 2 : 1;
+        jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
         spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
-        shakeTime = 0.10;
-        shakeStrength = Math.max(shakeStrength, 3.5);
+        if (!isMonks) {
+          shakeTime = 0.10;
+          shakeStrength = Math.max(shakeStrength, 3.5);
+        }
+      }
+
+      if (isNinja && teleportEdge && teleportCooldown <= 0) {
+        teleportFrom.x = player.x;
+        teleportFrom.y = player.y;
+        const dist = 480;
+        player.x += facing * dist;
+        player.vx = 0;
+        for (const s of platforms) {
+          if (!rectsOverlap(player, s)) continue;
+          if (facing > 0) player.x = s.x - player.w - 1;
+          else player.x = s.x + s.w + 1;
+        }
+        teleportTo.x = player.x;
+        teleportTo.y = player.y;
+        teleportCooldown = 20;
+        teleportFxTime = teleportFxDuration;
+        spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 22);
+        shakeTime = 0.12;
+        shakeStrength = Math.max(shakeStrength, 5);
       }
 
       // Hazards
       for (const hz of hazards) {
         if (rectsOverlap(player, hz)) {
-          triggerDeath();
+          if (isGolem && golemInvuln <= 0) {
+            if (golemLives > 0) {
+              golemLives -= 1;
+              golemInvuln = 0.6;
+              golemHitFlash = 0.25;
+              spawnParticles('land', player.x + player.w * 0.5, player.y + player.h * 0.5, 26);
+              shakeTime = 0.12;
+              shakeStrength = Math.max(shakeStrength, 5);
+            } else {
+              spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 42);
+              shakeTime = 0.22;
+              shakeStrength = Math.max(shakeStrength, 8);
+              triggerDeath();
+            }
+          } else if (!isGolem) {
+            triggerDeath();
+          }
         }
       }
       // Powerups
@@ -493,6 +917,7 @@
         scoreTick += dt;
         while (scoreTick >= 1) {
           score += 10;
+          addCoins(1);
           scoreTick -= 1;
         }
       }
@@ -732,6 +1157,48 @@
           }
           return;
         }
+
+        const skin = getSkin(selectedSkinId);
+        const isNinja = skin.id === 'ninja';
+        const isMonks = skin.id === 'monks';
+        const isGolem = skin.id === 'iron-golem';
+        const body = skin.body || '#111';
+        const accent = skin.accent || '#3b82f6';
+
+        if (isNinja && teleportFxTime > 0) {
+          const elapsed = teleportFxDuration - teleportFxTime;
+          const half = teleportFxDuration * 0.5;
+          const from = { x: teleportFrom.x + player.w * 0.5, y: teleportFrom.y + player.h * 0.5 };
+          const to = { x: teleportTo.x + player.w * 0.5, y: teleportTo.y + player.h * 0.5 };
+          const at = elapsed < half ? from : to;
+          const p = elapsed < half ? (elapsed / half) : ((elapsed - half) / half);
+          const r = elapsed < half ? lerp(10, 2, p) : lerp(2, 11, p);
+          const x = worldToScreenX(at.x);
+          const y = worldToScreenY(at.y);
+          ctx.save();
+          const fxA = elapsed < half ? lerp(1, 0.1, p) : lerp(0.1, 1, p);
+          const fxFromX = worldToScreenX(from.x);
+          const fxFromY = worldToScreenY(from.y);
+          const fxToX = worldToScreenX(to.x);
+          const fxToY = worldToScreenY(to.y);
+          ctx.globalAlpha = fxA * 0.7;
+          ctx.strokeStyle = 'rgba(239,68,68,0.55)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(fxFromX, fxFromY);
+          ctx.lineTo(fxToX, fxToY);
+          ctx.stroke();
+          ctx.globalAlpha = elapsed < half ? lerp(1, 0.1, p) : lerp(0.1, 1, p);
+          ctx.fillStyle = body;
+          ctx.shadowColor = 'rgba(239,68,68,0.55)';
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+
         for (let i = 0; i < trail.length; i++) {
           const p = trail[i];
           const a = i / trail.length;
@@ -740,7 +1207,7 @@
           ctx.save();
           ctx.globalAlpha = a * 0.18;
           roundRectPath(x, y, player.w, player.h, 10);
-          ctx.fillStyle = 'rgba(17,17,17,1)';
+          ctx.fillStyle = rgba(body, 1);
           ctx.fill();
           ctx.restore();
         }
@@ -753,8 +1220,8 @@
         ctx.shadowOffsetY = 6;
         roundRectPath(x, y, player.w, player.h, 10);
         const g = ctx.createLinearGradient(0, y, 0, y + player.h);
-        g.addColorStop(0, '#111');
-        g.addColorStop(1, '#000');
+        g.addColorStop(0, rgba(body, 1));
+        g.addColorStop(1, rgba(body, 0.55));
         ctx.fillStyle = g;
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -763,13 +1230,58 @@
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.globalAlpha = 0.9;
-        const visorH = 10;
-        roundRectPath(x + 8, y + 12, player.w - 16, visorH, 6);
-        const vg = ctx.createLinearGradient(x, 0, x + player.w, 0);
-        vg.addColorStop(0, 'rgba(29,78,216,0.75)');
-        vg.addColorStop(1, 'rgba(239,68,68,0.75)');
-        ctx.fillStyle = vg;
-        ctx.fill();
+        if (isNinja) {
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+          roundRectPath(x + 8, y + 14, player.w - 16, 8, 4);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(239,68,68,0.95)';
+          ctx.beginPath();
+          ctx.arc(x + 14, y + 22, 3, 0, Math.PI * 2);
+          ctx.arc(x + player.w - 14, y + 22, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (isMonks) {
+          roundRectPath(x + 8, y + 12, player.w - 16, 10, 6);
+          const vg = ctx.createLinearGradient(x, 0, x + player.w, 0);
+          vg.addColorStop(0, rgba(accent, 0.85));
+          vg.addColorStop(1, 'rgba(255,255,255,0.65)');
+          ctx.fillStyle = vg;
+          ctx.fill();
+        } else {
+          const visorH = 10;
+          roundRectPath(x + 8, y + 12, player.w - 16, visorH, 6);
+          const vg = ctx.createLinearGradient(x, 0, x + player.w, 0);
+          vg.addColorStop(0, rgba(accent, 0.8));
+          vg.addColorStop(1, rgba(accent, 0.45));
+          ctx.fillStyle = vg;
+          ctx.fill();
+        }
+
+        if (isGolem) {
+          const cracks = clamp(4 - golemLives, 0, 4);
+          if (cracks > 0) {
+            ctx.save();
+            ctx.globalAlpha = lerp(0.25, 0.7, cracks / 4) + (golemHitFlash > 0 ? 0.25 : 0);
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + 6, y + 10);
+            ctx.lineTo(x + player.w - 8, y + 18);
+            if (cracks >= 2) {
+              ctx.moveTo(x + 10, y + player.h - 10);
+              ctx.lineTo(x + player.w - 12, y + 26);
+            }
+            if (cracks >= 3) {
+              ctx.moveTo(x + player.w * 0.5, y + 8);
+              ctx.lineTo(x + player.w * 0.35, y + player.h - 6);
+            }
+            if (cracks >= 4) {
+              ctx.moveTo(x + player.w * 0.7, y + 10);
+              ctx.lineTo(x + player.w * 0.55, y + player.h - 6);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
         ctx.restore();
       }
 
@@ -814,22 +1326,107 @@
 
       drawParticles();
 
+      const skin = getSkin(selectedSkinId);
+
+      if (screen === 'menu' || screen === 'shop') {
+        for (const z of menuZones) {
+          const zx = worldToScreenX(z.x);
+          const zy = worldToScreenY(z.y);
+          const over = rectsOverlap(player, z);
+          ctx.save();
+          ctx.globalAlpha = over ? 0.95 : 0.78;
+          roundRectPath(zx, zy, z.w, z.h, 14);
+          ctx.fillStyle = over ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.65)';
+          ctx.fill();
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#111';
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 16px sans-serif';
+          const parts = String(z.label).split('\n');
+          for (let i = 0; i < parts.length; i++) {
+            ctx.fillText(parts[i], zx + z.w * 0.5, zy + 28 + i * 18);
+          }
+          ctx.restore();
+        }
+
+        if (screen === 'shop') {
+          for (const st of shopStands) {
+            const s = getSkin(st.skinId);
+            const unlocked = isSkinUnlocked(s.id);
+            const over = rectsOverlap(player, st);
+            const sx = worldToScreenX(st.x);
+            const sy = worldToScreenY(st.y);
+            ctx.save();
+            ctx.globalAlpha = over ? 0.95 : 0.8;
+            roundRectPath(sx, sy, st.w, st.h, 12);
+            ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
+            ctx.fill();
+            ctx.globalAlpha = 0.45;
+            ctx.strokeStyle = unlocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(s.name, sx + 12, sy + 22);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = unlocked ? 'rgba(34,197,94,0.95)' : 'rgba(251,191,36,0.95)';
+            ctx.fillText(unlocked ? 'OWNED' : `${s.price}`, sx + st.w - 12, sy + 22);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = s.body;
+            roundRectPath(sx + 12, sy + 32, 24, 30, 6);
+            ctx.fill();
+            ctx.fillStyle = s.accent;
+            roundRectPath(sx + 18, sy + 42, 12, 8, 4);
+            ctx.fill();
+            if (selectedSkinId === s.id) {
+              ctx.globalAlpha = 0.85;
+              ctx.fillStyle = 'rgba(59,130,246,0.9)';
+              roundRectPath(sx + st.w - 52, sy + st.h - 24, 40, 16, 6);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.fillStyle = '#fff';
+              ctx.font = 'bold 11px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('ON', sx + st.w - 32, sy + st.h - 12);
+            }
+            ctx.restore();
+          }
+        }
+      }
+
       // UI overlays
       const lines = [];
-      lines.push(`Mode: ${modeLabel}`);
-      if (!noCheckpointsMode) {
-        lines.push('Touch green posts to set checkpoint');
-        lines.push('R respawn | Shift+R restart');
-      } else {
-        lines.push('No checkpoints - one run');
-        lines.push('R restart');
+      lines.push(`Coins: ${coins}`);
+      lines.push(`Skin: ${skin.name}`);
+      if (screen === 'play') {
+        lines.push(`Mode: ${modeLabel}`);
+        if (!noCheckpointsMode) {
+          lines.push('Touch green posts to set checkpoint');
+          lines.push('R respawn | Shift+R restart');
+        } else {
+          lines.push('No checkpoints - one run');
+          lines.push('R restart');
+        }
+        lines.push(`Distance: ${Math.floor(maxReachedX)} px`);
+        lines.push(`Score: ${score}`);
+        if (nonstopForwardTime >= 3) lines.push('Nonstop: +10/s');
+        else lines.push(`Nonstop: ${nonstopForwardTime.toFixed(1)}/3.0s`);
+        if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
+        if (skin.id === 'ninja') lines.push(`Teleport (E): ${teleportCooldown > 0 ? teleportCooldown.toFixed(0) + 's' : 'READY'}`);
+        if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
+        if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
+      } else if (screen === 'menu') {
+        lines.push('Main Menu: move into a button');
+      } else if (screen === 'shop') {
+        lines.push('Shop: touch a stand');
+        if (shopMessageTime > 0 && shopMessage) lines.push(shopMessage);
       }
-      lines.push(`Distance: ${Math.floor(maxReachedX)} px`);
-      lines.push(`Score: ${score}`);
-      if (nonstopForwardTime >= 3) lines.push('Nonstop: +10/s');
-      else lines.push(`Nonstop: ${nonstopForwardTime.toFixed(1)}/3.0s`);
-      if (noCheckpointsMode) lines.push(`Best Score: ${bestScore} | Best Dist: ${bestDistance}px`);
-      if (hasDoubleJump) lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
 
       const panelW = 500;
       const lineH = 20;
@@ -915,11 +1512,13 @@
       const dt = Math.min(1/30, (ts - last) / 1000);
       last = ts;
       if (keys.has('r')) {
-        if (!gameOver || deathTimer >= deathDuration) {
-          if (keys.has('shift')) {
-            hardReset();
-          } else {
-            if (noCheckpointsMode) hardReset(); else respawnAtCheckpoint();
+        if (screen === 'play') {
+          if (!gameOver || deathTimer >= deathDuration) {
+            if (keys.has('shift')) {
+              hardReset();
+            } else {
+              if (noCheckpointsMode) hardReset(); else respawnAtCheckpoint();
+            }
           }
         }
       }
@@ -927,7 +1526,8 @@
       draw();
       requestAnimationFrame(loop);
     }
-    hardReset();
+    if (screen === 'menu') enterMenu();
+    else hardReset();
     requestAnimationFrame(loop);
   </script>
 </body>
