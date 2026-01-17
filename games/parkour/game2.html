@@ -68,25 +68,10 @@
 
     function activateShopSkinId(skinId) {
       const skinItem = getSkin(skinId);
-      if (!isSkinUnlocked(skinItem.id)) {
-        if (coins >= skinItem.price) {
-          coins -= skinItem.price;
-          saveCoins();
-          unlockedSkins.add(skinItem.id);
-          selectedSkinId = skinItem.id;
-          saveSkins();
-          shopMessage = `Bought ${skinItem.name}!`;
-          shopMessageTime = 1.7;
-        } else {
-          shopMessage = `Need ${skinItem.price - coins} more coins`;
-          shopMessageTime = 1.7;
-        }
-      } else {
-        selectedSkinId = skinItem.id;
-        saveSkins();
-        shopMessage = `Selected ${skinItem.name}`;
-        shopMessageTime = 1.2;
-      }
+      selectedSkinId = skinItem.id;
+      saveSkins();
+      shopMessage = `Selected ${skinItem.name}`;
+      shopMessageTime = 1.2;
     }
 
     function activateMenuZoneId(id) {
@@ -152,7 +137,6 @@
     const jumpBufferTime = 0.12;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const cheatEnabled = urlParams.get('cheat') === '1';
     const modeParam = urlParams.get('mode');
     let gameMode = (modeParam || 'classic').toLowerCase();
     let noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
@@ -169,17 +153,17 @@
 
     const SKINS = [
       { id: 'none', name: 'Nothing', price: 0, type: 'base', body: '#111', accent: '#3b82f6' },
-      { id: 'ninja', name: 'Ninja', price: 900, type: 'power', body: '#050505', accent: '#ef4444' },
-      { id: 'monks', name: 'Monks', price: 950, type: 'power', body: '#f8fafc', accent: '#f59e0b' },
-      { id: 'iron-golem', name: 'Iron Golem', price: 1100, type: 'power', body: '#374151', accent: '#1d4ed8' },
-      { id: 'knight', name: 'Knight', price: 450, type: 'cosmetic', body: '#9ca3af', accent: '#374151' },
-      { id: 'prince', name: 'Prince', price: 550, type: 'cosmetic', body: '#fbbf24', accent: '#b45309' },
-      { id: 'ember', name: 'Ember', price: 400, type: 'cosmetic', body: '#fb7185', accent: '#f97316' },
-      { id: 'frost', name: 'Frost', price: 400, type: 'cosmetic', body: '#60a5fa', accent: '#22d3ee' },
+      { id: 'ninja', name: 'Ninja', price: 0, type: 'power', body: '#050505', accent: '#ef4444' },
+      { id: 'monks', name: 'Monks', price: 0, type: 'power', body: '#f8fafc', accent: '#f59e0b' },
+      { id: 'iron-golem', name: 'Iron Golem', price: 0, type: 'power', body: '#374151', accent: '#1d4ed8' },
+      { id: 'knight', name: 'Knight', price: 0, type: 'cosmetic', body: '#9ca3af', accent: '#374151' },
+      { id: 'prince', name: 'Prince', price: 0, type: 'cosmetic', body: '#fbbf24', accent: '#b45309' },
+      { id: 'ember', name: 'Ember', price: 0, type: 'cosmetic', body: '#fb7185', accent: '#f97316' },
+      { id: 'frost', name: 'Frost', price: 0, type: 'cosmetic', body: '#60a5fa', accent: '#22d3ee' },
     ];
     const UNLOCKED_SKINS_KEY = 'parkour_unlockedSkins';
     const SELECTED_SKIN_KEY = 'parkour_selectedSkin';
-    let unlockedSkins = new Set(['none']);
+    let unlockedSkins = new Set(SKINS.map(s => s.id));
     let selectedSkinId = 'none';
     try {
       const raw = JSON.parse(localStorage.getItem(UNLOCKED_SKINS_KEY) || '[]');
@@ -200,16 +184,6 @@
     if (!getSkin(selectedSkinId)) selectedSkinId = 'none';
     if (!isSkinUnlocked(selectedSkinId)) selectedSkinId = 'none';
     saveSkins();
-
-    if (cheatEnabled) {
-      coins = Math.max(coins, 99999);
-      try {
-        localStorage.setItem(COINS_KEY, String(coins));
-      } catch (e) {}
-      unlockedSkins = new Set(SKINS.map(s => s.id));
-      if (!selectedSkinId || selectedSkinId === 'none') selectedSkinId = 'ninja';
-      saveSkins();
-    }
 
     function setMode(mode) {
       gameMode = (mode || 'classic').toLowerCase();
