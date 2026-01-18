@@ -6,6 +6,37 @@
   <meta name="description" content="Music by KylerQZ">
   <title>Music - KylerQZ's Blog</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .music-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1rem 0 1.5rem 0;
+    }
+    .music-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .music-box .label {
+      padding: 0.65rem 0.8rem;
+      font-weight: 700;
+      color: #e6e6e6;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .music-box iframe {
+      width: 100%;
+      height: 190px;
+      border: 0;
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .music-grid { grid-template-columns: 1fr; }
+      .music-box iframe { height: 220px; }
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -40,6 +71,40 @@
         <li>Recordings</li>
         <li>Gear and setup</li>
       </ul>
+
+      <h2>Playlist</h2>
+      <div class="music-grid">
+        <div class="music-box">
+          <div class="label">Box 1</div>
+          <iframe
+            loading="lazy"
+            src="https://www.youtube.com/embed/videoseries?list=PLNgAG0wQfryPtbPPPckhLIQqbXYFoFDCy&index=0"
+            title="Music Playlist"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <div class="music-box">
+          <div class="label">Box 2</div>
+          <iframe
+            loading="lazy"
+            src="https://www.youtube.com/embed/videoseries?list=PLNgAG0wQfryPtbPPPckhLIQqbXYFoFDCy&index=1"
+            title="Music Playlist"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <div class="music-box">
+          <div class="label">Box 3</div>
+          <iframe
+            loading="lazy"
+            src="https://www.youtube.com/embed/videoseries?list=PLNgAG0wQfryPtbPPPckhLIQqbXYFoFDCy&index=2"
+            title="Music Playlist"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+      </div>
 
       <p>Paste your content here whenever you're ready.</p>
     </div>
