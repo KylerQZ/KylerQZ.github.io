@@ -319,6 +319,7 @@
         else if (id === 'playNoCP') { sfxClick(); startGame('nocp'); }
         else if (id === 'playDaily') { sfxClick(); startGame('daily'); }
         else if (id === 'playWeekly') { sfxClick(); startGame('weekly'); }
+        else if (id === 'playEndless') { sfxClick(); startGame('endless'); }
         else if (id === 'openSkinsShop') {
           sfxClick();
           shopOwnedSkinId = selectedSkinId;
@@ -527,8 +528,8 @@
     const urlParams = new URLSearchParams(window.location.search);
     const modeParam = urlParams.get('mode');
     let gameMode = (modeParam || 'classic').toLowerCase();
-    let noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
-    let modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+    let noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp' || gameMode === 'daily' || gameMode === 'weekly';
+    let modeLabel = (gameMode === 'daily') ? 'Daily' : ((gameMode === 'weekly') ? 'Weekly' : ((gameMode === 'endless') ? 'Endless' : (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints')));
     screen = modeParam ? 'play' : 'menu';
 
     const COINS_KEY = 'parkour_coins';
@@ -584,6 +585,15 @@
     let missions = [];
     let missionToast = '';
     let missionToastTime = 0;
+    let missionsStage = 1;
+
+    function isBonusUnlocked(seed) {
+      try { return localStorage.getItem(`parkour_bonusUnlocked_${seed}`) === '1'; } catch (e) { return false; }
+    }
+
+    function setBonusUnlocked(seed) {
+      try { localStorage.setItem(`parkour_bonusUnlocked_${seed}`, '1'); } catch (e) {}
+    }
 
     function saveMissionCompletion(seed, id) {
       const key = `parkour_missions_done_${seed}`;
@@ -599,11 +609,17 @@
       let arr = [];
       try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { arr = []; }
       if (!Array.isArray(arr)) return false;
-      return arr.includes(id);
+      if (arr.includes(id)) return true;
+      if (typeof id === 'string' && id.includes(':s1:')) {
+        const legacy = id.replace(':s1:', ':');
+        if (legacy !== id && arr.includes(legacy)) return true;
+      }
+      return false;
     }
 
-    function initMissionsForSeed(seed) {
-      const r = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+    function initMissionsForSeed(seed, stage) {
+      missionsStage = stage || 1;
+      const r = mulberry32((((seed ^ 0x9e3779b9) + missionsStage * 0x85ebca6b) >>> 0) || 1);
       const pool = [
         { type: 'dist', name: 'Reach distance', targets: [4000, 7000, 10000], reward: 60 },
         { type: 'tele', name: 'Use teleports', targets: [3, 6, 9], reward: 70 },
@@ -618,7 +634,7 @@
         if (picked.some(p => p.type === cand.type)) continue;
         const tier = Math.floor(r() * cand.targets.length);
         const target = cand.targets[tier];
-        const id = `${seed}:${cand.type}:${target}`;
+        const id = `${seed}:s${missionsStage}:${cand.type}:${target}`;
         picked.push({ id, seed, type: cand.type, name: cand.name, target, reward: cand.reward, done: isMissionDone(seed, id) });
       }
       missions = picked;
@@ -647,6 +663,13 @@
           missionToast = `Mission complete! +${m.reward} coins`;
           missionToastTime = 1.1;
         }
+      }
+
+      if (challengeId !== 'none' && missionsStage === 1 && missions.length && missions.every(mm => mm.done)) {
+        if (!isBonusUnlocked(challengeSeed)) setBonusUnlocked(challengeSeed);
+        initMissionsForSeed(challengeSeed, 2);
+        missionToast = 'Bonus missions unlocked!';
+        missionToastTime = 1.2;
       }
     }
 
@@ -688,7 +711,7 @@
     function setMode(mode) {
       gameMode = (mode || 'classic').toLowerCase();
       noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp' || gameMode === 'daily' || gameMode === 'weekly';
-      modeLabel = (gameMode === 'daily') ? 'Daily' : ((gameMode === 'weekly') ? 'Weekly' : (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints'));
+      modeLabel = (gameMode === 'daily') ? 'Daily' : ((gameMode === 'weekly') ? 'Weekly' : ((gameMode === 'endless') ? 'Endless' : (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints')));
 
       bestScore = 0;
       bestDistance = 0;
@@ -1025,8 +1048,9 @@
         const dy = (rng() - 0.5) * (120 + 120 * d);
         cursorY = Math.min(baseY - 80, Math.max(baseY - 360, cursorY + dy));
         const plat = { x, y: cursorY, w: platW, h: 20, type: 'plat' };
-        const movingChance = 0.10 + 0.10 * d;
-        const bounceChance = 0.07 + 0.07 * d;
+        const endless = gameMode === 'endless';
+        const movingChance = endless ? 0.48 : (0.10 + 0.10 * d);
+        const bounceChance = endless ? 0.48 : (0.07 + 0.07 * d);
         const r0 = rng();
         if (r0 < bounceChance) {
           plat.type = 'bounce';
@@ -1036,6 +1060,14 @@
           plat.amp = 40 + rng() * 110;
           plat.freq = 0.6 + rng() * 0.9;
           plat.phase = rng() * Math.PI * 2;
+        } else if (endless) {
+          plat.type = (rng() < 0.5) ? 'bounce' : 'moving';
+          if (plat.type === 'moving') {
+            plat.baseX = plat.x;
+            plat.amp = 50 + rng() * 130;
+            plat.freq = 0.7 + rng() * 1.0;
+            plat.phase = rng() * Math.PI * 2;
+          }
         }
         platforms.push(plat);
         // Occasionally add a hazard between platforms on ground
@@ -1372,7 +1404,8 @@
         menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
         menuZones.push({ id: 'playDaily', label: 'DAILY', x: 220, y: baseY - 172, w: 200, h: 60 });
         menuZones.push({ id: 'playWeekly', label: 'WEEKLY', x: 430, y: baseY - 172, w: 210, h: 60 });
-        menuZones.push({ id: 'openSkinsShop', label: 'SKINS SHOP', x: 220, y: baseY - 252, w: 420, h: 60 });
+        menuZones.push({ id: 'playEndless', label: 'ENDLESS', x: 220, y: baseY - 252, w: 420, h: 60 });
+        menuZones.push({ id: 'openSkinsShop', label: 'SKINS SHOP', x: 220, y: baseY - 332, w: 420, h: 60 });
       } else {
         menuZones.push({ id: 'backToMain', label: 'BACK', x: 220, y: baseY - 92, w: 140, h: 60 });
       }
@@ -1413,17 +1446,20 @@
         challengeId = 'daily';
         challengeSeed = getDailySeed();
         rng = mulberry32((challengeSeed >>> 0) || 1);
-        initMissionsForSeed(challengeSeed);
+        if (isBonusUnlocked(challengeSeed)) initMissionsForSeed(challengeSeed, 2);
+        else initMissionsForSeed(challengeSeed, 1);
       } else if (gameMode === 'weekly') {
         challengeId = 'weekly';
         challengeSeed = getWeeklySeed();
         rng = mulberry32((challengeSeed >>> 0) || 1);
-        initMissionsForSeed(challengeSeed);
+        if (isBonusUnlocked(challengeSeed)) initMissionsForSeed(challengeSeed, 2);
+        else initMissionsForSeed(challengeSeed, 1);
       } else {
         challengeId = 'none';
         challengeSeed = 0;
         rng = Math.random;
         missions = [];
+        missionsStage = 1;
       }
       hardReset();
     }
@@ -1981,9 +2017,11 @@
         for (const cp of checkpoints) {
           if (rectsOverlap(player, cp)) {
             if (lastCheckpoint.x !== cp.x) {
-              addCoins(10);
+              const cpReward = (gameMode === 'endless') ? 30 : 10;
+              addCoins(cpReward);
+              score += cpReward;
               sfxCoin();
-              coinToast = '+10 COINS';
+              coinToast = (gameMode === 'endless') ? `+${cpReward} POINTS` : `+${cpReward} COINS`;
               coinToastTime = 0.9;
               runCheckpoints += 1;
             }
@@ -2582,7 +2620,7 @@
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
 
         if (missions.length) {
-          lines.push('Missions:');
+          lines.push(missionsStage === 2 ? 'Bonus Missions:' : 'Missions:');
           for (const m of missions) {
             const prog = missionProgress(m);
             const showProg = (m.type === 'nodeaths') ? (deathsThisRun === 0 ? `${prog}/${m.target}s` : `FAILED`) : `${prog}/${m.target}`;
