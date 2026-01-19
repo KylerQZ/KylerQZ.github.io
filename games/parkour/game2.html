@@ -38,12 +38,36 @@
     let shopOwnedSkinId = 'none';
     let shopPreviewSkinId = null;
 
+    const SETTINGS_KEY = 'parkour_settings_v1';
+    let sfxVolume = 1;
+    let shakeEnabled = true;
+    let particlesEnabled = true;
+    let settingsOpen = false;
+
     let audioCtx = null;
     function ensureAudio() {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
       } catch (e) {}
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ v: 1, sfxVolume, shakeEnabled, particlesEnabled }));
+      } catch (e) {}
+    }
+
+    function loadSettings() {
+      let raw = null;
+      try { raw = localStorage.getItem(SETTINGS_KEY); } catch (e) { raw = null; }
+      if (!raw) return;
+      let data = null;
+      try { data = JSON.parse(raw); } catch (e) { data = null; }
+      if (!data || data.v !== 1) return;
+      if (typeof data.sfxVolume === 'number') sfxVolume = Math.max(0, Math.min(1, data.sfxVolume));
+      if (typeof data.shakeEnabled === 'boolean') shakeEnabled = data.shakeEnabled;
+      if (typeof data.particlesEnabled === 'boolean') particlesEnabled = data.particlesEnabled;
     }
     function playTone(f0, f1, dur, type, gain, detune = 0) {
       if (!audioCtx) return;
@@ -54,8 +78,10 @@
       o.frequency.setValueAtTime(f0, t);
       if (f1 != null) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + Math.max(0.01, dur));
       if (detune) o.detune.setValueAtTime(detune, t);
+      const vol = Math.max(0, Math.min(1, sfxVolume || 0));
+      const gg = (gain || 0.08) * vol;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain || 0.08), t + 0.01);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gg), t + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
       o.connect(g);
       g.connect(audioCtx.destination);
@@ -73,7 +99,9 @@
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       const g = audioCtx.createGain();
-      g.gain.setValueAtTime(Math.max(0.0002, gain || 0.08), t);
+      const vol = Math.max(0, Math.min(1, sfxVolume || 0));
+      const gg = (gain || 0.08) * vol;
+      g.gain.setValueAtTime(Math.max(0.0002, gg), t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
       src.connect(g);
       g.connect(audioCtx.destination);
@@ -104,8 +132,10 @@
       bp.frequency.exponentialRampToValueAtTime(260, t + d);
 
       const g = audioCtx.createGain();
+      const vol = Math.max(0, Math.min(1, sfxVolume || 0));
+      const gg = (gain || 0.09) * vol;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain || 0.09), t + 0.02);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gg), t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + d);
 
       src.connect(hp);
@@ -126,6 +156,8 @@
     function sfxShieldHit() { playTone(160, 70, 0.12, 'square', 0.06); playNoise(0.05, 0.03); }
     function sfxGolemCrash() { playNoise(0.14, 0.09); playTone(95, 55, 0.22, 'square', 0.08); playTone(55, 40, 0.25, 'sawtooth', 0.05, -6); }
     function sfxDeath() { playNoise(0.22, 0.07); playTone(220, 60, 0.30, 'sawtooth', 0.06); }
+    function sfxCoin() { ensureAudio(); playTone(680, 980, 0.10, 'triangle', 0.05, 6); playTone(980, 1240, 0.08, 'sine', 0.03, 10); }
+    function sfxBounce() { playTone(220, 520, 0.10, 'square', 0.05); playTone(520, 820, 0.08, 'triangle', 0.03, 6); }
 
     function resize() {
       canvas.width = window.innerWidth;
@@ -137,15 +169,73 @@
     }
     window.addEventListener('resize', resize);
     resize();
+    loadSettings();
 
     // Input
     const keys = new Set();
+    const isTouchDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0);
+    const touchKeyOwners = new Map(); // key -> touch identifier
+    let activeTouches = [];
     window.addEventListener('keydown', (e) => {
       ensureAudio();
       keys.add(e.key.toLowerCase());
       if ([' ', 'arrowup'].includes(e.key.toLowerCase())) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+    function getMobileButtons() {
+      const pad = 18;
+      const w = 86;
+      const h = 56;
+      const y = canvas.height - pad - h;
+      const leftX = pad;
+      const rightX = leftX + w + 12;
+      const jumpX = canvas.width - pad - w;
+      const teleX = jumpX - 12 - w;
+      const superX = teleX - 12 - w;
+      return {
+        left: { id: 'left', key: 'a', label: 'LEFT', x: leftX, y, w, h },
+        right: { id: 'right', key: 'd', label: 'RIGHT', x: rightX, y, w, h },
+        super: { id: 'super', key: 'g', label: 'SUPER', x: superX, y, w, h },
+        teleport: { id: 'teleport', key: 'e', label: 'TELE', x: teleX, y, w, h },
+        jump: { id: 'jump', key: ' ', label: 'JUMP', x: jumpX, y, w, h },
+      };
+    }
+
+    function keyForMobileButtonAt(sx, sy) {
+      const b = getMobileButtons();
+      const list = [b.left, b.right, b.jump, b.teleport, b.super];
+      for (const it of list) {
+        if (sx >= it.x && sx <= it.x + it.w && sy >= it.y && sy <= it.y + it.h) return it;
+      }
+      return null;
+    }
+
+    function syncTouchKeysFromTouches(touches) {
+      activeTouches = Array.from(touches || []);
+      // release any keys whose owner touch no longer exists
+      for (const [k, id] of Array.from(touchKeyOwners.entries())) {
+        if (!activeTouches.some(t => t.identifier === id)) {
+          touchKeyOwners.delete(k);
+          keys.delete(k);
+        }
+      }
+
+      if (screen !== 'play' || evoTargeting || settingsOpen) return;
+      if (!isTouchDevice) return;
+
+      const r = canvas.getBoundingClientRect();
+      for (const t of activeTouches) {
+        const sx = (t.clientX - r.left) * (canvas.width / r.width);
+        const sy = (t.clientY - r.top) * (canvas.height / r.height);
+        const btn = keyForMobileButtonAt(sx, sy);
+        if (!btn) continue;
+        if (!touchKeyOwners.has(btn.key)) {
+          touchKeyOwners.set(btn.key, t.identifier);
+          keys.add(btn.key);
+        }
+      }
+    }
 
     let pointerWorldX = 0;
     let pointerWorldY = 0;
@@ -227,6 +317,8 @@
       if (screen === 'menu') {
         if (id === 'playClassic') { sfxClick(); startGame('classic'); }
         else if (id === 'playNoCP') { sfxClick(); startGame('nocp'); }
+        else if (id === 'playDaily') { sfxClick(); startGame('daily'); }
+        else if (id === 'playWeekly') { sfxClick(); startGame('weekly'); }
         else if (id === 'openSkinsShop') {
           sfxClick();
           shopOwnedSkinId = selectedSkinId;
@@ -274,7 +366,10 @@
       if (screen === 'play' && !evoTargeting) {
         for (const b of getHudButtons()) {
           if (sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h) {
-            if (b.id === 'exit') {
+            if (b.id === 'settings') {
+              sfxClick();
+              settingsOpen = !settingsOpen;
+            } else if (b.id === 'exit') {
               sfxClick();
               canvas.style.cursor = 'default';
               enterMenu();
@@ -296,6 +391,38 @@
               }
             }
             return;
+          }
+        }
+
+        if (settingsOpen) {
+          const sb = getSettingsButtons();
+          const buttons = [sb.volMinus, sb.volPlus, sb.shakeToggle, sb.particlesToggle, sb.close];
+          for (const b of buttons) {
+            if (sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h) {
+              if (b.id === 'close') {
+                sfxClick();
+                settingsOpen = false;
+              } else if (b.id === 'volMinus') {
+                sfxClick();
+                sfxVolume = Math.max(0, Math.min(1, Math.round((sfxVolume - 0.1) * 10) / 10));
+                saveSettings();
+              } else if (b.id === 'volPlus') {
+                sfxClick();
+                sfxVolume = Math.max(0, Math.min(1, Math.round((sfxVolume + 0.1) * 10) / 10));
+                saveSettings();
+              } else if (b.id === 'shake') {
+                sfxClick();
+                shakeEnabled = !shakeEnabled;
+                if (!shakeEnabled) { shakeTime = 0; shakeStrength = 0; }
+                saveSettings();
+              } else if (b.id === 'particles') {
+                sfxClick();
+                particlesEnabled = !particlesEnabled;
+                if (!particlesEnabled) particles.length = 0;
+                saveSettings();
+              }
+              return;
+            }
           }
         }
       }
@@ -362,8 +489,30 @@
     });
     canvas.addEventListener('touchstart', (e) => {
       ensureAudio();
-      const t = e.touches[0];
-      handlePointerSelect(t.clientX, t.clientY);
+      if (evoTargeting || settingsOpen || screen !== 'play') {
+        const t = e.touches[0];
+        handlePointerSelect(t.clientX, t.clientY);
+        return;
+      }
+      syncTouchKeysFromTouches(e.touches);
+      const r = canvas.getBoundingClientRect();
+      const t0 = e.touches[0];
+      const sx = (t0.clientX - r.left) * (canvas.width / r.width);
+      const sy = (t0.clientY - r.top) * (canvas.height / r.height);
+      const btn = keyForMobileButtonAt(sx, sy);
+      if (!btn) handlePointerSelect(t0.clientX, t0.clientY);
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      syncTouchKeysFromTouches(e.touches);
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (e) => {
+      syncTouchKeysFromTouches(e.touches);
+    }, { passive: true });
+
+    canvas.addEventListener('touchcancel', (e) => {
+      syncTouchKeysFromTouches(e.touches);
     }, { passive: true });
 
     // World
@@ -389,6 +538,116 @@
       coins = parseInt(localStorage.getItem(COINS_KEY) || '0', 10) || 0;
     } catch (e) {
       coins = 0;
+    }
+
+    let runStartCoins = coins;
+    let deathsThisRun = 0;
+
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function getIsoWeekYearAndWeek(d) {
+      const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = dt.getUTCDay() || 7;
+      dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
+      return { year: dt.getUTCFullYear(), week: weekNo };
+    }
+
+    function getDailySeed() {
+      const d = new Date();
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    }
+
+    function getWeeklySeed() {
+      const d = new Date();
+      const { year, week } = getIsoWeekYearAndWeek(d);
+      return year * 100 + week;
+    }
+
+    let rng = Math.random;
+    let challengeId = 'none';
+    let challengeSeed = 0;
+
+    let runTeleports = 0;
+    let runPowerups = 0;
+    let runCheckpoints = 0;
+    let runSurvivalTime = 0;
+
+    let missions = [];
+    let missionToast = '';
+    let missionToastTime = 0;
+
+    function saveMissionCompletion(seed, id) {
+      const key = `parkour_missions_done_${seed}`;
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { arr = []; }
+      if (!Array.isArray(arr)) arr = [];
+      if (!arr.includes(id)) arr.push(id);
+      try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+    }
+
+    function isMissionDone(seed, id) {
+      const key = `parkour_missions_done_${seed}`;
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { arr = []; }
+      if (!Array.isArray(arr)) return false;
+      return arr.includes(id);
+    }
+
+    function initMissionsForSeed(seed) {
+      const r = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+      const pool = [
+        { type: 'dist', name: 'Reach distance', targets: [4000, 7000, 10000], reward: 60 },
+        { type: 'tele', name: 'Use teleports', targets: [3, 6, 9], reward: 70 },
+        { type: 'power', name: 'Collect double-jumps', targets: [1, 2, 3], reward: 60 },
+        { type: 'survive', name: 'Survive (seconds)', targets: [35, 55, 75], reward: 80 },
+        { type: 'nodeaths', name: 'No deaths (seconds)', targets: [45, 70, 100], reward: 120 },
+      ];
+      const picked = [];
+      while (picked.length < 3) {
+        const idx = Math.floor(r() * pool.length);
+        const cand = pool[idx];
+        if (picked.some(p => p.type === cand.type)) continue;
+        const tier = Math.floor(r() * cand.targets.length);
+        const target = cand.targets[tier];
+        const id = `${seed}:${cand.type}:${target}`;
+        picked.push({ id, seed, type: cand.type, name: cand.name, target, reward: cand.reward, done: isMissionDone(seed, id) });
+      }
+      missions = picked;
+    }
+
+    function missionProgress(m) {
+      if (m.type === 'dist') return Math.floor(maxReachedX);
+      if (m.type === 'tele') return runTeleports;
+      if (m.type === 'power') return runPowerups;
+      if (m.type === 'survive') return Math.floor(runSurvivalTime);
+      if (m.type === 'nodeaths') return Math.floor(runSurvivalTime);
+      return 0;
+    }
+
+    function checkMissions() {
+      if (!missions.length) return;
+      for (const m of missions) {
+        if (m.done) continue;
+        const prog = missionProgress(m);
+        const ok = (m.type === 'nodeaths') ? (deathsThisRun === 0 && prog >= m.target) : (prog >= m.target);
+        if (ok) {
+          m.done = true;
+          saveMissionCompletion(m.seed, m.id);
+          addCoins(m.reward);
+          sfxCoin();
+          missionToast = `Mission complete! +${m.reward} coins`;
+          missionToastTime = 1.1;
+        }
+      }
     }
 
     const SKINS = [
@@ -428,8 +687,8 @@
 
     function setMode(mode) {
       gameMode = (mode || 'classic').toLowerCase();
-      noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp';
-      modeLabel = noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints';
+      noCheckpointsMode = gameMode === 'nocp' || gameMode === 'no-checkpoint' || gameMode === 'ncp' || gameMode === 'daily' || gameMode === 'weekly';
+      modeLabel = (gameMode === 'daily') ? 'Daily' : ((gameMode === 'weekly') ? 'Weekly' : (noCheckpointsMode ? 'No-Checkpoint' : 'Checkpoints'));
 
       bestScore = 0;
       bestDistance = 0;
@@ -497,6 +756,8 @@
     let golemHitFlash = 0;
     let shopMessage = '';
     let shopMessageTime = 0;
+    let coinToast = '';
+    let coinToastTime = 0;
     let coyoteTimer = 0;
     let jumpBufferTimer = 0;
     let interactLatch = 0;
@@ -518,14 +779,37 @@
       const w = 86;
       const h = 34;
       const y = 12;
-      const x3 = canvas.width - pad - w;
+      const x4 = canvas.width - pad - w;
+      const x3 = x4 - gap - w;
       const x2 = x3 - gap - w;
       const x1 = x2 - gap - w;
       return [
-        { id: 'exit', label: 'EXIT', x: x1, y, w, h },
-        { id: 'save', label: 'SAVE', x: x2, y, w, h },
-        { id: 'load', label: 'LOAD', x: x3, y, w, h },
+        { id: 'settings', label: 'SET', x: x1, y, w, h },
+        { id: 'exit', label: 'EXIT', x: x2, y, w, h },
+        { id: 'save', label: 'SAVE', x: x3, y, w, h },
+        { id: 'load', label: 'LOAD', x: x4, y, w, h },
       ];
+    }
+
+    function getSettingsButtons() {
+      const w = 560;
+      const h = 300;
+      const x = Math.floor(canvas.width * 0.5 - w * 0.5);
+      const y = Math.floor(canvas.height * 0.5 - h * 0.5);
+
+      const btnW = 54;
+      const btnH = 34;
+      const left = x + 24;
+      const top = y + 70;
+      const rowH = 54;
+
+      const volMinus = { id: 'volMinus', x: left + 210, y: top + 0, w: btnW, h: btnH };
+      const volPlus = { id: 'volPlus', x: left + 210 + btnW + 10, y: top + 0, w: btnW, h: btnH };
+      const shakeToggle = { id: 'shake', x: left + 210, y: top + rowH, w: 150, h: btnH };
+      const particlesToggle = { id: 'particles', x: left + 210, y: top + rowH * 2, w: 150, h: btnH };
+      const close = { id: 'close', x: x + w - 24 - 110, y: y + h - 24 - 36, w: 110, h: 36 };
+
+      return { panel: { x, y, w, h }, volMinus, volPlus, shakeToggle, particlesToggle, close };
     }
 
     function saveRunState() {
@@ -727,26 +1011,40 @@
     function spawnChunk() {
       const h = canvas.height;
       const baseY = h - 40;
-      const d = difficultyAt(nextSpawnX);
-      const chunkW = 800; // generate about one screen at a time
+      const chunkW = 900;
+      const startX = nextSpawnX;
+      const d = Math.min(1, startX / 18000);
+ // generate about one screen at a time
       let x = nextSpawnX + 100;
       let cursorY = baseY - 140;
       while (x < nextSpawnX + chunkW) {
         // Platform sizes/gaps scale with difficulty
-        const platW = Math.max(70, 210 - Math.floor(150 * d) + Math.floor(Math.random() * 40));
-        const gap = Math.min(520, 260 + Math.floor(260 * d) + Math.floor(Math.random() * 160));
+        const platW = Math.max(70, 210 - Math.floor(150 * d) + Math.floor(rng() * 40));
+        const gap = Math.min(520, 260 + Math.floor(260 * d) + Math.floor(rng() * 160));
         // Vary height a bit
-        const dy = (Math.random() - 0.5) * (120 + 120 * d);
+        const dy = (rng() - 0.5) * (120 + 120 * d);
         cursorY = Math.min(baseY - 80, Math.max(baseY - 360, cursorY + dy));
         const plat = { x, y: cursorY, w: platW, h: 20, type: 'plat' };
+        const movingChance = 0.10 + 0.10 * d;
+        const bounceChance = 0.07 + 0.07 * d;
+        const r0 = rng();
+        if (r0 < bounceChance) {
+          plat.type = 'bounce';
+        } else if (r0 < bounceChance + movingChance) {
+          plat.type = 'moving';
+          plat.baseX = plat.x;
+          plat.amp = 40 + rng() * 110;
+          plat.freq = 0.6 + rng() * 0.9;
+          plat.phase = rng() * Math.PI * 2;
+        }
         platforms.push(plat);
         // Occasionally add a hazard between platforms on ground
-        if (Math.random() < 0.5 + 0.5 * d) {
-          const hzW = 40 + Math.floor(Math.random() * 60);
+        if (rng() < 0.5 + 0.5 * d) {
+          const hzW = 40 + Math.floor(rng() * 60);
           hazards.push({ x: x + platW + (gap - hzW) / 2, y: baseY - 20, w: hzW, h: 20 });
         }
         // Occasionally add a powerup on top of a platform
-        if (Math.random() < 0.18 + 0.25 * d) {
+        if (rng() < 0.18 + 0.25 * d) {
           powerups.push({ x: plat.x + Math.floor(plat.w/2) - 10, y: plat.y - 20, w: 20, h: 20, type: 'double' });
         }
         x += platW + gap;
@@ -803,6 +1101,7 @@
     }
 
     function spawnParticles(type, x, y, amount) {
+      if (!particlesEnabled) return;
       const base = type === 'power' ? '#06b6d4' : (type === 'land' ? '#6b7280' : (type === 'smoke' ? '#a855f7' : '#ffffff'));
       for (let i = 0; i < amount; i++) {
         const ang = type === 'smoke' ? rand(-Math.PI * 0.85, -Math.PI * 0.15) : rand(-Math.PI, 0);
@@ -815,6 +1114,7 @@
     }
 
     function updateParticles(dt) {
+      if (!particlesEnabled) { particles.length = 0; return; }
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.life -= dt;
@@ -829,6 +1129,30 @@
 
     function rectsOverlap(a, b) {
       return !(a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h);
+    }
+
+    function getGroundPlatform() {
+      const py = player.y + player.h;
+      for (const s of platforms) {
+        if (py < s.y - 2 || py > s.y + 3) continue;
+        if (player.x + player.w <= s.x || player.x >= s.x + s.w) continue;
+        return s;
+      }
+      return null;
+    }
+
+    function updateDynamicPlatforms() {
+      const groundPlat = player.onGround ? getGroundPlatform() : null;
+      for (const s of platforms) {
+        if (s.type !== 'moving') continue;
+        const prevX = s.x;
+        s.x = s.baseX + Math.sin(t * s.freq + s.phase) * s.amp;
+        const dx = s.x - prevX;
+        if (dx && groundPlat === s) {
+          player.x += dx;
+          if (player.x < 0) player.x = 0;
+        }
+      }
     }
 
     function resolveCollisions(p, dt) {
@@ -867,6 +1191,7 @@
 
     function triggerDeath() {
       if (gameOver) return;
+      deathsThisRun += 1;
       gameOver = true;
       deathTimer = 0;
       deathCamX = camera.x;
@@ -924,6 +1249,16 @@
       deathTimer = 0;
       deathPieces = [];
       score = 0;
+
+      runStartCoins = coins;
+      deathsThisRun = 0;
+      runTeleports = 0;
+      runPowerups = 0;
+      runCheckpoints = 0;
+      runSurvivalTime = 0;
+      missionToast = '';
+      missionToastTime = 0;
+
       bestSaved = false;
       bestDistanceStart = bestDistance;
       bestDistanceBeaten = false;
@@ -1035,7 +1370,9 @@
       if (menuView === 'main') {
         menuZones.push({ id: 'playClassic', label: 'PLAY\n(Checkpoints)', x: 220, y: baseY - 92, w: 180, h: 72 });
         menuZones.push({ id: 'playNoCP', label: 'PLAY\n(No-Checkpoint)', x: 430, y: baseY - 92, w: 210, h: 72 });
-        menuZones.push({ id: 'openSkinsShop', label: 'SKINS SHOP', x: 220, y: baseY - 172, w: 420, h: 60 });
+        menuZones.push({ id: 'playDaily', label: 'DAILY', x: 220, y: baseY - 172, w: 200, h: 60 });
+        menuZones.push({ id: 'playWeekly', label: 'WEEKLY', x: 430, y: baseY - 172, w: 210, h: 60 });
+        menuZones.push({ id: 'openSkinsShop', label: 'SKINS SHOP', x: 220, y: baseY - 252, w: 420, h: 60 });
       } else {
         menuZones.push({ id: 'backToMain', label: 'BACK', x: 220, y: baseY - 92, w: 140, h: 60 });
       }
@@ -1072,6 +1409,22 @@
     function startGame(mode) {
       screen = 'play';
       setMode(mode);
+      if (gameMode === 'daily') {
+        challengeId = 'daily';
+        challengeSeed = getDailySeed();
+        rng = mulberry32((challengeSeed >>> 0) || 1);
+        initMissionsForSeed(challengeSeed);
+      } else if (gameMode === 'weekly') {
+        challengeId = 'weekly';
+        challengeSeed = getWeeklySeed();
+        rng = mulberry32((challengeSeed >>> 0) || 1);
+        initMissionsForSeed(challengeSeed);
+      } else {
+        challengeId = 'none';
+        challengeSeed = 0;
+        rng = Math.random;
+        missions = [];
+      }
       hardReset();
     }
 
@@ -1325,6 +1678,11 @@
       if (gameOver) {
         updateDeath(dt);
         updateParticles(dt);
+        if (missionToastTime > 0) {
+          missionToastTime = Math.max(0, missionToastTime - dt);
+          if (missionToastTime <= 0) missionToast = '';
+        }
+        checkMissions();
         if (screen === 'menu' && menuView === 'shop' && deathTimer >= deathDuration) {
           gameOver = false;
           deathTimer = 0;
@@ -1343,6 +1701,16 @@
         shopMessageTime = Math.max(0, shopMessageTime - dt);
         if (shopMessageTime <= 0) shopMessage = '';
       }
+      if (coinToastTime > 0) {
+        coinToastTime = Math.max(0, coinToastTime - dt);
+        if (coinToastTime <= 0) coinToast = '';
+      }
+      if (missionToastTime > 0) {
+        missionToastTime = Math.max(0, missionToastTime - dt);
+        if (missionToastTime <= 0) missionToast = '';
+      }
+
+      runSurvivalTime += dt;
       // Input: left/right
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
@@ -1469,6 +1837,8 @@
       // Gravity
       player.vy += gravity * dt;
 
+      updateDynamicPlatforms();
+
       // Integrate and collide
       const wasOnGround = player.onGround;
       resolveCollisions(player, dt);
@@ -1511,6 +1881,20 @@
         }
       }
 
+      if (player.onGround) {
+        const gp = getGroundPlatform();
+        if (gp && gp.type === 'bounce') {
+          player.vy = -jumpSpeed * 1.35;
+          player.onGround = false;
+          coyoteTimer = 0;
+          jumpBufferTimer = 0;
+          spawnParticles('power', player.x + player.w * 0.5, player.y + player.h, 22);
+          sfxBounce();
+          shakeTime = 0.10;
+          shakeStrength = Math.max(shakeStrength, 4.5);
+        }
+      }
+
       if (isNinja && teleportEdge && teleportCooldown <= 0 && !evoDashActive) {
         teleportFrom.x = player.x;
         teleportFrom.y = player.y;
@@ -1526,6 +1910,7 @@
         teleportTo.y = player.y;
         teleportCooldown = isEvo ? 15 : 20;
         teleportFxTime = teleportFxDuration;
+        runTeleports += 1;
         sfxTeleport();
         spawnParticles('power', player.x + player.w * 0.5, player.y + player.h * 0.5, 22);
         if (isEvo) spawnParticles('smoke', player.x + player.w * 0.5, player.y + player.h * 0.6, 18);
@@ -1566,6 +1951,7 @@
         const pu = powerups[i];
         if (rectsOverlap(player, pu)) {
           if (pu.type === 'double') {
+            runPowerups += 1;
             if (!isMonks) {
               hasDoubleJump = true;
               doubleJumpTimer = 15; // seconds
@@ -1594,7 +1980,13 @@
       if (!noCheckpointsMode) {
         for (const cp of checkpoints) {
           if (rectsOverlap(player, cp)) {
-            if (lastCheckpoint.x !== cp.x) addCoins(10);
+            if (lastCheckpoint.x !== cp.x) {
+              addCoins(10);
+              sfxCoin();
+              coinToast = '+10 COINS';
+              coinToastTime = 0.9;
+              runCheckpoints += 1;
+            }
             // Place checkpoint spawn on top of nearest platform below this cp
             let spawnY = canvas.height - 40 - player.h;
             for (const s of platforms) {
@@ -1639,12 +2031,18 @@
 
       trail.push({ x: player.x, y: player.y, t });
       while (trail.length > 14) trail.shift();
+
+      checkMissions();
     }
 
     function draw() {
       // Clear to sky gradient (already via CSS background). Draw world elements.
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      if (!shakeEnabled) {
+        shakeTime = 0;
+        shakeStrength = 0;
+      }
       if (shakeTime > 0) {
         const dtShake = Math.min(shakeTime, 1/60);
         shakeTime -= dtShake;
@@ -1726,9 +2124,12 @@
       function drawPlatform(s) {
         const x = worldToScreenX(s.x);
         const y = worldToScreenY(s.y);
-        const base = s.type === 'ground' ? '#4b5563' : '#6b7280';
-        const top = s.type === 'ground' ? '#9ca3af' : '#d1d5db';
-        const bottom = s.type === 'ground' ? '#111827' : '#1f2937';
+        const isGround = s.type === 'ground';
+        const isMoving = s.type === 'moving';
+        const isBounce = s.type === 'bounce';
+        const base = isGround ? '#4b5563' : (isBounce ? '#0ea5e9' : (isMoving ? '#7c3aed' : '#6b7280'));
+        const top = isGround ? '#9ca3af' : (isBounce ? '#7dd3fc' : (isMoving ? '#c4b5fd' : '#d1d5db'));
+        const bottom = isGround ? '#111827' : (isBounce ? '#075985' : (isMoving ? '#2e1065' : '#1f2937'));
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.35)';
         ctx.shadowBlur = 12;
@@ -2161,6 +2562,7 @@
       lines.push(`Skin: ${skin.name}`);
       if (screen === 'play') {
         lines.push(`Mode: ${modeLabel}`);
+        if (challengeId !== 'none') lines.push(`Challenge: ${challengeId.toUpperCase()} #${challengeSeed}`);
         if (!noCheckpointsMode) {
           lines.push('Touch green posts to set checkpoint');
           lines.push('R respawn | Shift+R restart');
@@ -2178,6 +2580,15 @@
         }
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
         if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
+
+        if (missions.length) {
+          lines.push('Missions:');
+          for (const m of missions) {
+            const prog = missionProgress(m);
+            const showProg = (m.type === 'nodeaths') ? (deathsThisRun === 0 ? `${prog}/${m.target}s` : `FAILED`) : `${prog}/${m.target}`;
+            lines.push(`${m.done ? '✓' : '·'} ${m.name}: ${showProg} (+${m.reward})`);
+          }
+        }
       } else if (screen === 'menu') {
         if (shopMessageTime > 0 && shopMessage) lines.push(shopMessage);
         if (menuView === 'shop' && skin.type === 'power' && skin.desc) {
@@ -2245,6 +2656,29 @@
           ctx.fillText(shopMessage, canvas.width - 146, 84);
           ctx.textAlign = 'left';
         }
+
+        if (isTouchDevice && !evoTargeting && !settingsOpen) {
+          const b = getMobileButtons();
+          const list = [b.left, b.right, b.super, b.teleport, b.jump];
+          for (const it of list) {
+            const pressed = keys.has(it.key);
+            ctx.save();
+            ctx.globalAlpha = pressed ? 0.95 : 0.65;
+            roundRectPath(it.x, it.y, it.w, it.h, 14);
+            ctx.fillStyle = pressed ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.7)';
+            ctx.fill();
+            ctx.globalAlpha = 0.35;
+            ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#111';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(it.label, it.x + it.w * 0.5, it.y + 34);
+            ctx.restore();
+          }
+        }
       }
 
       function drawPopText(text, timeLeft, duration, y, color) {
@@ -2269,6 +2703,14 @@
         if (bestDistAnimTime > 0) drawPopText('NEW BEST DISTANCE!', bestDistAnimTime, bestDistAnimDuration, 164, '#fbbf24');
       }
 
+      if (coinToastTime > 0 && coinToast) {
+        drawPopText(coinToast, coinToastTime, 0.9, 118, '#22c55e');
+      }
+
+      if (missionToastTime > 0 && missionToast) {
+        drawPopText(missionToast, missionToastTime, 1.1, 152, '#fbbf24');
+      }
+
       // Checkpoint flash
       if (checkpointFlashTime > 0) {
         checkpointFlashTime -= Math.min(checkpointFlashTime, 1/60);
@@ -2278,6 +2720,54 @@
         ctx.textAlign = 'center';
         ctx.font = 'bold 26px sans-serif';
         ctx.fillText('Checkpoint saved!', canvas.width/2, 80);
+        ctx.restore();
+      }
+
+      if (screen === 'play' && settingsOpen) {
+        const sb = getSettingsButtons();
+        drawPanel(sb.panel.x, sb.panel.y, sb.panel.w, sb.panel.h);
+
+        ctx.save();
+        ctx.fillStyle = '#111';
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('Settings', sb.panel.x + 24, sb.panel.y + 42);
+
+        ctx.font = '16px sans-serif';
+        ctx.fillText('SFX Volume', sb.panel.x + 24, sb.panel.y + 92);
+        ctx.fillText(`${Math.round(sfxVolume * 100)}%`, sb.panel.x + 24 + 210 + 54 + 10 + 54 + 14, sb.panel.y + 92);
+
+        const drawBtn = (b, text, active = false) => {
+          ctx.save();
+          ctx.globalAlpha = 0.92;
+          roundRectPath(b.x, b.y, b.w, b.h, 10);
+          ctx.fillStyle = active ? 'rgba(34,197,94,0.78)' : 'rgba(255,255,255,0.78)';
+          ctx.fill();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#111';
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.fillText(text, b.x + b.w * 0.5, b.y + 22);
+          ctx.restore();
+        };
+
+        drawBtn(sb.volMinus, '-');
+        drawBtn(sb.volPlus, '+');
+
+        ctx.fillStyle = '#111';
+        ctx.textAlign = 'left';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('Screen Shake', sb.panel.x + 24, sb.panel.y + 146);
+        drawBtn(sb.shakeToggle, shakeEnabled ? 'ON' : 'OFF', shakeEnabled);
+
+        ctx.fillText('Particles', sb.panel.x + 24, sb.panel.y + 200);
+        drawBtn(sb.particlesToggle, particlesEnabled ? 'ON' : 'OFF', particlesEnabled);
+
+        drawBtn(sb.close, 'CLOSE');
         ctx.restore();
       }
 
@@ -2301,9 +2791,11 @@
         ctx.font = '20px sans-serif';
         ctx.fillText(noCheckpointsMode ? 'Press R to restart run' : 'Press R to respawn at last checkpoint', canvas.width/2, canvas.height/2 + 24);
         ctx.font = '18px sans-serif';
+        const earned = coins - runStartCoins;
         ctx.fillText(`Distance: ${Math.floor(maxReachedX)} px   Score: ${score}`, canvas.width/2, canvas.height/2 + 52);
+        ctx.fillText(`Coins earned: ${earned}   Deaths: ${deathsThisRun}`, canvas.width/2, canvas.height/2 + 76);
         if (noCheckpointsMode) {
-          ctx.fillText(`Best Distance: ${bestDistance} px   Best Score: ${bestScore}`, canvas.width/2, canvas.height/2 + 76);
+          ctx.fillText(`Best Distance: ${bestDistance} px   Best Score: ${bestScore}`, canvas.width/2, canvas.height/2 + 100);
         }
         ctx.textAlign = 'left';
       }
