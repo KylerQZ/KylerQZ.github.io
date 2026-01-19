@@ -1042,41 +1042,62 @@
       let cursorY = baseY - 140;
       while (x < nextSpawnX + chunkW) {
         // Platform sizes/gaps scale with difficulty
-        const platW = Math.max(70, 210 - Math.floor(150 * d) + Math.floor(rng() * 40));
-        const gap = Math.min(520, 260 + Math.floor(260 * d) + Math.floor(rng() * 160));
+        const endless = gameMode === 'endless';
+        const platW = Math.max(60, (endless ? 185 : 210) - Math.floor(160 * d) + Math.floor(rng() * 40));
+        const gap = Math.min(endless ? 640 : 520, (endless ? 320 : 260) + Math.floor((endless ? 340 : 260) * d) + Math.floor(rng() * (endless ? 220 : 160)));
         // Vary height a bit
         const dy = (rng() - 0.5) * (120 + 120 * d);
         cursorY = Math.min(baseY - 80, Math.max(baseY - 360, cursorY + dy));
         const plat = { x, y: cursorY, w: platW, h: 20, type: 'plat' };
-        const endless = gameMode === 'endless';
-        const movingChance = endless ? 0.48 : (0.10 + 0.10 * d);
-        const bounceChance = endless ? 0.48 : (0.07 + 0.07 * d);
         const r0 = rng();
-        if (r0 < bounceChance) {
-          plat.type = 'bounce';
-        } else if (r0 < bounceChance + movingChance) {
-          plat.type = 'moving';
-          plat.baseX = plat.x;
-          plat.amp = 40 + rng() * 110;
-          plat.freq = 0.6 + rng() * 0.9;
-          plat.phase = rng() * Math.PI * 2;
-        } else if (endless) {
-          plat.type = (rng() < 0.5) ? 'bounce' : 'moving';
-          if (plat.type === 'moving') {
+        if (endless) {
+          const specialTotal = Math.min(0.86, 0.68 + 0.14 * d);
+          if (r0 < specialTotal) {
+            const r1 = rng();
+            plat.type = (r1 < 0.52) ? 'bounce' : 'moving';
+            if (plat.type === 'moving') {
+              plat.baseX = plat.x;
+              plat.amp = 45 + rng() * 130;
+              plat.freq = 0.7 + rng() * 1.0;
+              plat.phase = rng() * Math.PI * 2;
+            }
+          }
+        } else {
+          const movingChance = 0.10 + 0.10 * d;
+          const bounceChance = 0.07 + 0.07 * d;
+          if (r0 < bounceChance) {
+            plat.type = 'bounce';
+          } else if (r0 < bounceChance + movingChance) {
+            plat.type = 'moving';
             plat.baseX = plat.x;
-            plat.amp = 50 + rng() * 130;
-            plat.freq = 0.7 + rng() * 1.0;
+            plat.amp = 40 + rng() * 110;
+            plat.freq = 0.6 + rng() * 0.9;
             plat.phase = rng() * Math.PI * 2;
           }
         }
         platforms.push(plat);
+
+        if (endless) {
+          const topSpikeChance = Math.min(0.82, 0.28 + 0.38 * d);
+          if (plat.type !== 'bounce' && platW >= 90 && rng() < topSpikeChance) {
+            const spikeH = 16;
+            const spikeW = Math.min(140, 40 + Math.floor(rng() * 90));
+            const mx = 10;
+            const sx = plat.x + mx + Math.floor(rng() * Math.max(1, plat.w - mx * 2 - spikeW));
+            hazards.push({ x: sx, y: plat.y - spikeH, w: spikeW, h: spikeH });
+          }
+        }
+
         // Occasionally add a hazard between platforms on ground
-        if (rng() < 0.5 + 0.5 * d) {
-          const hzW = 40 + Math.floor(rng() * 60);
+        const hazardChanceBase = 0.5 + 0.5 * d;
+        const hazardChance = endless ? Math.min(0.98, hazardChanceBase * 1.6) : hazardChanceBase;
+        if (rng() < hazardChance) {
+          const hzW = (endless ? 50 : 40) + Math.floor(rng() * (endless ? 90 : 60));
           hazards.push({ x: x + platW + (gap - hzW) / 2, y: baseY - 20, w: hzW, h: 20 });
         }
         // Occasionally add a powerup on top of a platform
-        if (rng() < 0.18 + 0.25 * d) {
+        const powerChance = endless ? (0.10 + 0.18 * d) : (0.18 + 0.25 * d);
+        if (rng() < powerChance) {
           powerups.push({ x: plat.x + Math.floor(plat.w/2) - 10, y: plat.y - 20, w: 20, h: 20, type: 'double' });
         }
         x += platW + gap;
@@ -1907,7 +1928,7 @@
       }
 
       if (player.onGround && !wasOnGround) {
-        jumpsLeft = isMonks ? 999 : (hasDoubleJump ? 2 : 1);
+        jumpsLeft = isMonks ? 999 : (hasDoubleJump ? (isEvo ? 3 : 2) : 1);
         if (isGolem) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 42);
         else if (!isMonks) spawnParticles('land', player.x + player.w * 0.5, player.y + player.h, 18);
         if (!isMonks && !isNinja) sfxLand();
@@ -1991,7 +2012,8 @@
             if (!isMonks) {
               hasDoubleJump = true;
               doubleJumpTimer = 15; // seconds
-              jumpsLeft = player.onGround ? 2 : Math.max(1, jumpsLeft);
+              const maxJumps = isEvo ? 3 : 2;
+              jumpsLeft = player.onGround ? maxJumps : Math.max(maxJumps - 1, jumpsLeft);
             }
             doubleJumpAura = Math.max(doubleJumpAura, 15);
             spawnParticles('power', pu.x + pu.w * 0.5, pu.y + pu.h * 0.5, 30);
@@ -2358,10 +2380,22 @@
           const a = Math.min(1, doubleJumpAura / 15);
           ctx.save();
           ctx.globalAlpha = 0.35 * a;
-          ctx.shadowColor = 'rgba(59,130,246,0.9)';
+          ctx.shadowColor = (skin.id === 'evo-ninja') ? 'rgba(168,85,247,0.85)' : 'rgba(59,130,246,0.9)';
           ctx.shadowBlur = 22;
-          ctx.fillStyle = 'rgba(59,130,246,0.25)';
+          ctx.fillStyle = (skin.id === 'evo-ninja') ? 'rgba(168,85,247,0.22)' : 'rgba(59,130,246,0.25)';
           roundRectPath(x - 6, y - 6, player.w + 12, player.h + 12, 14);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        if (skin.id === 'evo-ninja' && hasDoubleJump && doubleJumpTimer > 0) {
+          const a = clamp(doubleJumpTimer / 15, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = 0.22 + 0.18 * a;
+          ctx.shadowColor = 'rgba(168,85,247,0.9)';
+          ctx.shadowBlur = 18;
+          ctx.fillStyle = 'rgba(168,85,247,0.14)';
+          roundRectPath(x - 3, y - 3, player.w + 6, player.h + 6, 12);
           ctx.fill();
           ctx.restore();
         }
@@ -2617,7 +2651,7 @@
           lines.push(`Super Teleport (G): ${superCd}`);
         }
         if (skin.id === 'iron-golem') lines.push(`Shield: ${Math.max(0, golemLives)}/4`);
-        if (hasDoubleJump && skin.id !== 'monks') lines.push(`Double-jump: ON (${Math.ceil(doubleJumpTimer)}s)`);
+        if (hasDoubleJump && skin.id !== 'monks') lines.push(`${(skin.id === 'evo-ninja') ? 'Triple-jump' : 'Double-jump'}: ON (${Math.ceil(doubleJumpTimer)}s)`);
 
         if (missions.length) {
           lines.push(missionsStage === 2 ? 'Bonus Missions:' : 'Missions:');
