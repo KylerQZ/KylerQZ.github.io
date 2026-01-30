@@ -1,0 +1,11 @@
+.DS_Store
+.DS_Store?
+
+# Godot 4 editor/cache
+**/.godot/
+
+# Godot UID files
+**/*.uid
+
+# Optional: editor backups
+**/*~
