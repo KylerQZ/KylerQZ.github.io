@@ -78,7 +78,14 @@
         <a class="btn link" href="../../games.html">Back to Games</a>
       </section>
 
-      <section class="panel center">
+      <section class="panel center" id="homePanel">
+        <div class="card">
+          <div class="cardTitle">Lobby</div>
+          <div class="centerText" id="lobbyText">Join a room to chat. The round table appears when the game starts.</div>
+        </div>
+      </section>
+
+      <section class="panel center" id="tablePanel">
         <div class="tableWrap">
           <div class="table" id="table">
             <div class="tableCenter">
@@ -98,7 +105,7 @@
             <input id="chatInput" type="text" placeholder="Type a message" maxlength="200" />
             <button id="chatSendBtn" class="btn primary">Send</button>
           </div>
-          <div class="hint">Chat is always enabled (including night).</div>
+          <div class="hint" id="chatHint">Chat is enabled in the lobby and during discussion/voting.</div>
         </div>
       </section>
     </main>

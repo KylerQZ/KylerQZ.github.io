@@ -344,6 +344,20 @@ io.on('connection', (socket) => {
     const player = room.players.get(socket.id);
     if (!player) return;
 
+    const phase = room.phase || 'lobby';
+    const isOutOfGame = phase === 'lobby' || phase === 'results';
+    const isChatPhase = phase === 'day' || phase === 'voting';
+
+    if (!isOutOfGame && !isChatPhase) {
+      systemToSocket(socket, 'Chat is disabled right now.');
+      return;
+    }
+
+    if (!isOutOfGame && !player.alive) {
+      systemToSocket(socket, 'You cannot chat while dead.');
+      return;
+    }
+
     const text = String((payload && payload.text) || '').trim().slice(0, 200);
     if (!text) return;
 

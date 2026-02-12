@@ -16,9 +16,13 @@ const els = {
   actionArea: document.getElementById('actionArea'),
   seats: document.getElementById('seats'),
   tableSub: document.getElementById('tableSub'),
+  homePanel: document.getElementById('homePanel'),
+  tablePanel: document.getElementById('tablePanel'),
+  lobbyText: document.getElementById('lobbyText'),
   chatLog: document.getElementById('chatLog'),
   chatInput: document.getElementById('chatInput'),
-  chatSendBtn: document.getElementById('chatSendBtn')
+  chatSendBtn: document.getElementById('chatSendBtn'),
+  chatHint: document.getElementById('chatHint')
 };
 
 const STORAGE = {
@@ -72,6 +76,53 @@ let state = {
   timeRemainingMs: null,
   players: []
 };
+
+function isInGamePhase(phase) {
+  return phase === 'day' || phase === 'voting' || phase === 'night';
+}
+
+function canChatNow() {
+  if (!state.connected) return false;
+  if (!state.roomCode) return false;
+
+  const phase = state.phase || 'lobby';
+  const self = (state.players || []).find(p => p.id === state.selfId);
+  const alive = self ? self.alive !== false : true;
+
+  if (phase === 'lobby') return true;
+  if (phase === 'results') return true;
+  if (!alive) return false;
+  return phase === 'day' || phase === 'voting';
+}
+
+function updateChatUI() {
+  const enabled = canChatNow();
+  els.chatInput.disabled = !enabled;
+  els.chatSendBtn.disabled = !enabled;
+
+  if (!state.roomCode) {
+    els.chatHint.textContent = 'Join a room to chat.';
+    return;
+  }
+
+  const phase = state.phase || 'lobby';
+  if (phase === 'lobby') {
+    els.chatHint.textContent = 'Lobby chat is enabled.';
+    return;
+  }
+
+  if (phase === 'night') {
+    els.chatHint.textContent = 'Night: chat is disabled.';
+    return;
+  }
+
+  if (phase === 'results') {
+    els.chatHint.textContent = 'Game ended. Lobby chat is enabled.';
+    return;
+  }
+
+  els.chatHint.textContent = 'Chat is enabled during discussion/voting.';
+}
 
 function readInputs() {
   const serverUrl = (els.serverUrl.value || '').trim();
@@ -208,9 +259,17 @@ function renderAll() {
   els.roleValue.textContent = state.role || '-';
 
   const isHost = state.selfId && state.hostId === state.selfId;
-  els.hostActions.style.display = isHost && (!state.phase || state.phase === 'lobby') ? '' : 'none';
+  els.hostActions.style.display = isHost && (!state.phase || state.phase === 'lobby' || state.phase === 'results') ? '' : 'none';
 
   els.tableSub.textContent = state.roomCode ? 'Room ' + state.roomCode : 'Join a room to sit down';
+
+  const showTable = !!state.roomCode && isInGamePhase(state.phase);
+  if (els.homePanel && els.tablePanel) {
+    els.homePanel.style.display = showTable ? 'none' : '';
+    els.tablePanel.style.display = showTable ? '' : 'none';
+  }
+
+  updateChatUI();
 
   renderSeats();
   renderActionArea();
@@ -281,6 +340,14 @@ function renderActionArea() {
     const p = document.createElement('div');
     p.className = 'pill';
     p.textContent = 'Waiting for the host to start.';
+    addActionNode(p);
+    return;
+  }
+
+  if (state.phase === 'results') {
+    const p = document.createElement('div');
+    p.className = 'pill';
+    p.textContent = 'Game ended. The host can start a new round.';
     addActionNode(p);
     return;
   }
@@ -469,6 +536,17 @@ function appendChat(msg, system = false) {
 
 function sendChat() {
   if (!socket || !socket.connected) return;
+
+  if (!state.roomCode) {
+    pushHint('Join a room to chat.');
+    return;
+  }
+
+  if (!canChatNow()) {
+    pushHint('Chat is disabled right now.');
+    return;
+  }
+
   const text = (els.chatInput.value || '').trim();
   if (!text) return;
   els.chatInput.value = '';
@@ -503,3 +581,5 @@ els.chatSendBtn.addEventListener('click', sendChat);
 els.chatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendChat();
 });
+
+renderAll();
