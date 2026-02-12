@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mafia Online</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">Mafia Online</div>
+      <div class="status" id="status">Disconnected</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel left">
+        <div class="card">
+          <div class="cardTitle">Connect</div>
+
+          <div class="field">
+            <label for="serverUrl">Server URL</label>
+            <input id="serverUrl" type="text" placeholder="http://localhost:3001" />
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" placeholder="Your name" maxlength="16" />
+            </div>
+            <div class="field">
+              <label for="roomCode">Room</label>
+              <input id="roomCode" type="text" placeholder="ABCDE" maxlength="8" />
+            </div>
+          </div>
+
+          <div class="row actions">
+            <button id="createRoomBtn" class="btn primary">Create Room</button>
+            <button id="joinRoomBtn" class="btn">Join Room</button>
+          </div>
+
+          <div class="hint" id="connectHint"></div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle">Game</div>
+          <div class="kv">
+            <div class="k">Room</div>
+            <div class="v" id="roomValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Phase</div>
+            <div class="v" id="phaseValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Time</div>
+            <div class="v" id="timeValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">You</div>
+            <div class="v" id="youValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Role</div>
+            <div class="v" id="roleValue">-</div>
+          </div>
+
+          <div class="row actions" id="hostActions" style="display:none;">
+            <button id="startGameBtn" class="btn primary">Start Game</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div id="actionArea" class="actionArea"></div>
+        </div>
+
+        <a class="btn link" href="../../games.html">Back to Games</a>
+      </section>
+
+      <section class="panel center">
+        <div class="tableWrap">
+          <div class="table" id="table">
+            <div class="tableCenter">
+              <div class="tableLabel">Round Table</div>
+              <div class="tableSub" id="tableSub">Join a room to sit down</div>
+            </div>
+            <div id="seats"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel right">
+        <div class="card chat">
+          <div class="cardTitle">Chat</div>
+          <div class="chatLog" id="chatLog"></div>
+          <div class="chatRow">
+            <input id="chatInput" type="text" placeholder="Type a message" maxlength="200" />
+            <button id="chatSendBtn" class="btn primary">Send</button>
+          </div>
+          <div class="hint">Chat is always enabled (including night).</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
