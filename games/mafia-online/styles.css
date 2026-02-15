@@ -71,6 +71,44 @@ body{
 
 .cardTitle{font-weight:750; margin-bottom:10px; color:var(--brand);}
 
+.subTitle{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:750;
+  margin-bottom:8px;
+}
+
+.list{display:flex; flex-direction:column; gap:8px;}
+
+.listItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 10px;
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:rgba(0,0,0,0.14);
+}
+
+.itemLeft{display:flex; align-items:center; gap:10px; min-width:0;}
+
+.itemIcon{
+  width:30px;
+  height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--stroke);
+  flex:0 0 auto;
+}
+
+.itemName{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.itemMeta{font-size:12px; color:var(--muted); margin-top:2px;}
+.itemText{min-width:0;}
+
 .field{display:flex; flex-direction:column; gap:6px; flex:1;}
 label{font-size:12px; color:var(--muted);}
 
@@ -172,6 +210,12 @@ input:focus{border-color:rgba(212,175,55,0.5); box-shadow:0 0 0 3px rgba(212,175
 .seatName{font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .seatMeta{margin-top:4px; font-size:12px; color:var(--muted);}
 .seatMeta.dead{color:rgba(255,77,77,0.9);}
+
+.seatCosmetic{
+  margin-top:6px;
+  font-size:18px;
+  opacity:0.95;
+}
 
 .chat{display:flex; flex-direction:column; min-height:520px;}
 .chatLog{

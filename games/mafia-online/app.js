@@ -14,6 +14,9 @@ const els = {
   hostActions: document.getElementById('hostActions'),
   startGameBtn: document.getElementById('startGameBtn'),
   actionArea: document.getElementById('actionArea'),
+  tokenBalance: document.getElementById('tokenBalance'),
+  shopList: document.getElementById('shopList'),
+  ownedList: document.getElementById('ownedList'),
   seats: document.getElementById('seats'),
   tableSub: document.getElementById('tableSub'),
   homePanel: document.getElementById('homePanel'),
@@ -28,8 +31,139 @@ const els = {
 const STORAGE = {
   serverUrl: 'mafia_server_url',
   guestId: 'mafia_guest_id',
-  name: 'mafia_name'
+  name: 'mafia_name',
+  profile: 'mafia_profile_v1'
 };
+
+const COSMETICS = [
+  { id: 'none', name: 'None', icon: '🙂', price: 0 },
+  { id: 'crown', name: 'Crown', icon: '👑', price: 250 },
+  { id: 'top_hat', name: 'Top Hat', icon: '🎩', price: 200 },
+  { id: 'sunglasses', name: 'Sunglasses', icon: '🕶️', price: 150 },
+  { id: 'clown', name: 'Clown', icon: '🤡', price: 100 },
+  { id: 'alien', name: 'Alien', icon: '👽', price: 125 }
+];
+
+function cosmeticsById() {
+  const m = new Map();
+  for (const c of COSMETICS) m.set(c.id, c);
+  return m;
+}
+
+const COSMETICS_MAP = cosmeticsById();
+
+function defaultProfile() {
+  return {
+    tokens: 300,
+    owned: ['none'],
+    equipped: 'none'
+  };
+}
+
+function readProfile() {
+  try {
+    const raw = localStorage.getItem(STORAGE.profile);
+    if (!raw) return defaultProfile();
+    const p = JSON.parse(raw);
+    const tokens = Number.isFinite(p.tokens) ? p.tokens : defaultProfile().tokens;
+    const owned = Array.isArray(p.owned) ? p.owned.filter((id) => COSMETICS_MAP.has(id)) : defaultProfile().owned;
+    const equipped = typeof p.equipped === 'string' && COSMETICS_MAP.has(p.equipped) ? p.equipped : 'none';
+    if (!owned.includes('none')) owned.push('none');
+    if (!owned.includes(equipped)) owned.push(equipped);
+    return { tokens, owned, equipped };
+  } catch {
+    return defaultProfile();
+  }
+}
+
+function saveProfile(profile) {
+  localStorage.setItem(STORAGE.profile, JSON.stringify(profile));
+}
+
+let profile = readProfile();
+
+function cosmeticIcon(cosmeticId) {
+  const c = COSMETICS_MAP.get(cosmeticId || 'none') || COSMETICS_MAP.get('none');
+  return c ? c.icon : '🙂';
+}
+
+function renderCosmeticsUI() {
+  if (!els.tokenBalance || !els.shopList || !els.ownedList) return;
+
+  els.tokenBalance.textContent = String(profile.tokens);
+
+  const equipped = profile.equipped;
+  const ownedSet = new Set(profile.owned);
+
+  const shop = COSMETICS.filter((c) => !ownedSet.has(c.id));
+  const owned = COSMETICS.filter((c) => ownedSet.has(c.id));
+
+  els.shopList.innerHTML = shop.length
+    ? shop.map((c) => {
+        const disabled = profile.tokens < c.price;
+        const buyLabel = disabled ? 'Need ' + (c.price - profile.tokens) : 'Buy';
+        return `
+          <div class="listItem">
+            <div class="itemLeft">
+              <div class="itemIcon">${escapeText(c.icon)}</div>
+              <div class="itemText">
+                <div class="itemName">${escapeText(c.name)}</div>
+                <div class="itemMeta">${c.price} tokens</div>
+              </div>
+            </div>
+            <button class="btn primary" data-buy="${escapeText(c.id)}" ${disabled ? 'disabled' : ''}>${buyLabel}</button>
+          </div>
+        `;
+      }).join('')
+    : `<div class="hint">No items in the shop.</div>`;
+
+  els.ownedList.innerHTML = owned.map((c) => {
+    const isEquipped = c.id === equipped;
+    return `
+      <div class="listItem">
+        <div class="itemLeft">
+          <div class="itemIcon">${escapeText(c.icon)}</div>
+          <div class="itemText">
+            <div class="itemName">${escapeText(c.name)}</div>
+            <div class="itemMeta">${isEquipped ? 'Equipped' : 'Owned'}</div>
+          </div>
+        </div>
+        <button class="btn ${isEquipped ? 'primary' : ''}" data-equip="${escapeText(c.id)}" ${isEquipped ? 'disabled' : ''}>${isEquipped ? 'Equipped' : 'Equip'}</button>
+      </div>
+    `;
+  }).join('');
+
+  for (const btn of els.shopList.querySelectorAll('button[data-buy]')) {
+    btn.addEventListener('click', () => buyCosmetic(btn.getAttribute('data-buy')));
+  }
+  for (const btn of els.ownedList.querySelectorAll('button[data-equip]')) {
+    btn.addEventListener('click', () => equipCosmetic(btn.getAttribute('data-equip')));
+  }
+}
+
+function buyCosmetic(id) {
+  if (!id || !COSMETICS_MAP.has(id)) return;
+  if (profile.owned.includes(id)) return;
+  const c = COSMETICS_MAP.get(id);
+  if (profile.tokens < c.price) return;
+  profile.tokens -= c.price;
+  profile.owned.push(id);
+  saveProfile(profile);
+  renderCosmeticsUI();
+}
+
+function equipCosmetic(id) {
+  if (!id || !COSMETICS_MAP.has(id)) return;
+  if (!profile.owned.includes(id)) return;
+  profile.equipped = id;
+  saveProfile(profile);
+  renderCosmeticsUI();
+  renderAll();
+
+  if (socket && socket.connected && state.roomCode) {
+    socket.emit('setCosmetic', { cosmeticId: id });
+  }
+}
 
 function randomCode(len) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -106,6 +240,8 @@ function updateChatUI() {
   }
 
   const phase = state.phase || 'lobby';
+  const self = (state.players || []).find(p => p.id === state.selfId);
+  const alive = self ? self.alive !== false : true;
   if (phase === 'lobby') {
     els.chatHint.textContent = 'Lobby chat is enabled.';
     return;
@@ -118,6 +254,11 @@ function updateChatUI() {
 
   if (phase === 'results') {
     els.chatHint.textContent = 'Game ended. Lobby chat is enabled.';
+    return;
+  }
+
+  if (!alive) {
+    els.chatHint.textContent = 'You are dead: chat is disabled.';
     return;
   }
 
@@ -212,6 +353,15 @@ function connect(serverUrl) {
       appendChat({ name: 'System', text: payload.text, at: payload.at }, true);
     }
   });
+
+  socket.on('tokenAward', (payload) => {
+    const amount = Number(payload && payload.amount);
+    if (!Number.isFinite(amount) || amount === 0) return;
+    profile.tokens += amount;
+    saveProfile(profile);
+    renderCosmeticsUI();
+    appendChat({ name: 'System', text: `You earned ${amount} tokens.`, at: nowTime() }, true);
+  });
 }
 
 function connectThen(serverUrl, fn) {
@@ -233,7 +383,8 @@ function joinRoom(roomCode) {
   socket.emit('joinRoom', {
     roomCode,
     guestId,
-    name
+    name,
+    equippedCosmeticId: profile.equipped
   });
 }
 
@@ -271,6 +422,8 @@ function renderAll() {
 
   updateChatUI();
 
+  renderCosmeticsUI();
+
   renderSeats();
   renderActionArea();
 }
@@ -296,10 +449,15 @@ function renderSeats() {
     const dead = p.alive === false;
     const meta = dead ? 'DEAD' : 'ALIVE';
 
+    const cosmeticId = p.cosmeticId || (p.id === state.selfId ? profile.equipped : 'none');
+    const icon = cosmeticIcon(cosmeticId);
+    const showIcon = cosmeticId && cosmeticId !== 'none';
+
     seat.innerHTML = `
       <div class="seatBadge">
         <div class="seatName">${escapeText(p.name || 'Player')}</div>
         <div class="seatMeta ${dead ? 'dead' : ''}">${meta}</div>
+        ${showIcon ? `<div class="seatCosmetic">${escapeText(icon)}</div>` : ''}
       </div>
     `;
 
@@ -331,7 +489,7 @@ function renderActionArea() {
   if (!alive) {
     const p = document.createElement('div');
     p.className = 'pill danger';
-    p.textContent = 'You are dead. You can still chat.';
+    p.textContent = 'You are dead.';
     addActionNode(p);
     return;
   }

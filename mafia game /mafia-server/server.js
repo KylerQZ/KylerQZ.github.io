@@ -42,8 +42,16 @@ function roomPlayersPublic(room) {
   return Array.from(room.players.values()).map((p) => ({
     id: p.id,
     name: p.name,
-    alive: p.alive
+    alive: p.alive,
+    cosmeticId: p.cosmeticId || 'none'
   }));
+}
+
+function cleanCosmeticId(id) {
+  const s = String(id || '').trim().slice(0, 24);
+  if (!s) return 'none';
+  if (!/^[a-z0-9_\-]+$/i.test(s)) return 'none';
+  return s;
 }
 
 function emitRoomState(room) {
@@ -93,6 +101,7 @@ function setPhase(room, phase) {
   clearRoomTimers(room);
 
   if (phase === 'lobby' || phase === 'results') {
+    room.started = false;
     emitRoomState(room);
     return;
   }
@@ -108,6 +117,20 @@ function alivePlayers(room) {
   return Array.from(room.players.values()).filter((p) => p.alive);
 }
 
+function awardTokens(room, winningTeam) {
+  if (room.awardedGameId === room.gameId) return;
+  room.awardedGameId = room.gameId;
+
+  for (const p of room.players.values()) {
+    const s = io.sockets.sockets.get(p.id);
+    if (!s) continue;
+
+    const isWinner = (winningTeam === 'mafia' && p.role === 'mafia') || (winningTeam === 'villagers' && p.role !== 'mafia');
+    const amount = isWinner ? 75 : 25;
+    s.emit('tokenAward', { amount });
+  }
+}
+
 function checkWin(room) {
   const alive = alivePlayers(room);
   const mafiaAlive = alive.filter((p) => p.role === 'mafia').length;
@@ -116,12 +139,14 @@ function checkWin(room) {
   if (mafiaAlive <= 0) {
     systemToRoom(room, 'Villagers win! All Mafia have been eliminated.');
     setPhase(room, 'results');
+    awardTokens(room, 'villagers');
     return true;
   }
 
   if (mafiaAlive >= villagersAlive) {
     systemToRoom(room, 'Mafia win! They control the town.');
     setPhase(room, 'results');
+    awardTokens(room, 'mafia');
     return true;
   }
 
@@ -245,6 +270,8 @@ function createRoomIfMissing(roomCode) {
     phaseTimer: null,
     tickInterval: null,
     started: false,
+    gameId: 0,
+    awardedGameId: -1,
     players: new Map(),
     votes: new Map(),
     nightActions: {
@@ -276,13 +303,15 @@ io.on('connection', (socket) => {
 
     const name = cleanName(payload && payload.name);
     const guestId = String((payload && payload.guestId) || '').trim().slice(0, 64);
+    const cosmeticId = cleanCosmeticId(payload && payload.equippedCosmeticId);
 
     room.players.set(socket.id, {
       id: socket.id,
       guestId,
       name,
       alive: true,
-      role: null
+      role: null,
+      cosmeticId
     });
 
     if (!room.hostId) room.hostId = socket.id;
@@ -323,6 +352,8 @@ io.on('connection', (socket) => {
     }
 
     room.started = true;
+    room.gameId += 1;
+    room.awardedGameId = -1;
     for (const p of room.players.values()) {
       p.alive = true;
       p.role = null;
@@ -332,6 +363,20 @@ io.on('connection', (socket) => {
     systemToRoom(room, 'Game started. Roles assigned.');
     systemToRoom(room, 'Day begins. Discuss.');
     setPhase(room, 'day');
+  });
+
+  socket.on('setCosmetic', (payload) => {
+    const roomCode = socket.data.roomCode;
+    if (!roomCode) return;
+
+    const room = rooms.get(roomCode);
+    if (!room) return;
+
+    const player = room.players.get(socket.id);
+    if (!player) return;
+
+    player.cosmeticId = cleanCosmeticId(payload && payload.cosmeticId);
+    emitRoomState(room);
   });
 
   socket.on('chatMessage', (payload) => {
