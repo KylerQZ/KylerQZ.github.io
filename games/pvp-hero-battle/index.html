@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PvP Hero Battle</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">PvP Hero Battle</div>
+      <div class="status" id="status">Disconnected</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel left">
+        <div class="card">
+          <div class="cardTitle">Connect</div>
+
+          <div class="field">
+            <label for="serverUrl">Server URL</label>
+            <input id="serverUrl" type="text" placeholder="http://localhost:3010" />
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" placeholder="Your name" maxlength="16" />
+            </div>
+            <div class="field">
+              <label for="roomCode">Room</label>
+              <input id="roomCode" type="text" placeholder="ABCDE" maxlength="8" />
+            </div>
+          </div>
+
+          <div class="row actions">
+            <button id="connectBtn" class="btn primary">Connect</button>
+            <button id="joinBtn" class="btn" disabled>Join Room</button>
+          </div>
+
+          <div class="hint" id="connectHint"></div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle">Navigation</div>
+          <div class="navRow">
+            <button class="btn" data-page="battle">Battle</button>
+            <button class="btn" data-page="friendly">Friendly Match</button>
+            <button class="btn" data-page="ranked">Rank</button>
+            <button class="btn" data-page="collection">Collection</button>
+            <button class="btn" data-page="packs">Packs</button>
+            <button class="btn" data-page="market">Market</button>
+            <button class="btn" data-page="bazaar">Bazaar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle">Profile</div>
+          <div class="kv">
+            <div class="k">League</div>
+            <div class="v" id="leagueValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Points</div>
+            <div class="v" id="pointsValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Shards</div>
+            <div class="v" id="shardsValue">-</div>
+          </div>
+          <div class="kv">
+            <div class="k">Equipped</div>
+            <div class="v" id="equippedValue">-</div>
+          </div>
+        </div>
+
+        <a class="btn link" href="../../games.html">Back to Games</a>
+      </section>
+
+      <section class="panel center">
+        <div class="card page" id="page-battle">
+          <div class="cardTitle">Battle</div>
+
+          <div class="hint">Room: <span id="roomValue">-</span></div>
+
+          <div class="row actions">
+            <button id="readyBtn" class="btn primary" disabled>Ready</button>
+            <button id="leaveBtn" class="btn" disabled>Leave Room</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="subTitle">Select Hero</div>
+          <div id="heroSelect" class="list"></div>
+
+          <div class="divider"></div>
+
+          <div class="battleGrid">
+            <div class="battleSide">
+              <div class="subTitle">You</div>
+              <div class="hpBar"><div class="hpFill" id="selfHpFill"></div></div>
+              <div class="hint" id="selfHpText">-</div>
+            </div>
+            <div class="battleSide">
+              <div class="subTitle">Opponent</div>
+              <div class="hpBar"><div class="hpFill" id="oppHpFill"></div></div>
+              <div class="hint" id="oppHpText">-</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row actions">
+            <button id="basicBtn" class="btn" disabled>Basic Attack</button>
+            <button id="skillBtn" class="btn primary" disabled>Skill</button>
+            <div class="pill" id="turnPill">Turn: -</div>
+            <div class="pill" id="timerPill">Time: -</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="subTitle">Battle Log</div>
+          <div class="log" id="battleLog"></div>
+        </div>
+
+        <div class="card page" id="page-collection" style="display:none;">
+          <div class="cardTitle">Hero Collection</div>
+          <div class="hint">Owned heroes. Click to equip.</div>
+          <div class="divider"></div>
+          <div id="collectionList" class="list"></div>
+        </div>
+
+        <div class="card page" id="page-packs" style="display:none;">
+          <div class="cardTitle">Packs</div>
+          <div class="hint">Open packs to unlock new heroes. Duplicates give shards.</div>
+          <div class="divider"></div>
+          <button id="openPackBtn" class="btn primary" disabled>Open Hero Pack</button>
+          <div class="hint" id="packHint"></div>
+          <div class="divider"></div>
+          <div id="packResult" class="packResult"></div>
+        </div>
+
+        <div class="card page" id="page-ranked" style="display:none;">
+          <div class="cardTitle">Rank</div>
+          <div class="hint">For v1, ranked uses room matches with server-side points changes. (Queue can be added next.)</div>
+          <div class="divider"></div>
+          <div class="subTitle">How ranked works (v1)</div>
+          <div class="hint">Create/join a room with a friend. After the match ends, the server updates points (+25 win / -20 loss). Leagues update automatically.</div>
+        </div>
+
+        <div class="card page" id="page-friendly" style="display:none;">
+          <div class="cardTitle">Friendly Match</div>
+          <div class="hint">Use a room code to play with a friend. One of you creates a room code, the other joins the same code.</div>
+          <div class="divider"></div>
+          <div class="hint">Tip: In offline mode, Quick Play matches you vs AI.</div>
+        </div>
+
+        <div class="card page" id="page-market" style="display:none;">
+          <div class="cardTitle">Market</div>
+          <div class="hint">Coming soon. This will be the official shop (packs, bundles, cosmetics).</div>
+        </div>
+
+        <div class="card page" id="page-bazaar" style="display:none;">
+          <div class="cardTitle">Bazaar</div>
+          <div class="hint">Coming soon. This will be player trading / listings.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
