@@ -878,6 +878,12 @@ function setPage(page) {
   document.querySelectorAll('.page').forEach((p) => p.style.display = 'none');
   const el = document.getElementById('page-' + page);
   if (el) el.style.display = '';
+
+  document.querySelectorAll('.sbBtn[data-page]').forEach((btn) => {
+    const p = btn.getAttribute('data-page');
+    if (p === page) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
 }
 
 function renderAll() {
