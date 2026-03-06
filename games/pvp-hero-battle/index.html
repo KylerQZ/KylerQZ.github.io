@@ -27,36 +27,16 @@
         <a class="sbBtn sbLink" href="../../games.html" title="Back to Games">↩</a>
       </aside>
 
-      <section class="panel left">
-        <div class="card">
-          <div class="cardTitle">Connect</div>
+      <section class="panel center">
+        <div class="card page" id="page-menu">
+          <div class="cardTitle">Menu</div>
+          <div class="hint">Choose where you want to go.</div>
+          <div class="divider"></div>
+          <div class="hint">Use the buttons on the left sidebar.</div>
 
-          <div class="field">
-            <label for="serverUrl">Server URL</label>
-            <input id="serverUrl" type="text" placeholder="http://localhost:3010" />
-          </div>
+          <div class="divider"></div>
 
-          <div class="row">
-            <div class="field">
-              <label for="name">Name</label>
-              <input id="name" type="text" placeholder="Your name" maxlength="16" />
-            </div>
-            <div class="field">
-              <label for="roomCode">Room</label>
-              <input id="roomCode" type="text" placeholder="ABCDE" maxlength="8" />
-            </div>
-          </div>
-
-          <div class="row actions">
-            <button id="connectBtn" class="btn primary">Connect</button>
-            <button id="joinBtn" class="btn" disabled>Join Room</button>
-          </div>
-
-          <div class="hint" id="connectHint"></div>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">Profile</div>
+          <div class="subTitle">Profile</div>
           <div class="kv">
             <div class="k">League</div>
             <div class="v" id="leagueValue">-</div>
@@ -73,16 +53,6 @@
             <div class="k">Equipped</div>
             <div class="v" id="equippedValue">-</div>
           </div>
-        </div>
-
-      </section>
-
-      <section class="panel center">
-        <div class="card page" id="page-menu">
-          <div class="cardTitle">Menu</div>
-          <div class="hint">Choose where you want to go.</div>
-          <div class="divider"></div>
-          <div class="hint">Use the buttons on the left sidebar.</div>
         </div>
 
         <div class="card page" id="page-battle" style="display:none;">
@@ -158,6 +128,32 @@
         <div class="card page" id="page-friendly" style="display:none;">
           <div class="cardTitle">Friendly Match</div>
           <div class="hint">Use a room code to play with a friend. One of you creates a room code, the other joins the same code.</div>
+          <div class="divider"></div>
+          <div class="subTitle">Connect</div>
+
+          <div class="field">
+            <label for="serverUrl">Server URL</label>
+            <input id="serverUrl" type="text" placeholder="http://localhost:3010" />
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" placeholder="Your name" maxlength="16" />
+            </div>
+            <div class="field">
+              <label for="roomCode">Room</label>
+              <input id="roomCode" type="text" placeholder="ABCDE" maxlength="8" />
+            </div>
+          </div>
+
+          <div class="row actions">
+            <button id="connectBtn" class="btn primary">Connect</button>
+            <button id="joinBtn" class="btn" disabled>Join Room</button>
+          </div>
+
+          <div class="hint" id="connectHint"></div>
+
           <div class="divider"></div>
           <div class="hint">Tip: In offline mode, Quick Play matches you vs AI.</div>
         </div>

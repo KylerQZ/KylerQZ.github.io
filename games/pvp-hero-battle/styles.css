@@ -92,7 +92,7 @@ body::after{
 
 .layout{
   display:grid;
-  grid-template-columns: 72px 380px 1fr;
+  grid-template-columns: 72px 1fr;
   gap:16px;
   padding:16px;
   flex:1;
@@ -346,5 +346,4 @@ input:focus{border-color:rgba(255,45,85,0.55); box-shadow:0 0 0 3px rgba(255,45,
 
 @media (max-width: 980px){
   .layout{grid-template-columns: 72px 1fr;}
-  .panel.left{display:none;}
 }
