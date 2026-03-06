@@ -934,7 +934,7 @@ function bindUI() {
 
 hydrateInputs();
 bindUI();
-setPage('battle');
+setPage('menu');
 startTick();
 offlineStart();
 window.addEventListener('error', (e) => {
