@@ -17,7 +17,7 @@ const WORLD = {
 const player = {
   x: 250,
   y: 250,
-  size: 14,
+  size: 15.4,
   speed: 154,
 };
 
@@ -27,6 +27,16 @@ const mouse = {
 };
 
 const keys = new Set();
+
+let mouseDown = false;
+
+const bullets = [];
+const gun = {
+  cooldown: 0.14,
+  timer: 0,
+  bulletSpeed: 560,
+  bulletRadius: 3,
+};
 
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
@@ -51,6 +61,18 @@ canvas.addEventListener('mousemove', (e) => {
   mouse.y = clamp(sy, 0, canvas.height);
 });
 
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  mouseDown = true;
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 0) return;
+  mouseDown = false;
+});
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
@@ -68,6 +90,80 @@ function roundedRectPath(x, y, w, h, r) {
   ctx.lineTo(x, y + rr);
   ctx.quadraticCurveTo(x, y, x + rr, y);
   ctx.closePath();
+}
+
+function roundedRectPathTo(g, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + rr, y);
+  g.lineTo(x + w - rr, y);
+  g.quadraticCurveTo(x + w, y, x + w, y + rr);
+  g.lineTo(x + w, y + h - rr);
+  g.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  g.lineTo(x + rr, y + h);
+  g.quadraticCurveTo(x, y + h, x, y + h - rr);
+  g.lineTo(x, y + rr);
+  g.quadraticCurveTo(x, y, x + rr, y);
+  g.closePath();
+}
+
+function rectContainsPoint(rx, ry, rw, rh, px, py) {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
+  const eps = 1e-8;
+  let tmin = -Infinity;
+  let tmax = Infinity;
+
+  if (Math.abs(dx) < eps) {
+    if (ox < rx || ox > rx + rw) return null;
+  } else {
+    let tx1 = (rx - ox) / dx;
+    let tx2 = (rx + rw - ox) / dx;
+    if (tx1 > tx2) [tx1, tx2] = [tx2, tx1];
+    tmin = Math.max(tmin, tx1);
+    tmax = Math.min(tmax, tx2);
+  }
+
+  if (Math.abs(dy) < eps) {
+    if (oy < ry || oy > ry + rh) return null;
+  } else {
+    let ty1 = (ry - oy) / dy;
+    let ty2 = (ry + rh - oy) / dy;
+    if (ty1 > ty2) [ty1, ty2] = [ty2, ty1];
+    tmin = Math.max(tmin, ty1);
+    tmax = Math.min(tmax, ty2);
+  }
+
+  if (tmax < 0) return null;
+  if (tmin > tmax) return null;
+
+  const tHit = tmin >= 0 ? tmin : tmax;
+  if (tHit < 0) return null;
+  if (tHit > maxDist) return null;
+  return tHit;
+}
+
+function raycastToWalls(ox, oy, dx, dy, maxDist, screenWalls) {
+  let best = maxDist;
+  for (const w of screenWalls) {
+    if (rectContainsPoint(w.x, w.y, w.w, w.h, ox, oy)) continue;
+    const hit = rayAabbDistance(ox, oy, dx, dy, w.x, w.y, w.w, w.h, maxDist);
+    if (hit === null) continue;
+    if (hit < best) best = hit;
+  }
+  return best;
+}
+
+function getAimDirectionScreen(cam) {
+  const px = player.x - cam.x;
+  const py = player.y - cam.y;
+  const dx = mouse.x - px;
+  const dy = mouse.y - py;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.001) return { x: 1, y: 0 };
+  return { x: dx / len, y: dy / len };
 }
 
 // Map: 3 rooms + 1 corridor. Walls are rectangles you can't walk through.
@@ -230,6 +326,85 @@ function drawPlayer(cam) {
   roundedRectPath(visorX + 1, visorY + 1, Math.max(2, Math.round(visorW * 0.35)), Math.max(2, Math.round(visorH * 0.55)), Math.round(s * 0.25));
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  const aim = getAimDirectionScreen(cam);
+  const ang = Math.atan2(aim.y, aim.x);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+  ctx.fillStyle = '#1c1c1c';
+  ctx.fillRect(Math.round(s * 0.35), Math.round(-s * 0.16), Math.round(s * 0.75), Math.max(3, Math.round(s * 0.22)));
+  ctx.fillStyle = '#2c2c2c';
+  ctx.fillRect(Math.round(s * 0.35), Math.round(s * 0.02), Math.round(s * 0.26), Math.max(3, Math.round(s * 0.34)));
+  ctx.restore();
+}
+
+function shoot(cam) {
+  const aim = getAimDirectionScreen(cam);
+  const mxWorld = cam.x + mouse.x;
+  const myWorld = cam.y + mouse.y;
+  const dx = mxWorld - player.x;
+  const dy = myWorld - player.y;
+  const len = Math.hypot(dx, dy);
+  const ux = len > 0.001 ? dx / len : aim.x;
+  const uy = len > 0.001 ? dy / len : aim.y;
+
+  bullets.push({
+    x: player.x + ux * (player.size * 0.9),
+    y: player.y + uy * (player.size * 0.9),
+    vx: ux * gun.bulletSpeed,
+    vy: uy * gun.bulletSpeed,
+    r: gun.bulletRadius,
+    life: 2.0,
+  });
+}
+
+function stepBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.life -= dt;
+    if (b.life <= 0) {
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    const moveX = b.vx * dt;
+    const moveY = b.vy * dt;
+    const dist = Math.hypot(moveX, moveY);
+    if (dist < 0.0001) continue;
+    const dx = moveX / dist;
+    const dy = moveY / dist;
+
+    let bestHit = null;
+    for (const w of WALLS) {
+      const rx = w.x - b.r;
+      const ry = w.y - b.r;
+      const rw = w.w + b.r * 2;
+      const rh = w.h + b.r * 2;
+      const hit = rayAabbDistance(b.x, b.y, dx, dy, rx, ry, rw, rh, dist);
+      if (hit === null) continue;
+      if (bestHit === null || hit < bestHit) bestHit = hit;
+    }
+
+    if (bestHit !== null) {
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    b.x += moveX;
+    b.y += moveY;
+  }
+}
+
+function drawBullets(cam) {
+  ctx.fillStyle = '#ffd34a';
+  for (const b of bullets) {
+    const sx = b.x - cam.x;
+    const sy = b.y - cam.y;
+    ctx.beginPath();
+    ctx.arc(sx, sy, b.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawWorld(cam) {
@@ -266,6 +441,8 @@ function drawWorld(cam) {
 
   // Player (white block)
   drawPlayer(cam);
+
+  drawBullets(cam);
 }
 
 function drawVisionMask(cam) {
@@ -278,7 +455,13 @@ function drawVisionMask(cam) {
 
   const baseRadius = 72;
   const forwardRadius = 90;
-  const forwardOffset = 51;
+
+  const screenWalls = [];
+  for (const w of WALLS) {
+    screenWalls.push({ x: w.x - cam.x, y: w.y - cam.y, w: w.w, h: w.h });
+  }
+
+  const aim = getAimDirectionScreen(cam);
 
   maskCtx.save();
 
@@ -288,33 +471,28 @@ function drawVisionMask(cam) {
   maskCtx.fillStyle = 'rgba(0, 0, 0, 0.88)';
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
-  // Cut-out circles (with feather)
+  // Cut-out polygon (vision blocked by walls)
   maskCtx.globalCompositeOperation = 'destination-out';
   {
-    const g = maskCtx.createRadialGradient(px, py, baseRadius * 0.55, px, py, baseRadius);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    maskCtx.fillStyle = g;
+    const rays = 220;
+    maskCtx.fillStyle = 'rgba(0,0,0,1)';
     maskCtx.beginPath();
-    maskCtx.arc(px, py, baseRadius, 0, Math.PI * 2);
-    maskCtx.fill();
-  }
+    for (let i = 0; i <= rays; i++) {
+      const a = (i / rays) * Math.PI * 2;
+      const dx = Math.cos(a);
+      const dy = Math.sin(a);
 
-  {
-    const dx = mouse.x - px;
-    const dy = mouse.y - py;
-    const len = Math.hypot(dx, dy);
-    const ux = len > 0.001 ? (dx / len) : 0;
-    const uy = len > 0.001 ? (dy / len) : 0;
-    const cx = px + ux * forwardOffset;
-    const cy = py + uy * forwardOffset;
+      const dot = dx * aim.x + dy * aim.y;
+      const boost = Math.max(0, dot);
+      const maxDist = baseRadius + (forwardRadius - baseRadius) * Math.pow(boost, 1.35);
 
-    const g2 = maskCtx.createRadialGradient(cx, cy, forwardRadius * 0.55, cx, cy, forwardRadius);
-    g2.addColorStop(0, 'rgba(0,0,0,1)');
-    g2.addColorStop(1, 'rgba(0,0,0,0)');
-    maskCtx.fillStyle = g2;
-    maskCtx.beginPath();
-    maskCtx.arc(cx, cy, forwardRadius, 0, Math.PI * 2);
+      const dist = raycastToWalls(px, py, dx, dy, maxDist, screenWalls);
+      const x = px + dx * dist;
+      const y = py + dy * dist;
+      if (i === 0) maskCtx.moveTo(x, y);
+      else maskCtx.lineTo(x, y);
+    }
+    maskCtx.closePath();
     maskCtx.fill();
   }
 
@@ -334,7 +512,15 @@ function frame(now) {
   const { dx, dy } = getInputDir();
   tryMove(dx * player.speed * dt, dy * player.speed * dt);
 
+  stepBullets(dt);
+
   const cam = getCamera();
+
+  gun.timer = Math.max(0, gun.timer - dt);
+  if (mouseDown && gun.timer <= 0) {
+    shoot(cam);
+    gun.timer = gun.cooldown;
+  }
 
   drawWorld(cam);
   drawVisionMask(cam);
