@@ -1,6 +1,14 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
+const maskCanvas = document.createElement('canvas');
+const maskCtx = maskCanvas.getContext('2d');
+
+function syncMaskSize() {
+  if (maskCanvas.width !== canvas.width) maskCanvas.width = canvas.width;
+  if (maskCanvas.height !== canvas.height) maskCanvas.height = canvas.height;
+}
+
 const WORLD = {
   w: 1800,
   h: 1000,
@@ -262,7 +270,9 @@ function drawWorld(cam) {
 
 function drawVisionMask(cam) {
   // Among Us-like darkness: dark overlay with a circular reveal around player.
-  // We use destination-out to punch a hole in the darkness.
+  // We use destination-out to punch a hole in an OFFSCREEN darkness mask,
+  // then draw that mask on top of the world.
+  syncMaskSize();
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
@@ -270,23 +280,24 @@ function drawVisionMask(cam) {
   const forwardRadius = 150;
   const forwardOffset = 85;
 
-  ctx.save();
+  maskCtx.save();
 
   // Full darkness layer
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  maskCtx.globalCompositeOperation = 'source-over';
+  maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+  maskCtx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
-  // Cut-out circle (with feather)
-  ctx.globalCompositeOperation = 'destination-out';
+  // Cut-out circles (with feather)
+  maskCtx.globalCompositeOperation = 'destination-out';
   {
-    const g = ctx.createRadialGradient(px, py, baseRadius * 0.55, px, py, baseRadius);
+    const g = maskCtx.createRadialGradient(px, py, baseRadius * 0.55, px, py, baseRadius);
     g.addColorStop(0, 'rgba(0,0,0,1)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(px, py, baseRadius, 0, Math.PI * 2);
-    ctx.fill();
+    maskCtx.fillStyle = g;
+    maskCtx.beginPath();
+    maskCtx.arc(px, py, baseRadius, 0, Math.PI * 2);
+    maskCtx.fill();
   }
 
   {
@@ -298,15 +309,20 @@ function drawVisionMask(cam) {
     const cx = px + ux * forwardOffset;
     const cy = py + uy * forwardOffset;
 
-    const g2 = ctx.createRadialGradient(cx, cy, forwardRadius * 0.55, cx, cy, forwardRadius);
+    const g2 = maskCtx.createRadialGradient(cx, cy, forwardRadius * 0.55, cx, cy, forwardRadius);
     g2.addColorStop(0, 'rgba(0,0,0,1)');
     g2.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, forwardRadius, 0, Math.PI * 2);
-    ctx.fill();
+    maskCtx.fillStyle = g2;
+    maskCtx.beginPath();
+    maskCtx.arc(cx, cy, forwardRadius, 0, Math.PI * 2);
+    maskCtx.fill();
   }
 
+  maskCtx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(maskCanvas, 0, 0);
   ctx.restore();
 }
 
