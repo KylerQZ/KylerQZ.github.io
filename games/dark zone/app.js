@@ -47,6 +47,21 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
+function roundedRectPath(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
+}
+
 // Map: 3 rooms + 1 corridor. Walls are rectangles you can't walk through.
 // Background is open floor; walls block movement.
 const WALLS = [
@@ -163,6 +178,52 @@ function getCamera() {
   return { x: camX, y: camY };
 }
 
+function drawPlayer(cam) {
+  const cx = Math.round(player.x - cam.x);
+  const cy = Math.round(player.y - cam.y);
+  const s = player.size;
+
+  const bodyW = s;
+  const bodyH = Math.max(10, Math.round(s * 1.25));
+  const x = Math.round(cx - bodyW / 2);
+  const y = Math.round(cy - bodyH / 2);
+
+  const outline = 'rgba(0,0,0,0.35)';
+  const body = '#00ff3a';
+  const bodyDark = '#00c62f';
+
+  const bpW = Math.max(6, Math.round(bodyW * 0.45));
+  const bpH = Math.max(8, Math.round(bodyH * 0.65));
+  const bpX = x - Math.round(bpW * 0.4);
+  const bpY = y + Math.round(bodyH * 0.2);
+  ctx.fillStyle = bodyDark;
+  roundedRectPath(bpX, bpY, bpW, bpH, Math.round(s * 0.35));
+  ctx.fill();
+
+  ctx.fillStyle = body;
+  roundedRectPath(x, y, bodyW, bodyH, Math.round(s * 0.45));
+  ctx.fill();
+
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const visorW = Math.max(6, Math.round(bodyW * 0.75));
+  const visorH = Math.max(4, Math.round(bodyH * 0.35));
+  const visorX = x + Math.round(bodyW * 0.18);
+  const visorY = y + Math.round(bodyH * 0.22);
+
+  ctx.fillStyle = '#9ae7ff';
+  roundedRectPath(visorX, visorY, visorW, visorH, Math.round(s * 0.35));
+  ctx.fill();
+
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#ffffff';
+  roundedRectPath(visorX + 1, visorY + 1, Math.max(2, Math.round(visorW * 0.35)), Math.max(2, Math.round(visorH * 0.55)), Math.round(s * 0.25));
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
 function drawWorld(cam) {
   // Floor
   ctx.fillStyle = '#b01212';
@@ -196,14 +257,7 @@ function drawWorld(cam) {
   }
 
   // Player (white block)
-  ctx.fillStyle = '#00ff3a';
-  const ps = player.size;
-  ctx.fillRect(
-    Math.round(player.x - cam.x - ps / 2),
-    Math.round(player.y - cam.y - ps / 2),
-    ps,
-    ps
-  );
+  drawPlayer(cam);
 }
 
 function drawVisionMask(cam) {
