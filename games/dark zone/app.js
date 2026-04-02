@@ -18,7 +18,7 @@ const player = {
   x: 250,
   y: 250,
   size: 14,
-  speed: 220,
+  speed: 154,
 };
 
 const mouse = {
@@ -276,9 +276,9 @@ function drawVisionMask(cam) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const baseRadius = 120;
-  const forwardRadius = 150;
-  const forwardOffset = 85;
+  const baseRadius = 72;
+  const forwardRadius = 90;
+  const forwardOffset = 51;
 
   maskCtx.save();
 
