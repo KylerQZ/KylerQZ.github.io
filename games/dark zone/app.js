@@ -9,8 +9,13 @@ const WORLD = {
 const player = {
   x: 250,
   y: 250,
-  size: 22,
+  size: 14,
   speed: 220,
+};
+
+const mouse = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
 };
 
 const keys = new Set();
@@ -28,6 +33,14 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keyup', (e) => {
   keys.delete(e.key.toLowerCase());
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left) * (canvas.width / r.width);
+  const sy = (e.clientY - r.top) * (canvas.height / r.height);
+  mouse.x = clamp(sx, 0, canvas.width);
+  mouse.y = clamp(sy, 0, canvas.height);
 });
 
 function clamp(v, min, max) {
@@ -152,7 +165,7 @@ function getCamera() {
 
 function drawWorld(cam) {
   // Floor
-  ctx.fillStyle = '#131e2c';
+  ctx.fillStyle = '#b01212';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Light grid for orientation
@@ -183,7 +196,7 @@ function drawWorld(cam) {
   }
 
   // Player (white block)
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#00ff3a';
   const ps = player.size;
   ctx.fillRect(
     Math.round(player.x - cam.x - ps / 2),
@@ -199,7 +212,9 @@ function drawVisionMask(cam) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const visionRadius = 140;
+  const baseRadius = 120;
+  const forwardRadius = 150;
+  const forwardOffset = 85;
 
   ctx.save();
 
@@ -210,13 +225,33 @@ function drawVisionMask(cam) {
 
   // Cut-out circle (with feather)
   ctx.globalCompositeOperation = 'destination-out';
-  const g = ctx.createRadialGradient(px, py, visionRadius * 0.55, px, py, visionRadius);
-  g.addColorStop(0, 'rgba(0,0,0,1)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(px, py, visionRadius, 0, Math.PI * 2);
-  ctx.fill();
+  {
+    const g = ctx.createRadialGradient(px, py, baseRadius * 0.55, px, py, baseRadius);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px, py, baseRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  {
+    const dx = mouse.x - px;
+    const dy = mouse.y - py;
+    const len = Math.hypot(dx, dy);
+    const ux = len > 0.001 ? (dx / len) : 0;
+    const uy = len > 0.001 ? (dy / len) : 0;
+    const cx = px + ux * forwardOffset;
+    const cy = py + uy * forwardOffset;
+
+    const g2 = ctx.createRadialGradient(cx, cy, forwardRadius * 0.55, cx, cy, forwardRadius);
+    g2.addColorStop(0, 'rgba(0,0,0,1)');
+    g2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, forwardRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.restore();
 }
