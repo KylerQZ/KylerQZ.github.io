@@ -9,6 +9,29 @@ function syncMaskSize() {
   if (maskCanvas.height !== canvas.height) maskCanvas.height = canvas.height;
 }
 
+function drawEnemy(cam) {
+  const cx = Math.round(enemy.x - cam.x);
+  const cy = Math.round(enemy.y - cam.y);
+  const s = enemy.size;
+
+  const bodyW = s;
+  const bodyH = Math.max(10, Math.round(s * 1.25));
+  const x = Math.round(cx - bodyW / 2);
+  const y = Math.round(cy - bodyH / 2);
+
+  ctx.fillStyle = '#d9d9d9';
+  roundedRectPath(x, y, bodyW, bodyH, Math.round(s * 0.45));
+  ctx.fill();
+
+  ctx.fillStyle = '#9ae7ff';
+  const visorW = Math.max(6, Math.round(bodyW * 0.75));
+  const visorH = Math.max(4, Math.round(bodyH * 0.35));
+  const visorX = x + Math.round(bodyW * 0.18);
+  const visorY = y + Math.round(bodyH * 0.22);
+  roundedRectPath(visorX, visorY, visorW, visorH, Math.round(s * 0.35));
+  ctx.fill();
+}
+
 const WORLD = {
   w: 1800,
   h: 1000,
@@ -19,6 +42,17 @@ const player = {
   y: 140,
   size: 22,
   speed: 108,
+  maxHp: 50,
+  hp: 50,
+};
+
+const enemy = {
+  x: 640,
+  y: 410,
+  size: 22,
+  speed: 0,
+  maxHp: 50,
+  hp: 50,
 };
 
 let walkT = 0;
@@ -60,6 +94,7 @@ const gun = {
   timer: 0,
   bulletSpeed: 560,
   bulletRadius: 3,
+  damage: 5,
 };
 
 window.addEventListener('keydown', (e) => {
@@ -154,6 +189,15 @@ function roundedRectPathTo(g, x, y, w, h, r) {
 
 function rectContainsPoint(rx, ry, rw, rh, px, py) {
   return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+function pointInActor(ax, ay, actor, pad = 0) {
+  const half = actor.size / 2;
+  return rectContainsPoint(actor.x - half - pad, actor.y - half - pad, actor.size + pad * 2, actor.size + pad * 2, ax, ay);
+}
+
+function resetActorHp(actor) {
+  actor.hp = actor.maxHp;
 }
 
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
@@ -394,6 +438,7 @@ function shoot(cam) {
     vy: uy * gun.bulletSpeed,
     r: gun.bulletRadius,
     life: 2.0,
+    owner: 'player',
   });
 }
 
@@ -431,6 +476,13 @@ function stepBullets(dt) {
 
     b.x += moveX;
     b.y += moveY;
+
+    if (b.owner !== 'enemy' && pointInActor(b.x, b.y, enemy, b.r)) {
+      enemy.hp = Math.max(0, enemy.hp - gun.damage);
+      bullets.splice(i, 1);
+      if (enemy.hp <= 0) resetActorHp(enemy);
+      continue;
+    }
   }
 }
 
@@ -480,7 +532,40 @@ function drawWorld(cam) {
   // Player (white block)
   drawPlayer(cam);
 
+  drawEnemy(cam);
+
   drawBullets(cam);
+}
+
+function drawHpBar(x, y, w, h, hp, maxHp, fill) {
+  const t = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = fill;
+  ctx.fillRect(x + 2, y + 2, Math.max(0, (w - 4) * t), h - 4);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+}
+
+function drawHud() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  ctx.textBaseline = 'top';
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(12, 12, 220, 78);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`YOU: ${player.hp}/${player.maxHp}`, 22, 18);
+  drawHpBar(22, 34, 200, 12, player.hp, player.maxHp, '#29ff6a');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`ENEMY: ${enemy.hp}/${enemy.maxHp}`, 22, 50);
+  drawHpBar(22, 66, 200, 12, enemy.hp, enemy.maxHp, '#ff5c5c');
+
+  ctx.restore();
 }
 
 function drawVisionMask(cam) {
@@ -586,6 +671,7 @@ function frame(now) {
 
   drawWorld(cam);
   drawVisionMask(cam);
+  drawHud();
 
   requestAnimationFrame(frame);
 }
