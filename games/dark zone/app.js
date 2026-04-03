@@ -18,8 +18,11 @@ const player = {
   x: 140,
   y: 140,
   size: 22,
-  speed: 154,
+  speed: 108,
 };
+
+let walkT = 0;
+let walkAmt = 0;
 
 const mouse = {
   x: canvas.width / 2,
@@ -53,7 +56,7 @@ let mouseDown = false;
 
 const bullets = [];
 const gun = {
-  cooldown: 0.14,
+  cooldown: 0.32,
   timer: 0,
   bulletSpeed: 560,
   bulletRadius: 3,
@@ -333,13 +336,14 @@ function drawPlayer(cam) {
 
   const footW = Math.max(6, Math.round(bodyW * 0.32));
   const footH = Math.max(4, Math.round(bodyH * 0.22));
+  const footAnim = Math.sin(walkT) * Math.round(footH * 0.35) * walkAmt;
   const footY = y + bodyH - Math.round(footH * 0.45);
   const leftFootX = x + Math.round(bodyW * 0.18);
   const rightFootX = x + bodyW - Math.round(bodyW * 0.18) - footW;
   ctx.fillStyle = bodyDark;
-  roundedRectPath(leftFootX, footY, footW, footH, Math.round(s * 0.25));
+  roundedRectPath(leftFootX, footY - footAnim, footW, footH, Math.round(s * 0.25));
   ctx.fill();
-  roundedRectPath(rightFootX, footY, footW, footH, Math.round(s * 0.25));
+  roundedRectPath(rightFootX, footY + footAnim, footW, footH, Math.round(s * 0.25));
   ctx.fill();
 
   ctx.strokeStyle = outline;
@@ -509,8 +513,9 @@ function drawVisionMask(cam) {
   maskCtx.globalCompositeOperation = 'destination-out';
   {
     const rays = 220;
-    maskCtx.fillStyle = 'rgba(0,0,0,1)';
-    maskCtx.beginPath();
+    const dirs = [];
+    const dists = [];
+
     for (let i = 0; i <= rays; i++) {
       const a = (i / rays) * Math.PI * 2;
       const dx = Math.cos(a);
@@ -521,13 +526,31 @@ function drawVisionMask(cam) {
       const maxDist = baseRadius + (forwardRadius - baseRadius) * Math.pow(boost, 1.35);
 
       const dist = raycastToWalls(px, py, dx, dy, maxDist, screenWalls);
-      const x = px + dx * dist;
-      const y = py + dy * dist;
-      if (i === 0) maskCtx.moveTo(x, y);
-      else maskCtx.lineTo(x, y);
+      dirs.push({ x: dx, y: dy });
+      dists.push(dist);
     }
-    maskCtx.closePath();
-    maskCtx.fill();
+
+    const layers = [
+      { k: 1.0, a: 0.22 },
+      { k: 0.78, a: 0.40 },
+      { k: 0.56, a: 0.65 },
+      { k: 0.38, a: 1.0 },
+    ];
+
+    for (const layer of layers) {
+      maskCtx.fillStyle = `rgba(0,0,0,${layer.a})`;
+      maskCtx.beginPath();
+      for (let i = 0; i < dirs.length; i++) {
+        const d = dirs[i];
+        const dist = dists[i] * layer.k;
+        const x = px + d.x * dist;
+        const y = py + d.y * dist;
+        if (i === 0) maskCtx.moveTo(x, y);
+        else maskCtx.lineTo(x, y);
+      }
+      maskCtx.closePath();
+      maskCtx.fill();
+    }
   }
 
   maskCtx.restore();
@@ -544,6 +567,11 @@ function frame(now) {
   last = now;
 
   const { dx, dy } = getInputDir();
+  const moveMag = Math.hypot(dx, dy);
+  walkAmt = moveMag;
+  if (moveMag > 0) {
+    walkT += dt * 10;
+  }
   tryMove(dx * player.speed * dt, dy * player.speed * dt);
 
   stepBullets(dt);
