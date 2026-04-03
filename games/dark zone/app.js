@@ -654,7 +654,7 @@ function drawVisionMask(cam) {
   // Full darkness layer
   maskCtx.globalCompositeOperation = 'source-over';
   maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-  maskCtx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+  maskCtx.fillStyle = 'rgba(0, 0, 0, 1)';
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
   // Cut-out polygon (vision blocked by walls)
