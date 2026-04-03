@@ -491,8 +491,8 @@ function drawVisionMask(cam) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const baseRadius = 72;
-  const forwardRadius = 90;
+  const baseRadius = 96;
+  const forwardRadius = 128;
 
   const screenWalls = [];
   for (const w of WALLS) {
