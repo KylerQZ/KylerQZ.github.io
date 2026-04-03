@@ -10,6 +10,7 @@ function syncMaskSize() {
 }
 
 function drawEnemy(cam) {
+  if (enemy.dead) return;
   const cx = Math.round(enemy.x - cam.x);
   const cy = Math.round(enemy.y - cam.y);
   const s = enemy.size;
@@ -56,6 +57,8 @@ const enemy = {
   touchDamage: 5,
   touchCooldown: 0,
   retreatTimer: 0,
+  dead: false,
+  respawnTimer: 0,
 };
 
 let walkT = 0;
@@ -210,6 +213,8 @@ function resetPositions() {
   enemy.y = 410;
   enemy.touchCooldown = 0;
   enemy.retreatTimer = 0;
+  enemy.dead = false;
+  enemy.respawnTimer = 0;
 }
 
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
@@ -343,6 +348,19 @@ function tryMove(dx, dy) {
 }
 
 function stepEnemy(dt) {
+  if (enemy.dead) {
+    enemy.respawnTimer = Math.max(0, enemy.respawnTimer - dt);
+    if (enemy.respawnTimer <= 0) {
+      enemy.dead = false;
+      resetActorHp(enemy);
+      enemy.x = 640;
+      enemy.y = 410;
+      enemy.touchCooldown = 0;
+      enemy.retreatTimer = 0;
+    }
+    return;
+  }
+
   enemy.touchCooldown = Math.max(0, enemy.touchCooldown - dt);
   enemy.retreatTimer = Math.max(0, enemy.retreatTimer - dt);
 
@@ -540,10 +558,13 @@ function stepBullets(dt) {
     b.x += moveX;
     b.y += moveY;
 
-    if (b.owner !== 'enemy' && pointInActor(b.x, b.y, enemy, b.r)) {
+    if (!enemy.dead && b.owner !== 'enemy' && pointInActor(b.x, b.y, enemy, b.r)) {
       enemy.hp = Math.max(0, enemy.hp - gun.damage);
       bullets.splice(i, 1);
-      if (enemy.hp <= 0) resetActorHp(enemy);
+      if (enemy.hp <= 0) {
+        enemy.dead = true;
+        enemy.respawnTimer = 2.2;
+      }
       continue;
     }
   }
@@ -585,7 +606,7 @@ function drawWorld(cam) {
   ctx.globalAlpha = 1;
 
   // Walls
-  ctx.fillStyle = '#05080c';
+  ctx.fillStyle = '#001a33';
   for (const w of WALLS) {
     const sx = Math.round(w.x - cam.x);
     const sy = Math.round(w.y - cam.y);
@@ -625,8 +646,13 @@ function drawHud() {
   drawHpBar(22, 34, 200, 12, player.hp, player.maxHp, '#29ff6a');
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(`ENEMY: ${enemy.hp}/${enemy.maxHp}`, 22, 50);
-  drawHpBar(22, 66, 200, 12, enemy.hp, enemy.maxHp, '#ff5c5c');
+  if (enemy.dead) {
+    ctx.fillText('ENEMY: DEAD', 22, 50);
+    drawHpBar(22, 66, 200, 12, 0, enemy.maxHp, '#ff5c5c');
+  } else {
+    ctx.fillText(`ENEMY: ${enemy.hp}/${enemy.maxHp}`, 22, 50);
+    drawHpBar(22, 66, 200, 12, enemy.hp, enemy.maxHp, '#ff5c5c');
+  }
 
   ctx.restore();
 }
