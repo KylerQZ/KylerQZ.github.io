@@ -91,6 +91,7 @@ window.addEventListener('error', (e) => {
 });
 
 const keys = new Set();
+const justPressed = new Set();
 
 let mouseDown = false;
 
@@ -111,6 +112,7 @@ window.addEventListener('keydown', (e) => {
   ].includes(k)) {
     e.preventDefault();
   }
+  if (!keys.has(k)) justPressed.add(k);
   keys.add(k);
 });
 
@@ -215,6 +217,12 @@ function resetPositions() {
   enemy.retreatTimer = 0;
   enemy.dead = false;
   enemy.respawnTimer = 0;
+
+  effects.speedTimer = 0;
+  effects.visionTimer = 0;
+  effects.gunTimer = 0;
+  effects.specialTimer = 0;
+  chestState.messageTimer = 0;
 }
 
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
@@ -306,6 +314,188 @@ function buildBlockMapWalls() {
 }
 
 const WALLS = buildBlockMapWalls();
+
+const effects = {
+  speedTimer: 0,
+  visionTimer: 0,
+  gunTimer: 0,
+  specialTimer: 0,
+};
+
+const loot = {
+  gold: 0,
+  goldenFootballs: 0,
+};
+
+const chestState = {
+  message: '',
+  messageTimer: 0,
+  scareTimer: 0,
+};
+
+const chests = [];
+const CHEST_COUNT = 5;
+const CHEST_SIZE = 18;
+const CHEST_OPEN_RANGE = 54;
+
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function dist(a, b, c, d) {
+  return Math.hypot(a - c, b - d);
+}
+
+function rectsOverlapPad(ax, ay, aw, ah, bx, by, bw, bh, pad) {
+  return rectsOverlap(ax - pad, ay - pad, aw + pad * 2, ah + pad * 2, bx, by, bw, bh);
+}
+
+function chestOverlapsWalls(x, y, size) {
+  const half = size / 2;
+  const rx = x - half;
+  const ry = y - half;
+  for (const w of WALLS) {
+    if (rectsOverlap(rx, ry, size, size, w.x, w.y, w.w, w.h)) return true;
+  }
+  return false;
+}
+
+function placeChest(chest) {
+  const margin = 60;
+  for (let tries = 0; tries < 700; tries++) {
+    const x = rand(margin, WORLD.w - margin);
+    const y = rand(margin, WORLD.h - margin);
+    if (chestOverlapsWalls(x, y, CHEST_SIZE + 10)) continue;
+    if (dist(x, y, player.x, player.y) < 180) continue;
+    let ok = true;
+    for (const c of chests) {
+      if (c !== chest && c.state !== 'gone') {
+        if (dist(x, y, c.x, c.y) < 80) {
+          ok = false;
+          break;
+        }
+      }
+    }
+    if (!ok) continue;
+    chest.x = x;
+    chest.y = y;
+    chest.state = 'closed';
+    chest.t = 0;
+    return;
+  }
+
+  chest.x = player.x + 220;
+  chest.y = player.y + 120;
+  chest.state = 'closed';
+  chest.t = 0;
+}
+
+function initChests() {
+  if (chests.length) return;
+  for (let i = 0; i < CHEST_COUNT; i++) {
+    const chest = { x: 0, y: 0, state: 'closed', t: 0 };
+    chests.push(chest);
+  }
+  for (const c of chests) placeChest(c);
+}
+
+function findClosestChest() {
+  let best = null;
+  let bestD = Infinity;
+  for (const c of chests) {
+    if (c.state !== 'closed') continue;
+    const d = dist(player.x, player.y, c.x, c.y);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return { chest: best, d: bestD };
+}
+
+function setChestMessage(text) {
+  chestState.message = text;
+  chestState.messageTimer = 1.8;
+}
+
+function applyLoot() {
+  chestState.scareTimer = 0.22;
+  const roll = Math.random();
+  if (roll < 0.34) {
+    const amt = Math.floor(rand(8, 22));
+    loot.gold += amt;
+    setChestMessage(`Found: Gold (+${amt})`);
+    return;
+  }
+  if (roll < 0.56) {
+    const before = player.hp;
+    player.hp = Math.min(player.maxHp, player.hp + 10);
+    setChestMessage(`Found: Heal (+${player.hp - before})`);
+    return;
+  }
+  if (roll < 0.74) {
+    effects.speedTimer = 8;
+    setChestMessage('Found: Speed Boost (8s)');
+    return;
+  }
+  if (roll < 0.88) {
+    effects.visionTimer = 10;
+    setChestMessage('Found: Vision Boost (10s)');
+    return;
+  }
+  if (roll < 0.95) {
+    effects.gunTimer = 9;
+    setChestMessage('Found: Power Shots (9s)');
+    return;
+  }
+  if (roll < 0.985) {
+    loot.goldenFootballs += 1;
+    setChestMessage('Found: Golden Football');
+    return;
+  }
+  effects.specialTimer = 10;
+  setChestMessage('Found: Special Weapon (10s)');
+}
+
+function stepChests(dt) {
+  initChests();
+
+  effects.speedTimer = Math.max(0, effects.speedTimer - dt);
+  effects.visionTimer = Math.max(0, effects.visionTimer - dt);
+  effects.gunTimer = Math.max(0, effects.gunTimer - dt);
+  effects.specialTimer = Math.max(0, effects.specialTimer - dt);
+
+  chestState.messageTimer = Math.max(0, chestState.messageTimer - dt);
+  chestState.scareTimer = Math.max(0, chestState.scareTimer - dt);
+
+  const { chest: nearest, d } = findClosestChest();
+  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e')) {
+    nearest.state = 'opening';
+    nearest.t = 0.26;
+  }
+
+  for (const c of chests) {
+    if (c.state === 'opening') {
+      c.t -= dt;
+      if (c.t <= 0) {
+        c.state = 'opened';
+        c.t = 0.8;
+        applyLoot();
+      }
+    } else if (c.state === 'opened') {
+      c.t -= dt;
+      if (c.t <= 0) {
+        c.state = 'gone';
+        c.t = 7.5;
+      }
+    } else if (c.state === 'gone') {
+      c.t -= dt;
+      if (c.t <= 0) {
+        placeChest(c);
+      }
+    }
+  }
+}
 
 function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
@@ -539,14 +729,18 @@ function shoot(cam) {
   const ux = len > 0.001 ? dx / len : aim.x;
   const uy = len > 0.001 ? dy / len : aim.y;
 
+  const special = effects.specialTimer > 0;
+
   bullets.push({
     x: player.x + ux * (player.size * 0.9),
     y: player.y + uy * (player.size * 0.9),
     vx: ux * gun.bulletSpeed,
     vy: uy * gun.bulletSpeed,
-    r: gun.bulletRadius,
+    r: special ? 5 : gun.bulletRadius,
+    damage: gun.damage + (effects.gunTimer > 0 ? 2 : 0) + (special ? 7 : 0),
     life: 2.0,
     owner: 'player',
+    color: special ? '#c96bff' : '#ffd34a',
   });
 }
 
@@ -586,7 +780,7 @@ function stepBullets(dt) {
     b.y += moveY;
 
     if (!enemy.dead && b.owner !== 'enemy' && pointInActor(b.x, b.y, enemy, b.r)) {
-      enemy.hp = Math.max(0, enemy.hp - gun.damage);
+      enemy.hp = Math.max(0, enemy.hp - (b.damage ?? gun.damage));
       bullets.splice(i, 1);
       if (enemy.hp <= 0) {
         enemy.dead = true;
@@ -598,8 +792,8 @@ function stepBullets(dt) {
 }
 
 function drawBullets(cam) {
-  ctx.fillStyle = '#ffd34a';
   for (const b of bullets) {
+    ctx.fillStyle = b.color ?? '#ffd34a';
     const sx = b.x - cam.x;
     const sy = b.y - cam.y;
     ctx.beginPath();
@@ -640,6 +834,28 @@ function drawWorld(cam) {
     ctx.fillRect(sx, sy, w.w, w.h);
   }
 
+  for (const c of chests) {
+    if (c.state === 'gone') continue;
+    const sx = Math.round(c.x - cam.x);
+    const sy = Math.round(c.y - cam.y);
+    const s = CHEST_SIZE;
+    const x = Math.round(sx - s / 2);
+    const y = Math.round(sy - s / 2);
+
+    let a = 1;
+    if (c.state === 'opening') a = 0.85;
+    if (c.state === 'opened') a = 0.55;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#7a4a18';
+    roundedRectPath(x, y, s, s, 4);
+    ctx.fill();
+    ctx.fillStyle = '#4b2c0e';
+    ctx.fillRect(x, y + Math.round(s * 0.52), s, Math.max(2, Math.round(s * 0.12)));
+    ctx.fillStyle = '#d8b44a';
+    ctx.fillRect(x + Math.round(s * 0.42), y + Math.round(s * 0.35), Math.max(2, Math.round(s * 0.16)), Math.max(3, Math.round(s * 0.30)));
+    ctx.globalAlpha = 1;
+  }
+
   // Player (white block)
   drawPlayer(cam);
 
@@ -659,6 +875,53 @@ function drawHpBar(x, y, w, h, hp, maxHp, fill) {
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
 
+function drawMiniMap() {
+  const pad = 12;
+  const w = 170;
+  const h = 110;
+  const x = canvas.width - pad - w;
+  const y = pad;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+
+  ctx.fillStyle = 'rgba(0,0,0,0.60)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  const inner = 8;
+  const ix = x + inner;
+  const iy = y + inner;
+  const iw = w - inner * 2;
+  const ih = h - inner * 2;
+
+  const sx = iw / WORLD.w;
+  const sy = ih / WORLD.h;
+
+  ctx.fillStyle = 'rgba(102,201,255,0.08)';
+  ctx.fillRect(ix, iy, iw, ih);
+
+  // Walls
+  ctx.fillStyle = 'rgba(0, 26, 51, 0.92)';
+  for (const wall of WALLS) {
+    const rx = ix + wall.x * sx;
+    const ry = iy + wall.y * sy;
+    const rw = wall.w * sx;
+    const rh = wall.h * sy;
+    ctx.fillRect(rx, ry, rw, rh);
+  }
+
+  // Player
+  ctx.fillStyle = '#29ff6a';
+  ctx.beginPath();
+  ctx.arc(ix + player.x * sx, iy + player.y * sy, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function drawHud() {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -666,7 +929,7 @@ function drawHud() {
   ctx.textBaseline = 'top';
 
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(12, 12, 220, 78);
+  ctx.fillRect(12, 12, 220, 186);
 
   ctx.fillStyle = '#ffffff';
   ctx.fillText(`YOU: ${player.hp}/${player.maxHp}`, 22, 18);
@@ -681,7 +944,50 @@ function drawHud() {
     drawHpBar(22, 66, 200, 12, enemy.hp, enemy.maxHp, '#ff5c5c');
   }
 
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText(`Gold: ${loot.gold}`, 22, 82);
+  ctx.fillText(`Football: ${loot.goldenFootballs}`, 22, 96);
+
+  const { chest: nearest, d } = findClosestChest();
+  if (nearest && d <= CHEST_OPEN_RANGE) {
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillText('Press E to open', 22, 112);
+  }
+
+  let ty = 130;
+  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  if (effects.speedTimer > 0) {
+    ctx.fillText(`Speed: ${effects.speedTimer.toFixed(1)}s`, 22, ty);
+    ty += 14;
+  }
+  if (effects.visionTimer > 0) {
+    ctx.fillText(`Vision: ${effects.visionTimer.toFixed(1)}s`, 22, ty);
+    ty += 14;
+  }
+  if (effects.gunTimer > 0) {
+    ctx.fillText(`Power: ${effects.gunTimer.toFixed(1)}s`, 22, ty);
+    ty += 14;
+  }
+  if (effects.specialTimer > 0) {
+    ctx.fillText(`Special: ${effects.specialTimer.toFixed(1)}s`, 22, ty);
+    ty += 14;
+  }
+
   ctx.restore();
+
+  if (chestState.messageTimer > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const alpha = Math.min(1, chestState.messageTimer / 0.2);
+    ctx.fillStyle = `rgba(255,255,255,${0.9 * alpha})`;
+    ctx.fillText(chestState.message, canvas.width * 0.5, canvas.height - 18);
+    ctx.restore();
+  }
+
+  drawMiniMap();
 }
 
 function drawVisionMask(cam, now) {
@@ -692,8 +998,9 @@ function drawVisionMask(cam, now) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const baseRadius = 96;
-  const forwardRadius = 128;
+  const visionMul = effects.visionTimer > 0 ? 1.22 : 1;
+  const baseRadius = 96 * visionMul;
+  const forwardRadius = 128 * visionMul;
 
   const screenWalls = [];
   for (const w of WALLS) {
@@ -712,7 +1019,7 @@ function drawVisionMask(cam, now) {
 
   {
     const t = now * 0.001;
-    const flicker = 0.06 + 0.04 * Math.sin(t * 7.3) + 0.02 * Math.sin(t * 17.9);
+    const flicker = 0.06 + 0.04 * Math.sin(t * 7.3) + 0.02 * Math.sin(t * 17.9) + chestState.scareTimer * 0.35;
     const cx = maskCanvas.width * 0.5;
     const cy = maskCanvas.height * 0.5;
     const r = Math.max(maskCanvas.width, maskCanvas.height) * 0.72;
@@ -808,7 +1115,10 @@ function frame(now) {
   if (moveMag > 0) {
     walkT += dt * 10;
   }
-  tryMove(dx * player.speed * dt, dy * player.speed * dt);
+  stepChests(dt);
+
+  const speedMul = effects.speedTimer > 0 ? 1.35 : 1;
+  tryMove(dx * player.speed * speedMul * dt, dy * player.speed * speedMul * dt);
 
   stepEnemy(dt);
 
@@ -825,6 +1135,8 @@ function frame(now) {
   drawWorld(cam);
   drawVisionMask(cam, now);
   drawHud();
+
+  justPressed.clear();
 
   requestAnimationFrame(frame);
 }
