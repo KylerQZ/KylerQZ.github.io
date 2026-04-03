@@ -512,7 +512,7 @@ function drawVisionMask(cam) {
   // Cut-out polygon (vision blocked by walls)
   maskCtx.globalCompositeOperation = 'destination-out';
   {
-    const rays = 220;
+    const rays = 420;
     const dirs = [];
     const dists = [];
 
@@ -530,19 +530,19 @@ function drawVisionMask(cam) {
       dists.push(dist);
     }
 
-    const layers = [
-      { k: 1.0, a: 0.22 },
-      { k: 0.78, a: 0.40 },
-      { k: 0.56, a: 0.65 },
-      { k: 0.38, a: 1.0 },
-    ];
+    const layersCount = 14;
+    const minK = 0.22;
+    maskCtx.lineJoin = 'round';
 
-    for (const layer of layers) {
-      maskCtx.fillStyle = `rgba(0,0,0,${layer.a})`;
+    for (let j = 0; j < layersCount; j++) {
+      const t = j / (layersCount - 1); // 0 inner -> 1 outer
+      const k = minK + (1 - minK) * t;
+      const a = 1 - (1 - 0.02) * Math.pow(t, 1.35);
+      maskCtx.fillStyle = `rgba(0,0,0,${a})`;
       maskCtx.beginPath();
       for (let i = 0; i < dirs.length; i++) {
         const d = dirs[i];
-        const dist = dists[i] * layer.k;
+        const dist = dists[i] * k;
         const x = px + d.x * dist;
         const y = py + d.y * dist;
         if (i === 0) maskCtx.moveTo(x, y);
