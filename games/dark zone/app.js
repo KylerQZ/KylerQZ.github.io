@@ -50,9 +50,12 @@ const enemy = {
   x: 640,
   y: 410,
   size: 22,
-  speed: 0,
+  speed: 92,
   maxHp: 50,
   hp: 50,
+  touchDamage: 5,
+  touchCooldown: 0,
+  retreatTimer: 0,
 };
 
 let walkT = 0;
@@ -200,6 +203,15 @@ function resetActorHp(actor) {
   actor.hp = actor.maxHp;
 }
 
+function resetPositions() {
+  player.x = 140;
+  player.y = 140;
+  enemy.x = 640;
+  enemy.y = 410;
+  enemy.touchCooldown = 0;
+  enemy.retreatTimer = 0;
+}
+
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
   const eps = 1e-8;
   let tmin = -Infinity;
@@ -294,14 +306,20 @@ function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
-function tryMove(dx, dy) {
-  let nx = player.x + dx;
-  let ny = player.y + dy;
+function actorsOverlap(a, b) {
+  const ah = a.size / 2;
+  const bh = b.size / 2;
+  return rectsOverlap(a.x - ah, a.y - ah, a.size, a.size, b.x - bh, b.y - bh, b.size, b.size);
+}
 
-  const half = player.size / 2;
+function moveActor(actor, dx, dy) {
+  let nx = actor.x + dx;
+  let ny = actor.y + dy;
+
+  const half = actor.size / 2;
   const px = nx - half;
   const py = ny - half;
-  const ps = player.size;
+  const ps = actor.size;
 
   for (const w of WALLS) {
     if (!rectsOverlap(px, py, ps, ps, w.x, w.y, w.w, w.h)) continue;
@@ -309,15 +327,60 @@ function tryMove(dx, dy) {
     // Resolve separately per-axis for simple collision.
     if (dx !== 0) {
       // Move back on x
-      nx = player.x;
+      nx = actor.x;
     }
     if (dy !== 0) {
-      ny = player.y;
+      ny = actor.y;
     }
   }
 
-  player.x = clamp(nx, 0, WORLD.w);
-  player.y = clamp(ny, 0, WORLD.h);
+  actor.x = clamp(nx, 0, WORLD.w);
+  actor.y = clamp(ny, 0, WORLD.h);
+}
+
+function tryMove(dx, dy) {
+  moveActor(player, dx, dy);
+}
+
+function stepEnemy(dt) {
+  enemy.touchCooldown = Math.max(0, enemy.touchCooldown - dt);
+  enemy.retreatTimer = Math.max(0, enemy.retreatTimer - dt);
+
+  const vx = player.x - enemy.x;
+  const vy = player.y - enemy.y;
+  const dist = Math.hypot(vx, vy);
+  const ux = dist > 0.001 ? vx / dist : 0;
+  const uy = dist > 0.001 ? vy / dist : 0;
+
+  let mdx = ux;
+  let mdy = uy;
+  if (enemy.retreatTimer > 0) {
+    mdx = -ux;
+    mdy = -uy;
+  }
+
+  const mag = Math.hypot(mdx, mdy);
+  if (mag > 0.001) {
+    mdx /= mag;
+    mdy /= mag;
+  }
+
+  moveActor(enemy, mdx * enemy.speed * dt, mdy * enemy.speed * dt);
+
+  if (actorsOverlap(enemy, player) && enemy.touchCooldown <= 0) {
+    player.hp = Math.max(0, player.hp - enemy.touchDamage);
+    enemy.touchCooldown = 0.9;
+    enemy.retreatTimer = 0.55;
+
+    // Small immediate push so it clearly backs off.
+    moveActor(enemy, -ux * 70 * dt, -uy * 70 * dt);
+
+    if (player.hp <= 0) {
+      resetActorHp(player);
+      resetActorHp(enemy);
+      resetPositions();
+    }
+  }
 }
 
 function getInputDir() {
@@ -658,6 +721,8 @@ function frame(now) {
     walkT += dt * 10;
   }
   tryMove(dx * player.speed * dt, dy * player.speed * dt);
+
+  stepEnemy(dt);
 
   stepBullets(dt);
 
