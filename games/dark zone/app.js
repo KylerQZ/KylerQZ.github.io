@@ -26,6 +26,27 @@ const mouse = {
   y: canvas.height / 2,
 };
 
+const errorOverlay = document.createElement('div');
+errorOverlay.style.position = 'fixed';
+errorOverlay.style.left = '12px';
+errorOverlay.style.right = '12px';
+errorOverlay.style.bottom = '12px';
+errorOverlay.style.padding = '10px 12px';
+errorOverlay.style.borderRadius = '12px';
+errorOverlay.style.background = 'rgba(0,0,0,0.72)';
+errorOverlay.style.color = '#ffb3b3';
+errorOverlay.style.fontSize = '12px';
+errorOverlay.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+errorOverlay.style.whiteSpace = 'pre-wrap';
+errorOverlay.style.zIndex = '9999';
+errorOverlay.style.display = 'none';
+document.body.appendChild(errorOverlay);
+
+window.addEventListener('error', (e) => {
+  errorOverlay.style.display = 'block';
+  errorOverlay.textContent = String(e.message || e.error || e);
+});
+
 const keys = new Set();
 
 let mouseDown = false;
@@ -61,13 +82,34 @@ canvas.addEventListener('mousemove', (e) => {
   mouse.y = clamp(sy, 0, canvas.height);
 });
 
-canvas.addEventListener('mousedown', (e) => {
-  if (e.button !== 0) return;
-  mouseDown = true;
+function updatePointer(e) {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left) * (canvas.width / r.width);
+  const sy = (e.clientY - r.top) * (canvas.height / r.height);
+  mouse.x = clamp(sx, 0, canvas.width);
+  mouse.y = clamp(sy, 0, canvas.height);
+}
+
+canvas.addEventListener('pointermove', (e) => {
+  updatePointer(e);
 });
 
-window.addEventListener('mouseup', (e) => {
-  if (e.button !== 0) return;
+canvas.addEventListener('pointerdown', (e) => {
+  if (!e.isPrimary) return;
+  updatePointer(e);
+  mouseDown = true;
+  try {
+    canvas.setPointerCapture(e.pointerId);
+  } catch {
+  }
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  if (!e.isPrimary) return;
+  mouseDown = false;
+});
+
+canvas.addEventListener('pointercancel', () => {
   mouseDown = false;
 });
 
