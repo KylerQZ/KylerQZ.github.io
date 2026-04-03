@@ -502,6 +502,33 @@ function drawPlayer(cam) {
   ctx.restore();
 }
 
+function drawScaryOverlay(now) {
+  const t = now * 0.001;
+  const flicker = 0.06 + 0.04 * Math.sin(t * 7.3) + 0.02 * Math.sin(t * 17.9);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+
+  const cx = canvas.width * 0.5;
+  const cy = canvas.height * 0.5;
+  const r = Math.max(canvas.width, canvas.height) * 0.72;
+  const g = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.55, `rgba(0,0,0,${0.10 + flicker})`);
+  g.addColorStop(1, `rgba(0,0,0,${0.55 + flicker})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const hpT = 1 - clamp(player.hp / player.maxHp, 0, 1);
+  if (hpT > 0.25) {
+    const pulse = 0.10 + 0.12 * Math.max(0, Math.sin(t * (6 + hpT * 10)));
+    ctx.fillStyle = `rgba(120,0,0,${pulse * hpT})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  ctx.restore();
+}
+
 function shoot(cam) {
   const aim = getAimDirectionScreen(cam);
   const mxWorld = cam.x + mouse.x;
@@ -657,7 +684,7 @@ function drawHud() {
   ctx.restore();
 }
 
-function drawVisionMask(cam) {
+function drawVisionMask(cam, now) {
   // Among Us-like darkness: dark overlay with a circular reveal around player.
   // We use destination-out to punch a hole in an OFFSCREEN darkness mask,
   // then draw that mask on top of the world.
@@ -683,6 +710,27 @@ function drawVisionMask(cam) {
   maskCtx.fillStyle = 'rgba(0, 0, 0, 1)';
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
+  {
+    const t = now * 0.001;
+    const flicker = 0.06 + 0.04 * Math.sin(t * 7.3) + 0.02 * Math.sin(t * 17.9);
+    const cx = maskCanvas.width * 0.5;
+    const cy = maskCanvas.height * 0.5;
+    const r = Math.max(maskCanvas.width, maskCanvas.height) * 0.72;
+    const g = maskCtx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.55, `rgba(0,0,0,${0.10 + flicker})`);
+    g.addColorStop(1, `rgba(0,0,0,${0.55 + flicker})`);
+    maskCtx.fillStyle = g;
+    maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    const hpT = 1 - clamp(player.hp / player.maxHp, 0, 1);
+    if (hpT > 0.25) {
+      const pulse = 0.10 + 0.12 * Math.max(0, Math.sin(t * (6 + hpT * 10)));
+      maskCtx.fillStyle = `rgba(120,0,0,${pulse * hpT})`;
+      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+    }
+  }
+
   // Cut-out polygon (vision blocked by walls)
   maskCtx.globalCompositeOperation = 'destination-out';
   {
@@ -704,14 +752,28 @@ function drawVisionMask(cam) {
       dists.push(dist);
     }
 
-    const layersCount = 14;
-    const minK = 0.22;
+    const clearK = 0.76;
     maskCtx.lineJoin = 'round';
 
-    for (let j = 0; j < layersCount; j++) {
-      const t = j / (layersCount - 1); // 0 inner -> 1 outer
-      const k = minK + (1 - minK) * t;
-      const a = 1 - (1 - 0.02) * Math.pow(t, 1.35);
+    maskCtx.fillStyle = 'rgba(0,0,0,1)';
+    maskCtx.beginPath();
+    for (let i = 0; i < dirs.length; i++) {
+      const d = dirs[i];
+      const dist = dists[i] * clearK;
+      const x = px + d.x * dist;
+      const y = py + d.y * dist;
+      if (i === 0) maskCtx.moveTo(x, y);
+      else maskCtx.lineTo(x, y);
+    }
+    maskCtx.closePath();
+    maskCtx.fill();
+
+    const featherCount = 12;
+    for (let j = 0; j < featherCount; j++) {
+      const t = (j + 1) / featherCount; // 0..1
+      const k = clearK + (1 - clearK) * t;
+      const a = Math.max(0, Math.min(1, Math.pow(1 - t, 1.35)));
+      if (a <= 0.001) continue;
       maskCtx.fillStyle = `rgba(0,0,0,${a})`;
       maskCtx.beginPath();
       for (let i = 0; i < dirs.length; i++) {
@@ -761,7 +823,7 @@ function frame(now) {
   }
 
   drawWorld(cam);
-  drawVisionMask(cam);
+  drawVisionMask(cam, now);
   drawHud();
 
   requestAnimationFrame(frame);
