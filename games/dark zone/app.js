@@ -15,9 +15,9 @@ const WORLD = {
 };
 
 const player = {
-  x: 250,
-  y: 250,
-  size: 15.4,
+  x: 140,
+  y: 140,
+  size: 22,
   speed: 154,
 };
 
@@ -210,57 +210,38 @@ function getAimDirectionScreen(cam) {
 
 // Map: 3 rooms + 1 corridor. Walls are rectangles you can't walk through.
 // Background is open floor; walls block movement.
-const WALLS = [
-  // Outer world bounds (thick walls)
-  { x: -40, y: -40, w: WORLD.w + 80, h: 40 },
-  { x: -40, y: WORLD.h, w: WORLD.w + 80, h: 40 },
-  { x: -40, y: 0, w: 40, h: WORLD.h },
-  { x: WORLD.w, y: 0, w: 40, h: WORLD.h },
+function buildBlockMapWalls() {
+  const walls = [
+    // Outer world bounds (thick walls)
+    { x: -40, y: -40, w: WORLD.w + 80, h: 40 },
+    { x: -40, y: WORLD.h, w: WORLD.w + 80, h: 40 },
+    { x: -40, y: 0, w: 40, h: WORLD.h },
+    { x: WORLD.w, y: 0, w: 40, h: WORLD.h },
+  ];
 
-  // Room 1 (top-left)
-  { x: 100, y: 80, w: 520, h: 20 },
-  { x: 100, y: 80, w: 20, h: 300 },
-  { x: 100, y: 360, w: 520, h: 20 },
-  { x: 600, y: 80, w: 20, h: 110 },
-  { x: 600, y: 250, w: 20, h: 130 },
+  const block = 240;
+  const cols = 3;
+  const rows = 3;
+  const startX = 260;
+  const startY = 140;
+  const gapX = 520;
+  const gapY = 300;
 
-  // Corridor (connects Room1 -> Room2)
-  // Corridor walls
-  { x: 620, y: 180, w: 360, h: 20 },
-  { x: 620, y: 260, w: 360, h: 20 },
-
-  // Room 2 (top-right)
-  { x: 980, y: 80, w: 520, h: 20 },
-  { x: 980, y: 80, w: 20, h: 300 },
-  { x: 980, y: 360, w: 520, h: 20 },
-  { x: 1480, y: 80, w: 20, h: 300 },
-
-  // Doorway from corridor into Room2 (gap in left wall of room2)
-  // We create the room2 left wall as two segments leaving a gap aligned to corridor
-  // (Replace the earlier full wall at x=980 with segments)
-];
-
-// Rebuild room2 left wall with a gap (remove the earlier full segment)
-// We'll just filter that one out and push split segments.
-for (let i = WALLS.length - 1; i >= 0; i--) {
-  const r = WALLS[i];
-  if (r.x === 980 && r.y === 80 && r.w === 20 && r.h === 300) {
-    WALLS.splice(i, 1);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      walls.push({
+        x: startX + c * gapX,
+        y: startY + r * gapY,
+        w: block,
+        h: block,
+      });
+    }
   }
-}
-// Gap between y=180..280 (corridor open)
-WALLS.push(
-  { x: 980, y: 80, w: 20, h: 100 },
-  { x: 980, y: 280, w: 20, h: 100 }
-);
 
-// Room 3 (bottom center)
-WALLS.push(
-  { x: 520, y: 560, w: 760, h: 20 },
-  { x: 520, y: 560, w: 20, h: 320 },
-  { x: 520, y: 860, w: 760, h: 20 },
-  { x: 1260, y: 560, w: 20, h: 320 }
-);
+  return walls;
+}
+
+const WALLS = buildBlockMapWalls();
 
 function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
@@ -348,6 +329,17 @@ function drawPlayer(cam) {
 
   ctx.fillStyle = body;
   roundedRectPath(x, y, bodyW, bodyH, Math.round(s * 0.45));
+  ctx.fill();
+
+  const footW = Math.max(6, Math.round(bodyW * 0.32));
+  const footH = Math.max(4, Math.round(bodyH * 0.22));
+  const footY = y + bodyH - Math.round(footH * 0.45);
+  const leftFootX = x + Math.round(bodyW * 0.18);
+  const rightFootX = x + bodyW - Math.round(bodyW * 0.18) - footW;
+  ctx.fillStyle = bodyDark;
+  roundedRectPath(leftFootX, footY, footW, footH, Math.round(s * 0.25));
+  ctx.fill();
+  roundedRectPath(rightFootX, footY, footW, footH, Math.round(s * 0.25));
   ctx.fill();
 
   ctx.strokeStyle = outline;
@@ -451,12 +443,12 @@ function drawBullets(cam) {
 
 function drawWorld(cam) {
   // Floor
-  ctx.fillStyle = '#b01212';
+  ctx.fillStyle = '#66c9ff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Light grid for orientation
-  ctx.globalAlpha = 0.14;
-  ctx.strokeStyle = '#9fb3c8';
+  ctx.globalAlpha = 0.0;
+  ctx.strokeStyle = '#000000';
   ctx.lineWidth = 1;
   const grid = 60;
   for (let x = -((cam.x % grid)); x < canvas.width; x += grid) {
@@ -474,7 +466,7 @@ function drawWorld(cam) {
   ctx.globalAlpha = 1;
 
   // Walls
-  ctx.fillStyle = '#3d4f68';
+  ctx.fillStyle = '#05080c';
   for (const w of WALLS) {
     const sx = Math.round(w.x - cam.x);
     const sy = Math.round(w.y - cam.y);
