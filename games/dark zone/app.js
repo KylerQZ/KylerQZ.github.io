@@ -104,6 +104,98 @@ const gun = {
   damage: 5,
 };
 
+let screen = 'menu';
+let bagOpen = false;
+let uiClick = null;
+
+const inventoryKey = 'darkzone_inventory_v1';
+
+function defaultInventory() {
+  return {
+    coins: 0,
+    goldenCoins: 0,
+    items: {
+      goldenCup: false,
+      goldenFootball: false,
+      diamondBadge: false,
+    },
+    weapons: {
+      pistol: true,
+      shotgun: false,
+      fullauto: false,
+    },
+    equippedWeapon: 'pistol',
+  };
+}
+
+let inventory = loadInventory();
+
+function loadInventory() {
+  try {
+    const raw = localStorage.getItem(inventoryKey);
+    if (!raw) return defaultInventory();
+    const parsed = JSON.parse(raw);
+    const inv = defaultInventory();
+    if (typeof parsed?.coins === 'number') inv.coins = Math.max(0, Math.floor(parsed.coins));
+    if (typeof parsed?.goldenCoins === 'number') inv.goldenCoins = Math.max(0, Math.floor(parsed.goldenCoins));
+    if (typeof parsed?.items?.goldenCup === 'boolean') inv.items.goldenCup = parsed.items.goldenCup;
+    if (typeof parsed?.items?.goldenFootball === 'boolean') inv.items.goldenFootball = parsed.items.goldenFootball;
+    if (typeof parsed?.items?.diamondBadge === 'boolean') inv.items.diamondBadge = parsed.items.diamondBadge;
+    if (typeof parsed?.weapons?.pistol === 'boolean') inv.weapons.pistol = parsed.weapons.pistol;
+    if (typeof parsed?.weapons?.shotgun === 'boolean') inv.weapons.shotgun = parsed.weapons.shotgun;
+    if (typeof parsed?.weapons?.fullauto === 'boolean') inv.weapons.fullauto = parsed.weapons.fullauto;
+    if (typeof parsed?.equippedWeapon === 'string') inv.equippedWeapon = parsed.equippedWeapon;
+
+    if (!inv.weapons.pistol) inv.weapons.pistol = true;
+    if (!['pistol', 'shotgun', 'fullauto'].includes(inv.equippedWeapon)) inv.equippedWeapon = 'pistol';
+    if (!inv.weapons[inv.equippedWeapon]) inv.equippedWeapon = 'pistol';
+    return inv;
+  } catch {
+    return defaultInventory();
+  }
+}
+
+function saveInventory() {
+  try {
+    localStorage.setItem(inventoryKey, JSON.stringify(inventory));
+  } catch {
+  }
+}
+
+function weaponStats(kind) {
+  if (kind === 'shotgun') {
+    return {
+      cooldown: 0.78,
+      pellets: 5,
+      spread: 0.28,
+      bulletSpeed: 520,
+      bulletRadius: 3,
+      damage: 3,
+      color: '#ffd34a',
+    };
+  }
+  if (kind === 'fullauto') {
+    return {
+      cooldown: 0.11,
+      pellets: 1,
+      spread: 0.06,
+      bulletSpeed: 560,
+      bulletRadius: 3,
+      damage: 3,
+      color: '#ffd34a',
+    };
+  }
+  return {
+    cooldown: gun.cooldown,
+    pellets: 1,
+    spread: 0,
+    bulletSpeed: gun.bulletSpeed,
+    bulletRadius: gun.bulletRadius,
+    damage: gun.damage,
+    color: '#ffd34a',
+  };
+}
+
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if ([
@@ -111,6 +203,20 @@ window.addEventListener('keydown', (e) => {
     'w', 'a', 's', 'd'
   ].includes(k)) {
     e.preventDefault();
+  }
+  if (k === 'b' && screen === 'play') {
+    bagOpen = !bagOpen;
+    mouseDown = false;
+    if (!bagOpen) uiClick = null;
+  }
+  if (k === 'escape') {
+    if (bagOpen) {
+      bagOpen = false;
+      uiClick = null;
+    } else if (screen !== 'menu') {
+      screen = 'menu';
+      uiClick = null;
+    }
   }
   if (!keys.has(k)) justPressed.add(k);
   keys.add(k);
@@ -143,6 +249,11 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerdown', (e) => {
   if (!e.isPrimary) return;
   updatePointer(e);
+  if (screen !== 'play' || bagOpen) {
+    uiClick = { x: mouse.x, y: mouse.y };
+    mouseDown = false;
+    return;
+  }
   mouseDown = true;
   try {
     canvas.setPointerCapture(e.pointerId);
@@ -218,10 +329,7 @@ function resetPositions() {
   enemy.dead = false;
   enemy.respawnTimer = 0;
 
-  effects.speedTimer = 0;
-  effects.visionTimer = 0;
-  effects.gunTimer = 0;
-  effects.specialTimer = 0;
+  bagOpen = false;
   chestState.messageTimer = 0;
 }
 
@@ -315,18 +423,6 @@ function buildBlockMapWalls() {
 
 const WALLS = buildBlockMapWalls();
 
-const effects = {
-  speedTimer: 0,
-  visionTimer: 0,
-  gunTimer: 0,
-  specialTimer: 0,
-};
-
-const loot = {
-  gold: 0,
-  goldenFootballs: 0,
-};
-
 const chestState = {
   message: '',
   messageTimer: 0,
@@ -418,58 +514,181 @@ function setChestMessage(text) {
   chestState.messageTimer = 1.8;
 }
 
+function consumeUiClick() {
+  const c = uiClick;
+  uiClick = null;
+  return c;
+}
+
+function drawButton(x, y, w, h, label) {
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  roundedRectPath(x, y, w, h, 12);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '16px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + w / 2, y + h / 2);
+}
+
+function clickInRect(c, x, y, w, h) {
+  if (!c) return false;
+  return c.x >= x && c.x <= x + w && c.y >= y && c.y <= y + h;
+}
+
+function drawMenu() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#0b0f14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '34px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('DARK ZONE', canvas.width / 2, 84);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.62)';
+  ctx.font = '14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText('Play or check your Storage', canvas.width / 2, 134);
+
+  const bw = 220;
+  const bh = 52;
+  const bx = canvas.width / 2 - bw / 2;
+  const by = 220;
+
+  drawButton(bx, by, bw, bh, 'Play');
+  drawButton(bx, by + 70, bw, bh, 'Storage');
+
+  const c = consumeUiClick();
+  if (clickInRect(c, bx, by, bw, bh)) {
+    screen = 'play';
+    resetPositions();
+  } else if (clickInRect(c, bx, by + 70, bw, bh)) {
+    screen = 'storage';
+  }
+
+  ctx.restore();
+}
+
+function drawStorage() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#0b0f14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '26px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Storage', 60, 48);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.70)';
+  ctx.font = '14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText('Press ESC to go back', 60, 82);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  roundedRectPath(54, 120, canvas.width - 108, canvas.height - 210, 16);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  let y = 144;
+  const x = 80;
+  ctx.fillText(`Coins: ${inventory.coins}`, x, y);
+  y += 24;
+  ctx.fillText(`Golden Coins: ${inventory.goldenCoins}`, x, y);
+  y += 34;
+
+  ctx.fillText(`Golden Cup: ${inventory.items.goldenCup ? 'YES' : 'NO'}`, x, y);
+  y += 22;
+  ctx.fillText(`Golden Football: ${inventory.items.goldenFootball ? 'YES' : 'NO'}`, x, y);
+  y += 22;
+  ctx.fillText(`Diamond Dark Zone Badge: ${inventory.items.diamondBadge ? 'YES' : 'NO'}`, x, y);
+  y += 34;
+
+  ctx.fillText('Weapons:', x, y);
+  y += 22;
+  ctx.fillText(`Pistol: ${inventory.weapons.pistol ? 'YES' : 'NO'}`, x + 18, y);
+  y += 22;
+  ctx.fillText(`Shotgun: ${inventory.weapons.shotgun ? 'YES' : 'NO'}`, x + 18, y);
+  y += 22;
+  ctx.fillText(`Fullauto: ${inventory.weapons.fullauto ? 'YES' : 'NO'}`, x + 18, y);
+  y += 34;
+  ctx.fillText(`Equipped: ${inventory.equippedWeapon.toUpperCase()}`, x, y);
+
+  const bw = 220;
+  const bh = 44;
+  const bx = 60;
+  const by = canvas.height - 72;
+  drawButton(bx, by, bw, bh, 'Back');
+
+  const c = consumeUiClick();
+  if (clickInRect(c, bx, by, bw, bh)) {
+    screen = 'menu';
+  }
+
+  ctx.restore();
+}
+
 function applyLoot() {
   chestState.scareTimer = 0.22;
-  const roll = Math.random();
-  if (roll < 0.34) {
-    const amt = Math.floor(rand(8, 22));
-    loot.gold += amt;
-    setChestMessage(`Found: Gold (+${amt})`);
-    return;
+  const coins = Math.floor(rand(1, 101));
+  const golden = Math.floor(rand(1, 51));
+  inventory.coins += coins;
+  inventory.goldenCoins += golden;
+
+  const options = [];
+  if (!inventory.items.goldenCup) options.push('goldenCup');
+  if (!inventory.items.goldenFootball) options.push('goldenFootball');
+  if (!inventory.items.diamondBadge) options.push('diamondBadge');
+  if (!inventory.weapons.pistol) options.push('pistol');
+  if (!inventory.weapons.shotgun) options.push('shotgun');
+  if (!inventory.weapons.fullauto) options.push('fullauto');
+
+  let extra = '';
+  if (options.length && Math.random() < 0.45) {
+    const pick = options[Math.floor(Math.random() * options.length)];
+    if (pick === 'goldenCup') {
+      inventory.items.goldenCup = true;
+      extra = ' + Golden Cup';
+    } else if (pick === 'goldenFootball') {
+      inventory.items.goldenFootball = true;
+      extra = ' + Golden Football';
+    } else if (pick === 'diamondBadge') {
+      inventory.items.diamondBadge = true;
+      extra = ' + Diamond Badge';
+    } else if (pick === 'pistol') {
+      inventory.weapons.pistol = true;
+      extra = ' + Pistol';
+    } else if (pick === 'shotgun') {
+      inventory.weapons.shotgun = true;
+      extra = ' + Shotgun';
+    } else if (pick === 'fullauto') {
+      inventory.weapons.fullauto = true;
+      extra = ' + Fullauto';
+    }
   }
-  if (roll < 0.56) {
-    const before = player.hp;
-    player.hp = Math.min(player.maxHp, player.hp + 10);
-    setChestMessage(`Found: Heal (+${player.hp - before})`);
-    return;
+
+  if (!inventory.weapons[inventory.equippedWeapon]) {
+    inventory.equippedWeapon = 'pistol';
   }
-  if (roll < 0.74) {
-    effects.speedTimer = 8;
-    setChestMessage('Found: Speed Boost (8s)');
-    return;
-  }
-  if (roll < 0.88) {
-    effects.visionTimer = 10;
-    setChestMessage('Found: Vision Boost (10s)');
-    return;
-  }
-  if (roll < 0.95) {
-    effects.gunTimer = 9;
-    setChestMessage('Found: Power Shots (9s)');
-    return;
-  }
-  if (roll < 0.985) {
-    loot.goldenFootballs += 1;
-    setChestMessage('Found: Golden Football');
-    return;
-  }
-  effects.specialTimer = 10;
-  setChestMessage('Found: Special Weapon (10s)');
+
+  saveInventory();
+  setChestMessage(`Found: Coins +${coins}, Gold +${golden}${extra}`);
 }
 
 function stepChests(dt) {
   initChests();
 
-  effects.speedTimer = Math.max(0, effects.speedTimer - dt);
-  effects.visionTimer = Math.max(0, effects.visionTimer - dt);
-  effects.gunTimer = Math.max(0, effects.gunTimer - dt);
-  effects.specialTimer = Math.max(0, effects.specialTimer - dt);
-
   chestState.messageTimer = Math.max(0, chestState.messageTimer - dt);
   chestState.scareTimer = Math.max(0, chestState.scareTimer - dt);
 
   const { chest: nearest, d } = findClosestChest();
-  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e')) {
+  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e') && !bagOpen) {
     nearest.state = 'opening';
     nearest.t = 0.26;
   }
@@ -729,19 +948,29 @@ function shoot(cam) {
   const ux = len > 0.001 ? dx / len : aim.x;
   const uy = len > 0.001 ? dy / len : aim.y;
 
-  const special = effects.specialTimer > 0;
+  const kind = inventory.equippedWeapon;
+  const st = weaponStats(kind);
+  const baseAng = Math.atan2(uy, ux);
+  const startX = player.x + ux * (player.size * 0.9);
+  const startY = player.y + uy * (player.size * 0.9);
 
-  bullets.push({
-    x: player.x + ux * (player.size * 0.9),
-    y: player.y + uy * (player.size * 0.9),
-    vx: ux * gun.bulletSpeed,
-    vy: uy * gun.bulletSpeed,
-    r: special ? 5 : gun.bulletRadius,
-    damage: gun.damage + (effects.gunTimer > 0 ? 2 : 0) + (special ? 7 : 0),
-    life: 2.0,
-    owner: 'player',
-    color: special ? '#c96bff' : '#ffd34a',
-  });
+  for (let i = 0; i < st.pellets; i++) {
+    const off = (Math.random() * 2 - 1) * st.spread;
+    const ang = baseAng + off;
+    const vx = Math.cos(ang) * st.bulletSpeed;
+    const vy = Math.sin(ang) * st.bulletSpeed;
+    bullets.push({
+      x: startX,
+      y: startY,
+      vx,
+      vy,
+      r: st.bulletRadius,
+      damage: st.damage,
+      life: 2.0,
+      owner: 'player',
+      color: st.color,
+    });
+  }
 }
 
 function stepBullets(dt) {
@@ -929,7 +1158,7 @@ function drawHud() {
   ctx.textBaseline = 'top';
 
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(12, 12, 220, 186);
+  ctx.fillRect(12, 12, 250, 168);
 
   ctx.fillStyle = '#ffffff';
   ctx.fillText(`YOU: ${player.hp}/${player.maxHp}`, 22, 18);
@@ -945,33 +1174,18 @@ function drawHud() {
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(`Gold: ${loot.gold}`, 22, 82);
-  ctx.fillText(`Football: ${loot.goldenFootballs}`, 22, 96);
+  ctx.fillText(`Coins: ${inventory.coins}`, 22, 82);
+  ctx.fillText(`Golden: ${inventory.goldenCoins}`, 22, 96);
+  ctx.fillText(`Weapon: ${inventory.equippedWeapon.toUpperCase()}`, 22, 110);
 
   const { chest: nearest, d } = findClosestChest();
   if (nearest && d <= CHEST_OPEN_RANGE) {
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillText('Press E to open', 22, 112);
+    ctx.fillText('Press E to open', 22, 126);
   }
 
-  let ty = 130;
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  if (effects.speedTimer > 0) {
-    ctx.fillText(`Speed: ${effects.speedTimer.toFixed(1)}s`, 22, ty);
-    ty += 14;
-  }
-  if (effects.visionTimer > 0) {
-    ctx.fillText(`Vision: ${effects.visionTimer.toFixed(1)}s`, 22, ty);
-    ty += 14;
-  }
-  if (effects.gunTimer > 0) {
-    ctx.fillText(`Power: ${effects.gunTimer.toFixed(1)}s`, 22, ty);
-    ty += 14;
-  }
-  if (effects.specialTimer > 0) {
-    ctx.fillText(`Special: ${effects.specialTimer.toFixed(1)}s`, 22, ty);
-    ty += 14;
-  }
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.fillText('B: Bag', 22, 146);
 
   ctx.restore();
 
@@ -990,6 +1204,89 @@ function drawHud() {
   drawMiniMap();
 }
 
+function drawBagOverlay() {
+  if (!bagOpen) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const panelW = 520;
+  const panelH = 360;
+  const px = Math.round(canvas.width / 2 - panelW / 2);
+  const py = Math.round(canvas.height / 2 - panelH / 2);
+
+  ctx.fillStyle = 'rgba(10,14,20,0.92)';
+  roundedRectPath(px, py, panelW, panelH, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Bag', px + 18, py + 16);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.62)';
+  ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText('Press B to close', px + 18, py + 44);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.90)';
+  ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  ctx.fillText(`Coins: ${inventory.coins}`, px + 18, py + 78);
+  ctx.fillText(`Golden Coins: ${inventory.goldenCoins}`, px + 18, py + 98);
+
+  let y = py + 132;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText(`Golden Cup: ${inventory.items.goldenCup ? 'YES' : 'NO'}`, px + 18, y);
+  y += 18;
+  ctx.fillText(`Golden Football: ${inventory.items.goldenFootball ? 'YES' : 'NO'}`, px + 18, y);
+  y += 18;
+  ctx.fillText(`Diamond Badge: ${inventory.items.diamondBadge ? 'YES' : 'NO'}`, px + 18, y);
+  y += 30;
+
+  ctx.fillText('Equip weapon:', px + 18, y);
+  y += 22;
+
+  const bx = px + 18;
+  const bw = 150;
+  const bh = 40;
+
+  const pistolY = y;
+  const shotgunY = y + 52;
+  const fullautoY = y + 104;
+
+  drawButton(bx, pistolY, bw, bh, 'Pistol');
+  drawButton(bx, shotgunY, bw, bh, 'Shotgun');
+  drawButton(bx, fullautoY, bw, bh, 'Fullauto');
+
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText(`Owned: ${inventory.weapons.pistol ? 'YES' : 'NO'}`, bx + 170, pistolY + 12);
+  ctx.fillText(`Owned: ${inventory.weapons.shotgun ? 'YES' : 'NO'}`, bx + 170, shotgunY + 12);
+  ctx.fillText(`Owned: ${inventory.weapons.fullauto ? 'YES' : 'NO'}`, bx + 170, fullautoY + 12);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText(`Equipped: ${inventory.equippedWeapon.toUpperCase()}`, bx + 170, fullautoY + 44);
+
+  const c = consumeUiClick();
+  if (clickInRect(c, bx, pistolY, bw, bh) && inventory.weapons.pistol) {
+    inventory.equippedWeapon = 'pistol';
+    saveInventory();
+  } else if (clickInRect(c, bx, shotgunY, bw, bh) && inventory.weapons.shotgun) {
+    inventory.equippedWeapon = 'shotgun';
+    saveInventory();
+  } else if (clickInRect(c, bx, fullautoY, bw, bh) && inventory.weapons.fullauto) {
+    inventory.equippedWeapon = 'fullauto';
+    saveInventory();
+  }
+
+  ctx.restore();
+}
+
 function drawVisionMask(cam, now) {
   // Among Us-like darkness: dark overlay with a circular reveal around player.
   // We use destination-out to punch a hole in an OFFSCREEN darkness mask,
@@ -998,9 +1295,8 @@ function drawVisionMask(cam, now) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const visionMul = effects.visionTimer > 0 ? 1.22 : 1;
-  const baseRadius = 96 * visionMul;
-  const forwardRadius = 128 * visionMul;
+  const baseRadius = 96;
+  const forwardRadius = 128;
 
   const screenWalls = [];
   for (const w of WALLS) {
@@ -1109,32 +1405,46 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
+  if (screen === 'menu') {
+    drawMenu();
+    justPressed.clear();
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (screen === 'storage') {
+    drawStorage();
+    justPressed.clear();
+    requestAnimationFrame(frame);
+    return;
+  }
+
   const { dx, dy } = getInputDir();
   const moveMag = Math.hypot(dx, dy);
   walkAmt = moveMag;
   if (moveMag > 0) {
     walkT += dt * 10;
   }
-  stepChests(dt);
 
-  const speedMul = effects.speedTimer > 0 ? 1.35 : 1;
-  tryMove(dx * player.speed * speedMul * dt, dy * player.speed * speedMul * dt);
-
-  stepEnemy(dt);
-
-  stepBullets(dt);
+  if (!bagOpen) {
+    stepChests(dt);
+    tryMove(dx * player.speed * dt, dy * player.speed * dt);
+    stepEnemy(dt);
+    stepBullets(dt);
+  }
 
   const cam = getCamera();
 
   gun.timer = Math.max(0, gun.timer - dt);
-  if (mouseDown && gun.timer <= 0) {
+  if (!bagOpen && mouseDown && gun.timer <= 0) {
     shoot(cam);
-    gun.timer = gun.cooldown;
+    gun.timer = weaponStats(inventory.equippedWeapon).cooldown;
   }
 
   drawWorld(cam);
   drawVisionMask(cam, now);
   drawHud();
+  drawBagOverlay();
 
   justPressed.clear();
 
