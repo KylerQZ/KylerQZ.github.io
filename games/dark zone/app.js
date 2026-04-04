@@ -107,6 +107,8 @@ const gun = {
 let screen = 'menu';
 let bagOpen = false;
 let uiClick = null;
+let chestLootOpen = false;
+let chestLootLines = [];
 
 const inventoryKey = 'darkzone_inventory_v1';
 
@@ -167,6 +169,8 @@ const CHEST_LOOT = {
   goldenCoins: { chance: 1, min: 1, max: 50 },
   extraItem: {
     chance: 0.35,
+    minItems: 1,
+    maxItems: 3,
     rerolls: 6,
     fallback: 'none',
     fallbackCoins: { min: 5, max: 25 },
@@ -244,19 +248,34 @@ function weaponStats(kind) {
 
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
+
+  if (chestLootOpen) {
+    if (k === 'escape' || k === 'enter' || k === ' ' || k === 'e' || k === 'b') {
+      chestLootOpen = false;
+      chestLootLines = [];
+      uiClick = null;
+      mouseDown = false;
+    }
+    return;
+  }
+
   if ([
     'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
     'w', 'a', 's', 'd'
   ].includes(k)) {
     e.preventDefault();
   }
-  if (k === 'b' && screen === 'play') {
+  if (!chestLootOpen && k === 'b' && screen === 'play') {
     bagOpen = !bagOpen;
     mouseDown = false;
     if (!bagOpen) uiClick = null;
   }
   if (k === 'escape') {
-    if (bagOpen) {
+    if (chestLootOpen) {
+      chestLootOpen = false;
+      chestLootLines = [];
+      uiClick = null;
+    } else if (bagOpen) {
       bagOpen = false;
       uiClick = null;
     } else if (screen !== 'menu') {
@@ -295,7 +314,7 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerdown', (e) => {
   if (!e.isPrimary) return;
   updatePointer(e);
-  if (screen !== 'play' || bagOpen) {
+  if (screen !== 'play' || bagOpen || chestLootOpen) {
     uiClick = { x: mouse.x, y: mouse.y };
     mouseDown = false;
     return;
@@ -620,6 +639,69 @@ function drawMenu() {
   ctx.restore();
 }
 
+function drawChestLootOverlay() {
+  if (!chestLootOpen) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const panelW = 520;
+  const panelH = 320;
+  const px = Math.round(canvas.width / 2 - panelW / 2);
+  const py = Math.round(canvas.height / 2 - panelH / 2);
+
+  ctx.fillStyle = 'rgba(10,14,20,0.94)';
+  roundedRectPath(px, py, panelW, panelH, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Chest Opened', px + 18, py + 16);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.62)';
+  ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText('Click to close (or press Enter / Esc)', px + 18, py + 44);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+  let y = py + 84;
+  const maxLines = 10;
+  for (let i = 0; i < Math.min(maxLines, chestLootLines.length); i++) {
+    ctx.fillText(`- ${chestLootLines[i]}`, px + 18, y);
+    y += 22;
+  }
+  if (chestLootLines.length > maxLines) {
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    ctx.fillText(`...and ${chestLootLines.length - maxLines} more`, px + 18, y + 6);
+  }
+
+  const bw = 200;
+  const bh = 44;
+  const bx = px + panelW - bw - 18;
+  const by = py + panelH - bh - 18;
+  drawButton(bx, by, bw, bh, 'Close');
+
+  const c = consumeUiClick();
+  if (c) {
+    if (clickInRect(c, bx, by, bw, bh) || clickInRect(c, px, py, panelW, panelH)) {
+      chestLootOpen = false;
+      chestLootLines = [];
+      uiClick = null;
+      mouseDown = false;
+    }
+  }
+
+  ctx.restore();
+}
+
 function drawStorage() {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -689,43 +771,52 @@ function applyLoot() {
   inventory.coins += coins;
   inventory.goldenCoins += golden;
 
-  let extraText = '';
-  if (Math.random() < CHEST_LOOT.extraItem.chance) {
-    let pick = null;
-    const tries = Math.max(1, Math.floor(CHEST_LOOT.extraItem.rerolls || 1));
-    for (let i = 0; i < tries; i++) {
-      const id = pickWeighted(CHEST_LOOT.extraItem.weights);
-      if (!id) break;
-      if (!ownsExtra(id)) {
-        pick = id;
-        break;
-      }
-    }
+  const lines = [];
+  if (coins > 0) lines.push(`Coins +${coins}`);
+  if (golden > 0) lines.push(`Golden Coins +${golden}`);
 
-    if (pick === 'goldenCup') {
-      inventory.items.goldenCup = true;
-      extraText = ' + Golden Cup';
-    } else if (pick === 'goldenFootball') {
-      inventory.items.goldenFootball = true;
-      extraText = ' + Golden Football';
-    } else if (pick === 'diamondBadge') {
-      inventory.items.diamondBadge = true;
-      extraText = ' + Diamond Badge';
-    } else if (pick === 'pistol') {
-      inventory.weapons.pistol = true;
-      extraText = ' + Pistol';
-    } else if (pick === 'shotgun') {
-      inventory.weapons.shotgun = true;
-      extraText = ' + Shotgun';
-    } else if (pick === 'fullauto') {
-      inventory.weapons.fullauto = true;
-      extraText = ' + Fullauto';
-    } else if (CHEST_LOOT.extraItem.fallback === 'coins') {
-      const b = CHEST_LOOT.extraItem.fallbackCoins;
-      const bonus = randInt(b.min, b.max);
-      inventory.coins += bonus;
-      extraText = ` + Coins ${bonus}`;
-      coins += bonus;
+  if (Math.random() < CHEST_LOOT.extraItem.chance) {
+    const minItems = Math.max(1, Math.floor(CHEST_LOOT.extraItem.minItems ?? 1));
+    const maxItems = Math.max(minItems, Math.floor(CHEST_LOOT.extraItem.maxItems ?? minItems));
+    const count = randInt(minItems, maxItems);
+    const tries = Math.max(1, Math.floor(CHEST_LOOT.extraItem.rerolls || 1));
+
+    for (let n = 0; n < count; n++) {
+      let pick = null;
+      for (let i = 0; i < tries; i++) {
+        const id = pickWeighted(CHEST_LOOT.extraItem.weights);
+        if (!id) break;
+        if (!ownsExtra(id)) {
+          pick = id;
+          break;
+        }
+      }
+
+      if (pick === 'goldenCup') {
+        inventory.items.goldenCup = true;
+        lines.push('Golden Cup');
+      } else if (pick === 'goldenFootball') {
+        inventory.items.goldenFootball = true;
+        lines.push('Golden Football');
+      } else if (pick === 'diamondBadge') {
+        inventory.items.diamondBadge = true;
+        lines.push('Diamond Dark Zone Badge');
+      } else if (pick === 'pistol') {
+        inventory.weapons.pistol = true;
+        lines.push('Pistol');
+      } else if (pick === 'shotgun') {
+        inventory.weapons.shotgun = true;
+        lines.push('Shotgun');
+      } else if (pick === 'fullauto') {
+        inventory.weapons.fullauto = true;
+        lines.push('Fullauto');
+      } else if (CHEST_LOOT.extraItem.fallback === 'coins') {
+        const b = CHEST_LOOT.extraItem.fallbackCoins;
+        const bonus = randInt(b.min, b.max);
+        inventory.coins += bonus;
+        coins += bonus;
+        lines.push(`Coins +${bonus}`);
+      }
     }
   }
 
@@ -734,17 +825,28 @@ function applyLoot() {
   }
 
   saveInventory();
-  setChestMessage(`Found: Coins +${coins}, Golden +${golden}${extraText}`);
+
+  chestLootLines = lines.length ? lines : ['Nothing'];
+  chestLootOpen = true;
+  bagOpen = false;
+  chestState.message = '';
+  chestState.messageTimer = 0;
 }
 
 function stepChests(dt) {
   initChests();
 
+  if (chestLootOpen) {
+    chestState.messageTimer = Math.max(0, chestState.messageTimer - dt);
+    chestState.scareTimer = Math.max(0, chestState.scareTimer - dt);
+    return;
+  }
+
   chestState.messageTimer = Math.max(0, chestState.messageTimer - dt);
   chestState.scareTimer = Math.max(0, chestState.scareTimer - dt);
 
   const { chest: nearest, d } = findClosestChest();
-  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e') && !bagOpen) {
+  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e') && !bagOpen && !chestLootOpen) {
     nearest.state = 'opening';
     nearest.t = 0.26;
   }
@@ -1492,7 +1594,7 @@ function frame(now) {
   const cam = getCamera();
 
   gun.timer = Math.max(0, gun.timer - dt);
-  if (!bagOpen && mouseDown && gun.timer <= 0) {
+  if (!bagOpen && !chestLootOpen && mouseDown && gun.timer <= 0) {
     shoot(cam);
     gun.timer = weaponStats(inventory.equippedWeapon).cooldown;
   }
@@ -1501,6 +1603,7 @@ function frame(now) {
   drawVisionMask(cam, now);
   drawHud();
   drawBagOverlay();
+  drawChestLootOverlay();
 
   justPressed.clear();
 
