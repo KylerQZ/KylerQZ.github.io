@@ -9,11 +9,68 @@ function syncMaskSize() {
   if (maskCanvas.height !== canvas.height) maskCanvas.height = canvas.height;
 }
 
+function drawResult() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#0b0f14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '34px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('RESULT', canvas.width / 2, 84);
+
+  const text = resultState.reason === 'escaped' ? 'You Escaped' : 'You Died';
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.font = '18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  ctx.fillText(text, canvas.width / 2, 140);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.68)';
+  ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  ctx.fillText(`Coins: ${resultState.coins}   Golden: ${resultState.golden}`, canvas.width / 2, 188);
+  ctx.fillText(`Enemies Alive: ${resultState.enemiesAlive}/${ENEMY_COUNT}`, canvas.width / 2, 212);
+
+  const bw = 220;
+  const bh = 48;
+  const bx = Math.round(canvas.width / 2 - bw / 2);
+  const by = 280;
+  drawButton(bx, by, bw, bh, 'Play Again');
+  drawButton(bx, by + 70, bw, bh, 'Menu');
+
+  const c = consumeUiClick();
+  if (clickInRect(c, bx, by, bw, bh)) {
+    screen = 'play';
+    resetPositions();
+  } else if (clickInRect(c, bx, by + 70, bw, bh)) {
+    screen = 'menu';
+  }
+
+  ctx.restore();
+}
+
 const PLAYER_VISION_BASE = 96;
 const PLAYER_VISION_FORWARD = 128;
 
 const ENEMY_COUNT = 5;
 const ENEMY_VISION_MULT = 1.3;
+
+const GATE_W = 44;
+const GATE_H = 22;
+const gate = {
+  x: 0,
+  y: 0,
+  w: GATE_W,
+  h: GATE_H,
+  active: false,
+};
+
+let resultState = {
+  reason: '',
+  coins: 0,
+  golden: 0,
+  enemiesAlive: 0,
+};
 
 function drawEnemy(cam, e) {
   if (e.dead) return;
@@ -87,7 +144,13 @@ function updateHudDom() {
   let prompt = '';
   if (screen === 'play' && !bagOpen && !chestLootOpen) {
     const { chest: nearest, d } = findClosestChest();
-    if (nearest && d <= CHEST_OPEN_RANGE && nearest.state === 'closed') prompt = 'Press E to open chest';
+    if (nearest && d <= CHEST_OPEN_RANGE && nearest.state === 'closed') {
+      prompt = 'Press E to open chest';
+    } else if (gate.active) {
+      const gx = gate.x + gate.w * 0.5;
+      const gy = gate.y + gate.h * 0.5;
+      if (Math.hypot(player.x - gx, player.y - gy) < 80) prompt = 'Touch gate to escape';
+    }
   }
   if (hudPrompt) hudPrompt.textContent = prompt;
 }
@@ -431,11 +494,29 @@ function resetPositions() {
   initChests();
   for (const c of chests) placeChest(c);
 
+  placeGate();
+
   initEnemies(true);
 
   chestState.message = '';
   chestState.messageTimer = 0;
   chestState.scareTimer = 0;
+}
+
+function endGame(reason) {
+  resultState = {
+    reason,
+    coins: inventory.coins,
+    golden: inventory.goldenCoins,
+    enemiesAlive: enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0),
+  };
+
+  screen = 'result';
+  bagOpen = false;
+  chestLootOpen = false;
+  chestLootLines = [];
+  uiClick = null;
+  mouseDown = false;
 }
 
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
@@ -538,6 +619,41 @@ function buildBlockMapWalls() {
 }
 
 const WALLS = buildBlockMapWalls();
+
+function placeGate() {
+  const candidates = WALLS.filter((w) => w.w > 60 && w.h > 60 && w.x >= 0 && w.y >= 0 && w.x + w.w <= WORLD.w && w.y + w.h <= WORLD.h);
+  const list = candidates.length ? candidates : WALLS;
+
+  for (let tries = 0; tries < 240; tries++) {
+    const w = list[Math.floor(Math.random() * list.length)];
+    const horizontal = w.w >= w.h;
+    const margin = 10;
+
+    let gx = 0;
+    let gy = 0;
+
+    if (horizontal) {
+      gx = rand(w.x + margin, w.x + w.w - margin - gate.w);
+      const side = Math.random() < 0.5 ? -1 : 1;
+      gy = side < 0 ? w.y - gate.h - 6 : w.y + w.h + 6;
+    } else {
+      gy = rand(w.y + margin, w.y + w.h - margin - gate.h);
+      const side = Math.random() < 0.5 ? -1 : 1;
+      gx = side < 0 ? w.x - gate.w - 6 : w.x + w.w + 6;
+    }
+
+    if (gx < 20 || gy < 20 || gx + gate.w > WORLD.w - 20 || gy + gate.h > WORLD.h - 20) continue;
+    if (actorOverlapsWalls(gx + gate.w * 0.5, gy + gate.h * 0.5, Math.max(gate.w, gate.h))) continue;
+    gate.x = gx;
+    gate.y = gy;
+    gate.active = true;
+    return;
+  }
+
+  gate.x = 860;
+  gate.y = 190;
+  gate.active = true;
+}
 
 const chestState = {
   message: '',
@@ -1092,8 +1208,7 @@ function stepEnemies(dt) {
       moveActor(e, -ux * 70 * dt, -uy * 70 * dt);
 
       if (player.hp <= 0) {
-        resetActorHp(player);
-        resetPositions();
+        endGame('died');
         return;
       }
     }
@@ -1350,11 +1465,26 @@ function drawWorld(cam) {
   ctx.globalAlpha = 1;
 
   // Walls
-  ctx.fillStyle = '#001a33';
+  ctx.fillStyle = '#7b7f86';
   for (const w of WALLS) {
     const sx = Math.round(w.x - cam.x);
     const sy = Math.round(w.y - cam.y);
     ctx.fillRect(sx, sy, w.w, w.h);
+  }
+
+  if (gate.active) {
+    const gx = Math.round(gate.x - cam.x);
+    const gy = Math.round(gate.y - cam.y);
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = '#b800ff';
+    roundedRectPath(gx, gy, gate.w, gate.h, 6);
+    ctx.fill();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#ffffff';
+    roundedRectPath(gx + 3, gy + 3, gate.w - 6, gate.h - 6, 5);
+    ctx.fill();
+    ctx.restore();
   }
 
   for (const c of chests) {
@@ -1426,7 +1556,7 @@ function drawMiniMap() {
   ctx.fillRect(ix, iy, iw, ih);
 
   // Walls
-  ctx.fillStyle = 'rgba(0, 26, 51, 0.92)';
+  ctx.fillStyle = 'rgba(150, 155, 165, 0.92)';
   for (const wall of WALLS) {
     const rx = ix + wall.x * sx;
     const ry = iy + wall.y * sy;
@@ -1677,6 +1807,14 @@ function frame(now) {
     return;
   }
 
+  if (screen === 'result') {
+    setHudVisible(false);
+    drawResult();
+    justPressed.clear();
+    requestAnimationFrame(frame);
+    return;
+  }
+
   setHudVisible(true);
 
   const { dx, dy } = getInputDir();
@@ -1691,6 +1829,13 @@ function frame(now) {
     tryMove(dx * player.speed * dt, dy * player.speed * dt);
     stepEnemies(dt);
     stepBullets(dt);
+
+    if (gate.active) {
+      const half = player.size / 2;
+      if (rectsOverlap(player.x - half, player.y - half, player.size, player.size, gate.x, gate.y, gate.w, gate.h)) {
+        endGame('escaped');
+      }
+    }
   }
 
   const cam = getCamera();
