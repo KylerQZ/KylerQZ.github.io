@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dark Zone</title>
-  <link rel="stylesheet" href="styles.css?v=20260403-18" />
+  <link rel="stylesheet" href="styles.css?v=20260403-19" />
 </head>
 <body>
   <div class="topbar">
@@ -13,10 +13,39 @@
   </div>
 
   <div class="wrap">
+    <div id="hud" class="hud" style="display:none">
+      <div class="hudRow">
+        <div class="hudItem">
+          <div class="hudLabel">HP</div>
+          <div class="hudValue"><span id="hudHp">0/0</span></div>
+          <div class="hudBar"><div id="hudHpBar" class="hudBarFill" style="width:100%"></div></div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">Enemies</div>
+          <div class="hudValue" id="hudEnemies">0/5</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">Coins</div>
+          <div class="hudValue" id="hudCoins">0</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">Golden</div>
+          <div class="hudValue" id="hudGolden">0</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">Weapon</div>
+          <div class="hudValue" id="hudWeapon">PISTOL</div>
+        </div>
+      </div>
+      <div class="hudRow hudRowBottom">
+        <div class="hudPrompt" id="hudPrompt"></div>
+        <div class="hudHint">B: Bag</div>
+      </div>
+    </div>
     <canvas id="game" width="960" height="540"></canvas>
     <div class="hint">Move: WASD / Arrow Keys</div>
   </div>
 
-  <script src="app.js?v=20260403-18"></script>
+  <script src="app.js?v=20260403-19"></script>
 </body>
 </html>

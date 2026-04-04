@@ -49,11 +49,48 @@ const player = {
   y: 140,
   size: 22,
   speed: 108,
-  maxHp: 50,
-  hp: 50,
+  maxHp: 15,
+  hp: 15,
 };
 
 const enemies = [];
+
+const hudRoot = document.getElementById('hud');
+const hudHp = document.getElementById('hudHp');
+const hudHpBar = document.getElementById('hudHpBar');
+const hudCoins = document.getElementById('hudCoins');
+const hudGolden = document.getElementById('hudGolden');
+const hudWeapon = document.getElementById('hudWeapon');
+const hudEnemies = document.getElementById('hudEnemies');
+const hudPrompt = document.getElementById('hudPrompt');
+
+function setHudVisible(v) {
+  if (!hudRoot) return;
+  hudRoot.style.display = v ? '' : 'none';
+}
+
+function updateHudDom() {
+  if (!hudRoot) return;
+
+  const alive = enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0);
+
+  if (hudHp) hudHp.textContent = `${player.hp}/${player.maxHp}`;
+  if (hudHpBar) {
+    const t = player.maxHp > 0 ? clamp(player.hp / player.maxHp, 0, 1) : 0;
+    hudHpBar.style.width = `${Math.round(t * 100)}%`;
+  }
+  if (hudCoins) hudCoins.textContent = String(inventory.coins);
+  if (hudGolden) hudGolden.textContent = String(inventory.goldenCoins);
+  if (hudWeapon) hudWeapon.textContent = String(inventory.equippedWeapon).toUpperCase();
+  if (hudEnemies) hudEnemies.textContent = `${alive}/${ENEMY_COUNT}`;
+
+  let prompt = '';
+  if (screen === 'play' && !bagOpen && !chestLootOpen) {
+    const { chest: nearest, d } = findClosestChest();
+    if (nearest && d <= CHEST_OPEN_RANGE && nearest.state === 'closed') prompt = 'Press E to open chest';
+  }
+  if (hudPrompt) hudPrompt.textContent = prompt;
+}
 
 let walkT = 0;
 let walkAmt = 0;
@@ -381,10 +418,24 @@ function resetActorHp(actor) {
 function resetPositions() {
   player.x = 140;
   player.y = 140;
+  resetActorHp(player);
+
+  bullets.length = 0;
+
+  uiClick = null;
+  mouseDown = false;
+  bagOpen = false;
+  chestLootOpen = false;
+  chestLootLines = [];
+
+  initChests();
+  for (const c of chests) placeChest(c);
+
   initEnemies(true);
 
-  bagOpen = false;
+  chestState.message = '';
   chestState.messageTimer = 0;
+  chestState.scareTimer = 0;
 }
 
 function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
@@ -600,11 +651,9 @@ function placeChest(chest) {
     if (dist(x, y, player.x, player.y) < 180) continue;
     let ok = true;
     for (const c of chests) {
-      if (c !== chest && c.state !== 'gone') {
-        if (dist(x, y, c.x, c.y) < 80) {
-          ok = false;
-          break;
-        }
+      if (c !== chest && dist(x, y, c.x, c.y) < 80) {
+        ok = false;
+        break;
       }
     }
     if (!ok) continue;
@@ -916,7 +965,7 @@ function stepChests(dt) {
   chestState.scareTimer = Math.max(0, chestState.scareTimer - dt);
 
   const { chest: nearest, d } = findClosestChest();
-  if (nearest && d <= CHEST_OPEN_RANGE && justPressed.has('e') && !bagOpen && !chestLootOpen) {
+  if (nearest && nearest.state === 'closed' && d <= CHEST_OPEN_RANGE && justPressed.has('e') && !bagOpen && !chestLootOpen) {
     nearest.state = 'opening';
     nearest.t = 0.26;
   }
@@ -926,19 +975,8 @@ function stepChests(dt) {
       c.t -= dt;
       if (c.t <= 0) {
         c.state = 'opened';
-        c.t = 0.8;
+        c.t = 0;
         applyLoot();
-      }
-    } else if (c.state === 'opened') {
-      c.t -= dt;
-      if (c.t <= 0) {
-        c.state = 'gone';
-        c.t = 7.5;
-      }
-    } else if (c.state === 'gone') {
-      c.t -= dt;
-      if (c.t <= 0) {
-        placeChest(c);
       }
     }
   }
@@ -1004,19 +1042,7 @@ function stepEnemies(dt) {
   for (const e of enemies) {
     if (!e.dead) alive++;
 
-    if (e.dead) {
-      e.respawnTimer = Math.max(0, e.respawnTimer - dt);
-      if (e.respawnTimer <= 0) {
-        e.dead = false;
-        resetActorHp(e);
-        e.touchCooldown = 0;
-        e.retreatTimer = 0;
-        e.aggroTimer = 0;
-        e.wanderTimer = 0;
-        placeEnemy(e);
-      }
-      continue;
-    }
+    if (e.dead) continue;
 
     e.touchCooldown = Math.max(0, e.touchCooldown - dt);
     e.retreatTimer = Math.max(0, e.retreatTimer - dt);
@@ -1280,7 +1306,7 @@ function stepBullets(dt) {
         bullets.splice(i, 1);
         if (e.hp <= 0) {
           e.dead = true;
-          e.respawnTimer = 2.2;
+          e.respawnTimer = 0;
         }
         break;
       }
@@ -1332,7 +1358,6 @@ function drawWorld(cam) {
   }
 
   for (const c of chests) {
-    if (c.state === 'gone') continue;
     const sx = Math.round(c.x - cam.x);
     const sy = Math.round(c.y - cam.y);
     const s = CHEST_SIZE;
@@ -1420,39 +1445,6 @@ function drawMiniMap() {
 }
 
 function drawHud() {
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-  ctx.textBaseline = 'top';
-
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(12, 12, 250, 168);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(`YOU: ${player.hp}/${player.maxHp}`, 22, 18);
-  drawHpBar(22, 34, 200, 12, player.hp, player.maxHp, '#29ff6a');
-
-  const alive = enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(`ENEMIES: ${alive}/${ENEMY_COUNT}`, 22, 50);
-  drawHpBar(22, 66, 200, 12, alive, ENEMY_COUNT, '#ff5c5c');
-
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(`Coins: ${inventory.coins}`, 22, 82);
-  ctx.fillText(`Golden: ${inventory.goldenCoins}`, 22, 96);
-  ctx.fillText(`Weapon: ${inventory.equippedWeapon.toUpperCase()}`, 22, 110);
-
-  const { chest: nearest, d } = findClosestChest();
-  if (nearest && d <= CHEST_OPEN_RANGE) {
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillText('Press E to open', 22, 126);
-  }
-
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.fillText('B: Bag', 22, 146);
-
-  ctx.restore();
-
   if (chestState.messageTimer > 0) {
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
@@ -1670,6 +1662,7 @@ function frame(now) {
   last = now;
 
   if (screen === 'menu') {
+    setHudVisible(false);
     drawMenu();
     justPressed.clear();
     requestAnimationFrame(frame);
@@ -1677,11 +1670,14 @@ function frame(now) {
   }
 
   if (screen === 'storage') {
+    setHudVisible(false);
     drawStorage();
     justPressed.clear();
     requestAnimationFrame(frame);
     return;
   }
+
+  setHudVisible(true);
 
   const { dx, dy } = getInputDir();
   const moveMag = Math.hypot(dx, dy);
@@ -1707,6 +1703,7 @@ function frame(now) {
 
   drawWorld(cam);
   drawVisionMask(cam, now);
+  updateHudDom();
   drawHud();
   drawBagOverlay();
   drawChestLootOverlay();
