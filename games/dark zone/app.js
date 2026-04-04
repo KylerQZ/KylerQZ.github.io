@@ -162,6 +162,52 @@ function saveInventory() {
   }
 }
 
+const CHEST_LOOT = {
+  coins: { chance: 1, min: 1, max: 100 },
+  goldenCoins: { chance: 1, min: 1, max: 50 },
+  extraItem: {
+    chance: 0.35,
+    rerolls: 6,
+    fallback: 'none',
+    fallbackCoins: { min: 5, max: 25 },
+    weights: [
+      { id: 'goldenCup', w: 1 },
+      { id: 'goldenFootball', w: 1 },
+      { id: 'diamondBadge', w: 0.4 },
+      { id: 'pistol', w: 1 },
+      { id: 'shotgun', w: 0.6 },
+      { id: 'fullauto', w: 0.45 },
+    ],
+  },
+};
+
+function randInt(min, max) {
+  return Math.floor(rand(min, max + 1));
+}
+
+function pickWeighted(list) {
+  let total = 0;
+  for (const e of list) total += Math.max(0, e.w || 0);
+  if (total <= 0) return null;
+  let r = Math.random() * total;
+  for (const e of list) {
+    const w = Math.max(0, e.w || 0);
+    r -= w;
+    if (r <= 0) return e.id;
+  }
+  return list[list.length - 1]?.id ?? null;
+}
+
+function ownsExtra(id) {
+  if (id === 'goldenCup') return inventory.items.goldenCup;
+  if (id === 'goldenFootball') return inventory.items.goldenFootball;
+  if (id === 'diamondBadge') return inventory.items.diamondBadge;
+  if (id === 'pistol') return inventory.weapons.pistol;
+  if (id === 'shotgun') return inventory.weapons.shotgun;
+  if (id === 'fullauto') return inventory.weapons.fullauto;
+  return true;
+}
+
 function weaponStats(kind) {
   if (kind === 'shotgun') {
     return {
@@ -636,40 +682,50 @@ function drawStorage() {
 
 function applyLoot() {
   chestState.scareTimer = 0.22;
-  const coins = Math.floor(rand(1, 101));
-  const golden = Math.floor(rand(1, 51));
+  let coins = 0;
+  let golden = 0;
+  if (Math.random() < CHEST_LOOT.coins.chance) coins = randInt(CHEST_LOOT.coins.min, CHEST_LOOT.coins.max);
+  if (Math.random() < CHEST_LOOT.goldenCoins.chance) golden = randInt(CHEST_LOOT.goldenCoins.min, CHEST_LOOT.goldenCoins.max);
   inventory.coins += coins;
   inventory.goldenCoins += golden;
 
-  const options = [];
-  if (!inventory.items.goldenCup) options.push('goldenCup');
-  if (!inventory.items.goldenFootball) options.push('goldenFootball');
-  if (!inventory.items.diamondBadge) options.push('diamondBadge');
-  if (!inventory.weapons.pistol) options.push('pistol');
-  if (!inventory.weapons.shotgun) options.push('shotgun');
-  if (!inventory.weapons.fullauto) options.push('fullauto');
+  let extraText = '';
+  if (Math.random() < CHEST_LOOT.extraItem.chance) {
+    let pick = null;
+    const tries = Math.max(1, Math.floor(CHEST_LOOT.extraItem.rerolls || 1));
+    for (let i = 0; i < tries; i++) {
+      const id = pickWeighted(CHEST_LOOT.extraItem.weights);
+      if (!id) break;
+      if (!ownsExtra(id)) {
+        pick = id;
+        break;
+      }
+    }
 
-  let extra = '';
-  if (options.length && Math.random() < 0.45) {
-    const pick = options[Math.floor(Math.random() * options.length)];
     if (pick === 'goldenCup') {
       inventory.items.goldenCup = true;
-      extra = ' + Golden Cup';
+      extraText = ' + Golden Cup';
     } else if (pick === 'goldenFootball') {
       inventory.items.goldenFootball = true;
-      extra = ' + Golden Football';
+      extraText = ' + Golden Football';
     } else if (pick === 'diamondBadge') {
       inventory.items.diamondBadge = true;
-      extra = ' + Diamond Badge';
+      extraText = ' + Diamond Badge';
     } else if (pick === 'pistol') {
       inventory.weapons.pistol = true;
-      extra = ' + Pistol';
+      extraText = ' + Pistol';
     } else if (pick === 'shotgun') {
       inventory.weapons.shotgun = true;
-      extra = ' + Shotgun';
+      extraText = ' + Shotgun';
     } else if (pick === 'fullauto') {
       inventory.weapons.fullauto = true;
-      extra = ' + Fullauto';
+      extraText = ' + Fullauto';
+    } else if (CHEST_LOOT.extraItem.fallback === 'coins') {
+      const b = CHEST_LOOT.extraItem.fallbackCoins;
+      const bonus = randInt(b.min, b.max);
+      inventory.coins += bonus;
+      extraText = ` + Coins ${bonus}`;
+      coins += bonus;
     }
   }
 
@@ -678,7 +734,7 @@ function applyLoot() {
   }
 
   saveInventory();
-  setChestMessage(`Found: Coins +${coins}, Gold +${golden}${extra}`);
+  setChestMessage(`Found: Coins +${coins}, Golden +${golden}${extraText}`);
 }
 
 function stepChests(dt) {
