@@ -9,11 +9,17 @@ function syncMaskSize() {
   if (maskCanvas.height !== canvas.height) maskCanvas.height = canvas.height;
 }
 
-function drawEnemy(cam) {
-  if (enemy.dead) return;
-  const cx = Math.round(enemy.x - cam.x);
-  const cy = Math.round(enemy.y - cam.y);
-  const s = enemy.size;
+const PLAYER_VISION_BASE = 96;
+const PLAYER_VISION_FORWARD = 128;
+
+const ENEMY_COUNT = 5;
+const ENEMY_VISION_MULT = 1.3;
+
+function drawEnemy(cam, e) {
+  if (e.dead) return;
+  const cx = Math.round(e.x - cam.x);
+  const cy = Math.round(e.y - cam.y);
+  const s = e.size;
 
   const bodyW = s;
   const bodyH = Math.max(10, Math.round(s * 1.25));
@@ -47,19 +53,7 @@ const player = {
   hp: 50,
 };
 
-const enemy = {
-  x: 640,
-  y: 410,
-  size: 22,
-  speed: 92,
-  maxHp: 50,
-  hp: 50,
-  touchDamage: 5,
-  touchCooldown: 0,
-  retreatTimer: 0,
-  dead: false,
-  respawnTimer: 0,
-};
+const enemies = [];
 
 let walkT = 0;
 let walkAmt = 0;
@@ -387,12 +381,7 @@ function resetActorHp(actor) {
 function resetPositions() {
   player.x = 140;
   player.y = 140;
-  enemy.x = 640;
-  enemy.y = 410;
-  enemy.touchCooldown = 0;
-  enemy.retreatTimer = 0;
-  enemy.dead = false;
-  enemy.respawnTimer = 0;
+  initEnemies(true);
 
   bagOpen = false;
   chestState.messageTimer = 0;
@@ -435,6 +424,17 @@ function rayAabbDistance(ox, oy, dx, dy, rx, ry, rw, rh, maxDist) {
 function raycastToWalls(ox, oy, dx, dy, maxDist, screenWalls) {
   let best = maxDist;
   for (const w of screenWalls) {
+    if (rectContainsPoint(w.x, w.y, w.w, w.h, ox, oy)) continue;
+    const hit = rayAabbDistance(ox, oy, dx, dy, w.x, w.y, w.w, w.h, maxDist);
+    if (hit === null) continue;
+    if (hit < best) best = hit;
+  }
+  return best;
+}
+
+function raycastToWorldWalls(ox, oy, dx, dy, maxDist) {
+  let best = maxDist;
+  for (const w of WALLS) {
     if (rectContainsPoint(w.x, w.y, w.w, w.h, ox, oy)) continue;
     const hit = rayAabbDistance(ox, oy, dx, dy, w.x, w.y, w.w, w.h, maxDist);
     if (hit === null) continue;
@@ -519,6 +519,76 @@ function chestOverlapsWalls(x, y, size) {
     if (rectsOverlap(rx, ry, size, size, w.x, w.y, w.w, w.h)) return true;
   }
   return false;
+}
+
+function actorOverlapsWalls(x, y, size) {
+  const half = size / 2;
+  const rx = x - half;
+  const ry = y - half;
+  for (const w of WALLS) {
+    if (rectsOverlap(rx, ry, size, size, w.x, w.y, w.w, w.h)) return true;
+  }
+  return false;
+}
+
+function placeEnemy(e) {
+  const margin = 70;
+  for (let tries = 0; tries < 900; tries++) {
+    const x = rand(margin, WORLD.w - margin);
+    const y = rand(margin, WORLD.h - margin);
+
+    if (actorOverlapsWalls(x, y, e.size)) continue;
+
+    const dPlayer = Math.hypot(x - player.x, y - player.y);
+    if (dPlayer < 220) continue;
+
+    let ok = true;
+    for (const o of enemies) {
+      if (o === e) continue;
+      if (!o.spawned) continue;
+      const d = Math.hypot(x - o.x, y - o.y);
+      if (d < 90) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+
+    e.x = x;
+    e.y = y;
+    e.spawned = true;
+    return;
+  }
+
+  e.x = 640;
+  e.y = 410;
+  e.spawned = true;
+}
+
+function initEnemies(forceReset = false) {
+  if (!forceReset && enemies.length) return;
+  enemies.length = 0;
+  for (let i = 0; i < ENEMY_COUNT; i++) {
+    const e = {
+      x: 640,
+      y: 410,
+      size: 22,
+      speed: 88,
+      maxHp: 50,
+      hp: 50,
+      touchDamage: 5,
+      touchCooldown: 0,
+      retreatTimer: 0,
+      dead: false,
+      respawnTimer: 0,
+      wanderTimer: 0,
+      wanderAng: Math.random() * Math.PI * 2,
+      aggroTimer: 0,
+      spawned: false,
+    };
+    enemies.push(e);
+  }
+  for (const e of enemies) placeEnemy(e);
 }
 
 function placeChest(chest) {
@@ -914,56 +984,92 @@ function tryMove(dx, dy) {
   moveActor(player, dx, dy);
 }
 
-function stepEnemy(dt) {
-  if (enemy.dead) {
-    enemy.respawnTimer = Math.max(0, enemy.respawnTimer - dt);
-    if (enemy.respawnTimer <= 0) {
-      enemy.dead = false;
-      resetActorHp(enemy);
-      enemy.x = 640;
-      enemy.y = 410;
-      enemy.touchCooldown = 0;
-      enemy.retreatTimer = 0;
-    }
-    return;
-  }
-
-  enemy.touchCooldown = Math.max(0, enemy.touchCooldown - dt);
-  enemy.retreatTimer = Math.max(0, enemy.retreatTimer - dt);
-
-  const vx = player.x - enemy.x;
-  const vy = player.y - enemy.y;
+function enemyCanSeePlayer(e) {
+  const vx = player.x - e.x;
+  const vy = player.y - e.y;
   const dist = Math.hypot(vx, vy);
-  const ux = dist > 0.001 ? vx / dist : 0;
-  const uy = dist > 0.001 ? vy / dist : 0;
+  const maxVision = PLAYER_VISION_FORWARD * ENEMY_VISION_MULT;
+  if (dist > maxVision) return false;
+  if (dist < 0.001) return true;
+  const ux = vx / dist;
+  const uy = vy / dist;
+  const hit = raycastToWorldWalls(e.x, e.y, ux, uy, dist);
+  return hit >= dist - 0.01;
+}
 
-  let mdx = ux;
-  let mdy = uy;
-  if (enemy.retreatTimer > 0) {
-    mdx = -ux;
-    mdy = -uy;
-  }
+function stepEnemies(dt) {
+  initEnemies();
 
-  const mag = Math.hypot(mdx, mdy);
-  if (mag > 0.001) {
-    mdx /= mag;
-    mdy /= mag;
-  }
+  let alive = 0;
+  for (const e of enemies) {
+    if (!e.dead) alive++;
 
-  moveActor(enemy, mdx * enemy.speed * dt, mdy * enemy.speed * dt);
+    if (e.dead) {
+      e.respawnTimer = Math.max(0, e.respawnTimer - dt);
+      if (e.respawnTimer <= 0) {
+        e.dead = false;
+        resetActorHp(e);
+        e.touchCooldown = 0;
+        e.retreatTimer = 0;
+        e.aggroTimer = 0;
+        e.wanderTimer = 0;
+        placeEnemy(e);
+      }
+      continue;
+    }
 
-  if (actorsOverlap(enemy, player) && enemy.touchCooldown <= 0) {
-    player.hp = Math.max(0, player.hp - enemy.touchDamage);
-    enemy.touchCooldown = 0.9;
-    enemy.retreatTimer = 0.55;
+    e.touchCooldown = Math.max(0, e.touchCooldown - dt);
+    e.retreatTimer = Math.max(0, e.retreatTimer - dt);
 
-    // Small immediate push so it clearly backs off.
-    moveActor(enemy, -ux * 70 * dt, -uy * 70 * dt);
+    const sees = enemyCanSeePlayer(e);
+    if (sees) e.aggroTimer = 1.2;
+    else e.aggroTimer = Math.max(0, e.aggroTimer - dt);
 
-    if (player.hp <= 0) {
-      resetActorHp(player);
-      resetActorHp(enemy);
-      resetPositions();
+    const vx = player.x - e.x;
+    const vy = player.y - e.y;
+    const dist = Math.hypot(vx, vy);
+    const ux = dist > 0.001 ? vx / dist : 0;
+    const uy = dist > 0.001 ? vy / dist : 0;
+
+    let mdx = 0;
+    let mdy = 0;
+
+    if (e.retreatTimer > 0) {
+      mdx = -ux;
+      mdy = -uy;
+    } else if (e.aggroTimer > 0) {
+      mdx = ux;
+      mdy = uy;
+    } else {
+      e.wanderTimer = Math.max(0, e.wanderTimer - dt);
+      if (e.wanderTimer <= 0) {
+        e.wanderAng = Math.random() * Math.PI * 2;
+        e.wanderTimer = rand(0.9, 2.1);
+      }
+      mdx = Math.cos(e.wanderAng);
+      mdy = Math.sin(e.wanderAng);
+    }
+
+    const mag = Math.hypot(mdx, mdy);
+    if (mag > 0.001) {
+      mdx /= mag;
+      mdy /= mag;
+    }
+
+    moveActor(e, mdx * e.speed * dt, mdy * e.speed * dt);
+
+    if (actorsOverlap(e, player) && e.touchCooldown <= 0) {
+      player.hp = Math.max(0, player.hp - e.touchDamage);
+      e.touchCooldown = 0.9;
+      e.retreatTimer = 0.55;
+
+      moveActor(e, -ux * 70 * dt, -uy * 70 * dt);
+
+      if (player.hp <= 0) {
+        resetActorHp(player);
+        resetPositions();
+        return;
+      }
     }
   }
 }
@@ -1166,14 +1272,18 @@ function stepBullets(dt) {
     b.x += moveX;
     b.y += moveY;
 
-    if (!enemy.dead && b.owner !== 'enemy' && pointInActor(b.x, b.y, enemy, b.r)) {
-      enemy.hp = Math.max(0, enemy.hp - (b.damage ?? gun.damage));
-      bullets.splice(i, 1);
-      if (enemy.hp <= 0) {
-        enemy.dead = true;
-        enemy.respawnTimer = 2.2;
+    if (b.owner !== 'enemy') {
+      for (const e of enemies) {
+        if (e.dead) continue;
+        if (!pointInActor(b.x, b.y, e, b.r)) continue;
+        e.hp = Math.max(0, e.hp - (b.damage ?? gun.damage));
+        bullets.splice(i, 1);
+        if (e.hp <= 0) {
+          e.dead = true;
+          e.respawnTimer = 2.2;
+        }
+        break;
       }
-      continue;
     }
   }
 }
@@ -1246,7 +1356,7 @@ function drawWorld(cam) {
   // Player (white block)
   drawPlayer(cam);
 
-  drawEnemy(cam);
+  for (const e of enemies) drawEnemy(cam, e);
 
   drawBullets(cam);
 }
@@ -1322,14 +1432,10 @@ function drawHud() {
   ctx.fillText(`YOU: ${player.hp}/${player.maxHp}`, 22, 18);
   drawHpBar(22, 34, 200, 12, player.hp, player.maxHp, '#29ff6a');
 
+  const alive = enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0);
   ctx.fillStyle = '#ffffff';
-  if (enemy.dead) {
-    ctx.fillText('ENEMY: DEAD', 22, 50);
-    drawHpBar(22, 66, 200, 12, 0, enemy.maxHp, '#ff5c5c');
-  } else {
-    ctx.fillText(`ENEMY: ${enemy.hp}/${enemy.maxHp}`, 22, 50);
-    drawHpBar(22, 66, 200, 12, enemy.hp, enemy.maxHp, '#ff5c5c');
-  }
+  ctx.fillText(`ENEMIES: ${alive}/${ENEMY_COUNT}`, 22, 50);
+  drawHpBar(22, 66, 200, 12, alive, ENEMY_COUNT, '#ff5c5c');
 
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.fillText(`Coins: ${inventory.coins}`, 22, 82);
@@ -1453,8 +1559,8 @@ function drawVisionMask(cam, now) {
   const px = player.x - cam.x;
   const py = player.y - cam.y;
 
-  const baseRadius = 96;
-  const forwardRadius = 128;
+  const baseRadius = PLAYER_VISION_BASE;
+  const forwardRadius = PLAYER_VISION_FORWARD;
 
   const screenWalls = [];
   for (const w of WALLS) {
@@ -1584,10 +1690,10 @@ function frame(now) {
     walkT += dt * 10;
   }
 
-  if (!bagOpen) {
+  if (!bagOpen && !chestLootOpen) {
     stepChests(dt);
     tryMove(dx * player.speed * dt, dy * player.speed * dt);
-    stepEnemy(dt);
+    stepEnemies(dt);
     stepBullets(dt);
   }
 
