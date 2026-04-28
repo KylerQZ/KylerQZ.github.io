@@ -10,6 +10,10 @@
   --shadow: rgba(0, 0, 0, 0.35);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -56,7 +60,32 @@ body {
 }
 
 #authView .card {
-  width: min(520px, 100%);
+  width: min(980px, 100%);
+  padding: 38px;
+}
+
+#authView .card-title {
+  font-size: 28px;
+}
+
+#authView .card-note {
+  font-size: 16px;
+}
+
+#authView .field-label {
+  font-size: 14px;
+}
+
+#authView .input {
+  padding: 16px 18px;
+  font-size: 16px;
+  border-radius: 16px;
+}
+
+#authView .btn {
+  padding: 14px 18px;
+  font-size: 16px;
+  border-radius: 16px;
 }
 
 .topbar {
