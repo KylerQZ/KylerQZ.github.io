@@ -38,6 +38,7 @@ const el = {
   appNav: document.getElementById("appNav"),
   navBtns: Array.from(document.querySelectorAll("[data-nav]")),
   pages: Array.from(document.querySelectorAll("[data-page]")),
+  packsList: document.getElementById("packsList"),
   authForm: document.getElementById("authForm"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
@@ -82,6 +83,47 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+const packs = [
+  {
+    id: "chocolate-pack",
+    name: "Chocolate Pack",
+    description: "Your first pack.",
+    image: "./assets/packs/chocolate-pack.jpg",
+  },
+];
+
+function renderPacks() {
+  if (!el.packsList) return;
+
+  if (!Array.isArray(packs) || packs.length === 0) {
+    el.packsList.textContent = "—";
+    return;
+  }
+
+  const html = packs
+    .map((p) => {
+      const name = escapeHtml(p?.name || "Pack");
+      const desc = escapeHtml(p?.description || "");
+      const img = escapeHtml(p?.image || "");
+
+      return `
+        <article class="pack-card" data-pack-id="${escapeHtml(p?.id || "")}">
+          <div class="pack-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
+          <div class="pack-body">
+            <div class="pack-name">${name}</div>
+            <div class="pack-desc">${desc}</div>
+            <div class="row">
+              <button class="btn" type="button" disabled>Open (soon)</button>
+            </div>
+          </div>
+        </article>
+      `.trim();
+    })
+    .join("\n");
+
+  el.packsList.innerHTML = html;
 }
 
 function usernameFromEmail(email) {
@@ -164,6 +206,7 @@ function setSignedOutUI() {
   el.appNav.hidden = true;
   el.accountCard.hidden = true;
   el.signOutBtn.hidden = true;
+  if (el.packsList) el.packsList.textContent = "—";
 }
 
 function setSignedInUI() {
@@ -280,9 +323,14 @@ if (ensureConfigPresent()) {
 
     setSignedInUI();
 
+    if (!location.hash || getPageFromHash() !== String(location.hash).replace(/^#/, "")) {
+      location.hash = "#stats";
+    }
+
     try {
       const { data } = await getOrCreateUserDoc(user);
       renderAccount(data);
+      renderPacks();
       showPage(getPageFromHash());
     } catch (err) {
       setMsg(err?.message || "Failed to load account data.");
