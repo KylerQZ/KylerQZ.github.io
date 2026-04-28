@@ -5,7 +5,7 @@
 
 // FIREBASE_CONFIG_HERE
 const firebaseConfig = {
-  apiKey: "AIzaSyBbG4r9gu5WhFrXE1XiwIoxhblT-8QP4Q8",
+  apiKey: "AIzaSyBbG4rg9u5WhFrXE1XiwIoxhb1T-8QP4Q8",
   authDomain: "chocolet-717fd.firebaseapp.com",
   databaseURL: "https://chocolet-717fd-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "chocolet-717fd",
