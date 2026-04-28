@@ -15,7 +15,7 @@ const firebaseConfig = {
   measurementId: "G-RYR5LY7PER",
 };
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
   getAuth,
   onAuthStateChanged,
@@ -156,7 +156,12 @@ let db;
 
 function initFirebase() {
   if (!ensureConfigPresent()) return false;
-  app = initializeApp(firebaseConfig);
+  if (app && auth && db) return true;
+  try {
+    app = initializeApp(firebaseConfig);
+  } catch (e) {
+    app = getApp();
+  }
   auth = getAuth(app);
   db = getFirestore(app);
   return true;
@@ -232,6 +237,19 @@ function showPage(page) {
   }
 }
 
+async function enterApp(user) {
+  setSignedInUI();
+
+  if (!location.hash || getPageFromHash() !== String(location.hash).replace(/^#/, "")) {
+    location.hash = "#stats";
+  }
+
+  const { data } = await getOrCreateUserDoc(user);
+  renderAccount(data);
+  renderPacks();
+  showPage(getPageFromHash());
+}
+
 async function handleSignIn(e) {
   e.preventDefault();
   if (!initFirebase()) return;
@@ -244,6 +262,9 @@ async function handleSignIn(e) {
   try {
     await signInWithEmailAndPassword(auth, email, password);
     setMsg("Signed in.");
+    if (auth.currentUser) {
+      await enterApp(auth.currentUser);
+    }
   } catch (err) {
     setMsg(err?.message || "Sign in failed.");
   }
@@ -259,6 +280,9 @@ async function handleSignUp() {
   try {
     await createUserWithEmailAndPassword(auth, email, password);
     setMsg("Account created.");
+    if (auth.currentUser) {
+      await enterApp(auth.currentUser);
+    }
   } catch (err) {
     setMsg(err?.message || "Sign up failed.");
   }
@@ -321,17 +345,8 @@ if (ensureConfigPresent()) {
       return;
     }
 
-    setSignedInUI();
-
-    if (!location.hash || getPageFromHash() !== String(location.hash).replace(/^#/, "")) {
-      location.hash = "#stats";
-    }
-
     try {
-      const { data } = await getOrCreateUserDoc(user);
-      renderAccount(data);
-      renderPacks();
-      showPage(getPageFromHash());
+      await enterApp(user);
     } catch (err) {
       setMsg(err?.message || "Failed to load account data.");
     }
