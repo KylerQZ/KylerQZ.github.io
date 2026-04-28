@@ -24,7 +24,16 @@
         </div>
       </header>
 
-      <section class="card-grid">
+      <nav id="appNav" class="appnav" hidden>
+        <button class="navbtn" type="button" data-nav="stats">Stats</button>
+        <button class="navbtn" type="button" data-nav="market">Market</button>
+        <button class="navbtn" type="button" data-nav="bazaar">Bazaar</button>
+        <button class="navbtn" type="button" data-nav="chat">Chat</button>
+        <button class="navbtn" type="button" data-nav="events">Events</button>
+        <button class="navbtn" type="button" data-nav="special">Special</button>
+      </nav>
+
+      <section id="authView" class="card-grid">
         <section class="card" aria-label="Login">
           <h2 class="card-title">Login</h2>
           <p class="card-note">Email + password</p>
@@ -60,7 +69,10 @@
           </details>
         </section>
 
-        <section id="accountCard" class="card" aria-label="Account" hidden>
+      </section>
+
+      <section id="appView" class="pages" hidden>
+        <section id="accountCard" class="card page" aria-label="Stats" data-page="stats" hidden>
           <h2 class="card-title">Account</h2>
           <p class="card-note">Your stats</p>
 
@@ -98,6 +110,53 @@
 
           <h3 class="card-title small">Your blooks</h3>
           <div id="blooksList" class="blooks">—</div>
+        </section>
+
+        <section class="card page" aria-label="Market" data-page="market" hidden>
+          <h2 class="card-title">Market</h2>
+          <p class="card-note">Packs, drops, and shop items</p>
+
+          <div class="packs">
+            <article class="pack-card">
+              <div class="pack-art" role="img" aria-label="Chocolate Pack artwork"></div>
+              <div class="pack-body">
+                <div class="pack-name">Chocolate Pack</div>
+                <div class="pack-desc">Your first pack.</div>
+                <div class="row">
+                  <button class="btn" type="button" disabled>Open (soon)</button>
+                </div>
+              </div>
+            </article>
+
+            <div class="hint">
+              Put your pack image at:
+              <code>chocolet/assets/chocolate-pack.jpg</code>
+            </div>
+          </div>
+        </section>
+
+        <section class="card page" aria-label="Bazaar" data-page="bazaar" hidden>
+          <h2 class="card-title">Bazaar</h2>
+          <p class="card-note">Player-to-player trading</p>
+          <div class="placeholder">Coming soon.</div>
+        </section>
+
+        <section class="card page" aria-label="Chat" data-page="chat" hidden>
+          <h2 class="card-title">Chat</h2>
+          <p class="card-note">Talk with other players</p>
+          <div class="placeholder">Coming soon.</div>
+        </section>
+
+        <section class="card page" aria-label="Events" data-page="events" hidden>
+          <h2 class="card-title">Events</h2>
+          <p class="card-note">Limited-time events and quests</p>
+          <div class="placeholder">Coming soon.</div>
+        </section>
+
+        <section class="card page" aria-label="Special" data-page="special" hidden>
+          <h2 class="card-title">Special</h2>
+          <p class="card-note">Special offers and rewards</p>
+          <div class="placeholder">Coming soon.</div>
         </section>
       </section>
 

@@ -84,6 +84,33 @@ body {
   margin-top: 2px;
 }
 
+.appnav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -6px 0 14px;
+}
+
+.navbtn {
+  border: 1px solid rgba(255, 231, 214, 0.14);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 244, 236, 0.86);
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.navbtn:hover {
+  filter: brightness(1.05);
+}
+
+.navbtn.active {
+  border-color: rgba(255, 207, 138, 0.40);
+  box-shadow: 0 0 0 4px rgba(255, 207, 138, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -104,6 +131,76 @@ body {
   padding: 16px;
   box-shadow: 0 18px 50px var(--shadow);
   backdrop-filter: blur(10px);
+}
+
+.pages {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.placeholder {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 231, 214, 0.10);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 244, 236, 0.78);
+  font-size: 12px;
+}
+
+.packs {
+  display: grid;
+  gap: 12px;
+}
+
+.pack-card {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 231, 214, 0.10);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.pack-art {
+  width: 112px;
+  height: 112px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 231, 214, 0.14);
+  background-color: rgba(0, 0, 0, 0.55);
+  background-image: url("./assets/chocolate-pack.jpg");
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.pack-body {
+  display: grid;
+  gap: 6px;
+}
+
+.pack-name {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.pack-desc {
+  font-size: 12px;
+  color: rgba(255, 244, 236, 0.75);
+}
+
+.hint {
+  font-size: 12px;
+  color: rgba(255, 244, 236, 0.72);
+}
+
+.hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  font-size: 11px;
+  color: rgba(255, 244, 236, 0.86);
 }
 
 .card-title {

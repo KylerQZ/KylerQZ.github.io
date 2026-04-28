@@ -33,6 +33,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const el = {
+  authView: document.getElementById("authView"),
+  appView: document.getElementById("appView"),
+  appNav: document.getElementById("appNav"),
+  navBtns: Array.from(document.querySelectorAll("[data-nav]")),
+  pages: Array.from(document.querySelectorAll("[data-page]")),
   authForm: document.getElementById("authForm"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
@@ -154,13 +159,34 @@ function renderAccount(userDoc) {
 }
 
 function setSignedOutUI() {
+  el.authView.hidden = false;
+  el.appView.hidden = true;
+  el.appNav.hidden = true;
   el.accountCard.hidden = true;
   el.signOutBtn.hidden = true;
 }
 
 function setSignedInUI() {
-  el.accountCard.hidden = false;
+  el.authView.hidden = true;
+  el.appView.hidden = false;
+  el.appNav.hidden = false;
   el.signOutBtn.hidden = false;
+}
+
+function getPageFromHash() {
+  const raw = String(location.hash || "").replace(/^#/, "");
+  const valid = new Set(el.pages.map((p) => p.dataset.page));
+  return valid.has(raw) ? raw : "stats";
+}
+
+function showPage(page) {
+  const target = page || "stats";
+  for (const p of el.pages) {
+    p.hidden = p.dataset.page !== target;
+  }
+  for (const b of el.navBtns) {
+    b.classList.toggle("active", b.dataset.nav === target);
+  }
 }
 
 async function handleSignIn(e) {
@@ -230,6 +256,17 @@ el.signUpBtn.addEventListener("click", handleSignUp);
 el.signOutBtn.addEventListener("click", handleSignOut);
 el.editUsernameBtn.addEventListener("click", handleEditUsername);
 
+for (const b of el.navBtns) {
+  b.addEventListener("click", () => {
+    location.hash = `#${b.dataset.nav}`;
+  });
+}
+
+window.addEventListener("hashchange", () => {
+  if (!auth?.currentUser) return;
+  showPage(getPageFromHash());
+});
+
 // Start auth listener only if config is present.
 if (ensureConfigPresent()) {
   initFirebase();
@@ -237,6 +274,7 @@ if (ensureConfigPresent()) {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
       setSignedOutUI();
+      if (location.hash) location.hash = "";
       return;
     }
 
@@ -245,6 +283,7 @@ if (ensureConfigPresent()) {
     try {
       const { data } = await getOrCreateUserDoc(user);
       renderAccount(data);
+      showPage(getPageFromHash());
     } catch (err) {
       setMsg(err?.message || "Failed to load account data.");
     }
