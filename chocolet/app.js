@@ -90,7 +90,7 @@ const packs = [
     id: "chocolate-pack",
     name: "Chocolate Pack",
     description: "Your first pack.",
-    image: "./assets/packs/chocolate-pack.jpg",
+    image: "./assets/packs/chocolate-pack.png",
   },
 ];
 
