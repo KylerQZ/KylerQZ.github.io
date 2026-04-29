@@ -25,6 +25,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
   getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  getCountFromServer,
   doc,
   getDoc,
   setDoc,
@@ -61,7 +68,239 @@ const el = {
   blooksCountText: document.getElementById("blooksCountText"),
   blooksList: document.getElementById("blooksList"),
   editUsernameBtn: document.getElementById("editUsernameBtn"),
+
+  adminNavBtn: document.getElementById("adminNavBtn"),
+  adminPinInput: document.getElementById("adminPinInput"),
+  adminUnlockBtn: document.getElementById("adminUnlockBtn"),
+  adminUnlockMsg: document.getElementById("adminUnlockMsg"),
+  adminTotalAccounts: document.getElementById("adminTotalAccounts"),
+  adminOnlineNow: document.getElementById("adminOnlineNow"),
+  adminPresenceDocs: document.getElementById("adminPresenceDocs"),
+  adminBlookSelect: document.getElementById("adminBlookSelect"),
+  adminBlookQty: document.getElementById("adminBlookQty"),
+  adminGrantBtn: document.getElementById("adminGrantBtn"),
+  adminSetBtn: document.getElementById("adminSetBtn"),
+  adminMsg: document.getElementById("adminMsg"),
+
+  chatList: document.getElementById("chatList"),
+  chatForm: document.getElementById("chatForm"),
+  chatInput: document.getElementById("chatInput"),
 };
+
+const ADMIN_PIN = "67925";
+const ADMIN_UNLOCK_KEY = "chocolet_admin_unlocked";
+
+let currentUserData;
+let chatUnsub;
+let presenceInterval;
+let adminPresenceUnsub;
+let currentShownPage;
+
+function isAdminUnlocked() {
+  return localStorage.getItem(ADMIN_UNLOCK_KEY) === "1";
+}
+
+function setAdminUnlocked() {
+  localStorage.setItem(ADMIN_UNLOCK_KEY, "1");
+}
+
+function applyAdminUIState() {
+  if (el.adminNavBtn) el.adminNavBtn.hidden = !isAdminUnlocked();
+}
+
+function setAdminMsg(message) {
+  if (!el.adminMsg) return;
+  el.adminMsg.textContent = message || "";
+}
+
+function setAdminUnlockMsg(message) {
+  if (!el.adminUnlockMsg) return;
+  el.adminUnlockMsg.textContent = message || "";
+}
+
+function renderChatMessages(msgs) {
+  if (!el.chatList) return;
+  if (!Array.isArray(msgs) || msgs.length === 0) {
+    el.chatList.innerHTML = "<div class=\"placeholder\">No messages yet.</div>";
+    return;
+  }
+
+  el.chatList.innerHTML = msgs
+    .map((m) => {
+      const u = escapeHtml(m.username || "player");
+      const t = escapeHtml(m.text || "");
+      return `<div class=\"chat-msg\"><span class=\"chat-user\">${u}</span><span class=\"chat-text\">${t}</span></div>`;
+    })
+    .join("");
+
+  el.chatList.scrollTop = el.chatList.scrollHeight;
+}
+
+function startChatListener() {
+  if (!db || !auth?.currentUser) return;
+  if (!el.chatList) return;
+  if (chatUnsub) return;
+
+  const q = query(collection(db, "chatMessages"), orderBy("createdAt", "asc"), limit(60));
+  chatUnsub = onSnapshot(
+    q,
+    (snap) => {
+      const msgs = snap.docs.map((d) => d.data());
+      renderChatMessages(msgs);
+    },
+    () => {
+      renderChatMessages([]);
+    },
+  );
+}
+
+function stopChatListener() {
+  if (chatUnsub) {
+    chatUnsub();
+    chatUnsub = undefined;
+  }
+}
+
+async function sendChatMessage(text) {
+  if (!db || !auth?.currentUser) return;
+  const cleaned = String(text || "").trim().slice(0, 160);
+  if (!cleaned) return;
+
+  const username = String(currentUserData?.username || "player");
+  await addDoc(collection(db, "chatMessages"), {
+    text: cleaned,
+    uid: auth.currentUser.uid,
+    username,
+    createdAt: serverTimestamp(),
+  });
+}
+
+async function setBlookQtyForUser(blookName, qty) {
+  if (!auth?.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  const data = snap.exists() ? snap.data() : {};
+  const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+  const key = String(blookName || "Blook");
+  const next = Math.max(0, Number(qty) || 0);
+  if (next <= 0) {
+    delete blooks[key];
+  } else {
+    blooks[key] = next;
+  }
+  await updateDoc(ref, { blooks });
+
+  const merged = { ...data, blooks };
+  currentUserData = merged;
+  renderAccount(merged);
+  renderBlooks(merged);
+}
+
+async function addBlookQtyForUser(blookName, delta) {
+  if (!auth?.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  const data = snap.exists() ? snap.data() : {};
+  const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+  const key = String(blookName || "Blook");
+  const add = Math.max(0, Number(delta) || 0);
+  if (add <= 0) return;
+  blooks[key] = (Number(blooks[key]) || 0) + add;
+  await updateDoc(ref, { blooks });
+
+  const merged = { ...data, blooks };
+  currentUserData = merged;
+  renderAccount(merged);
+  renderBlooks(merged);
+}
+
+async function heartbeatPresence() {
+  if (!db || !auth?.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const username = String(currentUserData?.username || "player");
+  await setDoc(
+    doc(db, "presence", uid),
+    {
+      username,
+      lastSeen: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+function startPresence() {
+  if (presenceInterval) return;
+  heartbeatPresence().catch(() => {});
+  presenceInterval = window.setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    heartbeatPresence().catch(() => {});
+  }, 20000);
+}
+
+function stopPresence() {
+  if (presenceInterval) {
+    clearInterval(presenceInterval);
+    presenceInterval = undefined;
+  }
+}
+
+async function renderAdminStats() {
+  if (!db) return;
+  if (el.adminTotalAccounts) el.adminTotalAccounts.textContent = "…";
+  try {
+    const snap = await getCountFromServer(collection(db, "users"));
+    if (el.adminTotalAccounts) el.adminTotalAccounts.textContent = String(snap.data().count ?? "0");
+  } catch {
+    if (el.adminTotalAccounts) el.adminTotalAccounts.textContent = "—";
+  }
+}
+
+function startAdminPresenceListener() {
+  if (!db) return;
+  if (adminPresenceUnsub) return;
+
+  adminPresenceUnsub = onSnapshot(
+    collection(db, "presence"),
+    (snap) => {
+      const now = Date.now();
+      let online = 0;
+      for (const d of snap.docs) {
+        const data = d.data();
+        const ts = data?.lastSeen?.toDate ? data.lastSeen.toDate() : null;
+        if (!ts) continue;
+        if (now - ts.getTime() <= 65000) online += 1;
+      }
+      if (el.adminPresenceDocs) el.adminPresenceDocs.textContent = String(snap.size);
+      if (el.adminOnlineNow) el.adminOnlineNow.textContent = String(online);
+    },
+    () => {
+      if (el.adminPresenceDocs) el.adminPresenceDocs.textContent = "—";
+      if (el.adminOnlineNow) el.adminOnlineNow.textContent = "—";
+    },
+  );
+}
+
+function stopAdminPresenceListener() {
+  if (adminPresenceUnsub) {
+    adminPresenceUnsub();
+    adminPresenceUnsub = undefined;
+  }
+}
+
+function populateAdminBlookSelect() {
+  if (!el.adminBlookSelect) return;
+  const opts = [...blooksCatalog]
+    .slice()
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .map((b) => {
+      const n = escapeHtml(String(b.name || "Blook"));
+      return `<option value=\"${n}\">${n}</option>`;
+    })
+    .join("");
+  el.adminBlookSelect.innerHTML = opts;
+}
 
 function setMsg(message) {
   el.authMsg.textContent = message || "";
@@ -716,6 +955,10 @@ function setSignedOutUI() {
   el.appNav.hidden = true;
   el.accountCard.hidden = true;
   el.signOutBtn.hidden = true;
+  applyAdminUIState();
+  stopChatListener();
+  stopAdminPresenceListener();
+  stopPresence();
   if (el.packsList) el.packsList.textContent = "—";
   if (el.blooksList) el.blooksList.textContent = "—";
 }
@@ -735,6 +978,12 @@ function getPageFromHash() {
 
 function showPage(page) {
   const target = page || "stats";
+
+  if (target === "admin" && !isAdminUnlocked()) {
+    location.hash = "#stats";
+    return;
+  }
+
   for (const p of el.pages) {
     p.hidden = p.dataset.page !== target;
   }
@@ -745,10 +994,27 @@ function showPage(page) {
   if (target === "packopen") {
     renderPackOpenPage();
   }
+
+  if (currentShownPage !== target) {
+    if (currentShownPage === "chat") stopChatListener();
+    if (currentShownPage === "admin") stopAdminPresenceListener();
+    currentShownPage = target;
+  }
+
+  if (target === "chat") {
+    startChatListener();
+  }
+  if (target === "admin") {
+    setAdminMsg("");
+    populateAdminBlookSelect();
+    renderAdminStats().catch(() => {});
+    startAdminPresenceListener();
+  }
 }
 
 async function enterApp(user) {
   setSignedInUI();
+  applyAdminUIState();
 
   const raw = String(location.hash || "").replace(/^#/, "");
   const currentPage = raw.replace(/\?.*$/, "");
@@ -757,10 +1023,13 @@ async function enterApp(user) {
   }
 
   const { data } = await getOrCreateUserDoc(user);
+  currentUserData = data;
   renderAccount(data);
   renderBlooks(data);
   renderPacks();
   showPage(getPageFromHash());
+
+  startPresence();
 }
 
 async function handleSignIn(e) {
@@ -825,9 +1094,64 @@ async function handleEditUsername() {
   try {
     await updateDoc(ref, { username: cleaned });
     el.usernameText.textContent = cleaned;
+    currentUserData = { ...(currentUserData || {}), username: cleaned };
+    heartbeatPresence().catch(() => {});
     setMsg("Username updated.");
   } catch (err) {
     setMsg(err?.message || "Username update failed.");
+  }
+}
+
+async function handleAdminUnlock() {
+  const pin = String(el.adminPinInput?.value || "").trim();
+  if (pin !== ADMIN_PIN) {
+    setAdminUnlockMsg("Wrong PIN.");
+    return;
+  }
+  setAdminUnlocked();
+  applyAdminUIState();
+  setAdminUnlockMsg("Admin unlocked.");
+  if (el.adminPinInput) el.adminPinInput.value = "";
+  location.hash = "#admin";
+}
+
+async function handleChatSubmit(e) {
+  e.preventDefault();
+  if (!el.chatInput) return;
+  const text = el.chatInput.value;
+  el.chatInput.value = "";
+  try {
+    await sendChatMessage(text);
+  } catch {
+    el.chatInput.value = text;
+  }
+}
+
+async function handleAdminGrant() {
+  if (!isAdminUnlocked()) return;
+  const name = String(el.adminBlookSelect?.value || "");
+  const qty = Math.max(1, Math.floor(Number(el.adminBlookQty?.value) || 1));
+  if (!name) return;
+  setAdminMsg("");
+  try {
+    await addBlookQtyForUser(name, qty);
+    setAdminMsg(`Granted ${qty}x ${name}.`);
+  } catch {
+    setAdminMsg("Grant failed.");
+  }
+}
+
+async function handleAdminSetQty() {
+  if (!isAdminUnlocked()) return;
+  const name = String(el.adminBlookSelect?.value || "");
+  const qty = Math.max(1, Math.floor(Number(el.adminBlookQty?.value) || 1));
+  if (!name) return;
+  setAdminMsg("");
+  try {
+    await setBlookQtyForUser(name, qty);
+    setAdminMsg(`Set ${name} to x${qty}.`);
+  } catch {
+    setAdminMsg("Set qty failed.");
   }
 }
 
@@ -835,6 +1159,16 @@ el.authForm.addEventListener("submit", handleSignIn);
 el.signUpBtn.addEventListener("click", handleSignUp);
 el.signOutBtn.addEventListener("click", handleSignOut);
 el.editUsernameBtn.addEventListener("click", handleEditUsername);
+
+if (el.adminUnlockBtn) el.adminUnlockBtn.addEventListener("click", handleAdminUnlock);
+if (el.chatForm) el.chatForm.addEventListener("submit", handleChatSubmit);
+if (el.adminGrantBtn) el.adminGrantBtn.addEventListener("click", handleAdminGrant);
+if (el.adminSetBtn) el.adminSetBtn.addEventListener("click", handleAdminSetQty);
+
+document.addEventListener("visibilitychange", () => {
+  if (!auth?.currentUser) return;
+  heartbeatPresence().catch(() => {});
+});
 
 for (const b of el.navBtns) {
   b.addEventListener("click", () => {

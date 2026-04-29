@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260429-2017" />
+    <link rel="stylesheet" href="./styles.css?v=20260429-2026" />
   </head>
   <body>
     <div class="bg"></div>
@@ -31,6 +31,7 @@
         <button class="navbtn" type="button" data-nav="bazaar">Bazaar</button>
         <button class="navbtn" type="button" data-nav="chat">Chat</button>
         <button class="navbtn" type="button" data-nav="events">Events</button>
+        <button id="adminNavBtn" class="navbtn" type="button" data-nav="admin" hidden>Admin</button>
       </nav>
 
       <section id="authView" class="card-grid">
@@ -107,6 +108,19 @@
           </div>
 
           <div class="divider"></div>
+
+          <div class="row">
+            <input
+              id="adminPinInput"
+              class="input"
+              type="password"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              placeholder="Admin PIN"
+            />
+            <button id="adminUnlockBtn" class="btn btn-secondary" type="button">Unlock</button>
+          </div>
+          <p id="adminUnlockMsg" class="msg" aria-live="polite"></p>
         </section>
 
         <section class="card page" aria-label="Blooks" data-page="blooks" hidden>
@@ -157,7 +171,45 @@
         <section class="card page" aria-label="Chat" data-page="chat" hidden>
           <h2 class="card-title">Chat</h2>
           <p class="card-note">Talk with other players</p>
-          <div class="placeholder">Coming soon.</div>
+          <div class="chat">
+            <div id="chatList" class="chat-list" aria-label="Chat messages"></div>
+            <form id="chatForm" class="chat-form">
+              <input id="chatInput" class="input" type="text" maxlength="160" placeholder="Message..." required />
+              <button id="chatSendBtn" class="btn" type="submit">Send</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="card page" aria-label="Admin" data-page="admin" hidden>
+          <h2 class="card-title">Admin</h2>
+          <p class="card-note">Game stats and tools</p>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Total accounts</div>
+              <div id="adminTotalAccounts" class="value">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Online now</div>
+              <div id="adminOnlineNow" class="value">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Presence docs</div>
+              <div id="adminPresenceDocs" class="value">—</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <select id="adminBlookSelect" class="input" aria-label="Pick blook"></select>
+            <input id="adminBlookQty" class="input" type="number" min="1" max="999" value="1" />
+          </div>
+          <div class="row">
+            <button id="adminGrantBtn" class="btn" type="button">Grant</button>
+            <button id="adminSetBtn" class="btn btn-secondary" type="button">Set qty</button>
+          </div>
+          <p id="adminMsg" class="msg" aria-live="polite"></p>
         </section>
 
         <section class="card page" aria-label="Events" data-page="events" hidden>
@@ -172,6 +224,6 @@
       </footer>
     </main>
 
-    <script type="module" src="./app.js?v=20260429-2017"></script>
+    <script type="module" src="./app.js?v=20260429-2026"></script>
   </body>
 </html>

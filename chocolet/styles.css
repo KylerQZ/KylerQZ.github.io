@@ -187,6 +187,52 @@ body {
   font-size: 12px;
 }
 
+.chat {
+  display: grid;
+  gap: 10px;
+}
+
+.chat-list {
+  height: min(380px, 48vh);
+  overflow: auto;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 231, 214, 0.10);
+  background: rgba(0, 0, 0, 0.20);
+}
+
+.chat-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chat-form .input {
+  flex: 1;
+}
+
+.chat-msg {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 231, 214, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+  margin-bottom: 8px;
+}
+
+.chat-user {
+  font-weight: 900;
+  color: rgba(255, 207, 138, 0.92);
+  white-space: nowrap;
+}
+
+.chat-text {
+  color: rgba(255, 244, 236, 0.86);
+  word-break: break-word;
+}
+
 .packs {
   display: grid;
   gap: 12px;
@@ -281,10 +327,15 @@ body {
   width: 100%;
   border-radius: 12px;
   border: 1px solid rgba(255, 231, 214, 0.14);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--text);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 244, 236, 0.9);
   padding: 10px 12px;
+  font-size: 14px;
   outline: none;
+}
+
+select.input {
+  appearance: none;
 }
 
 .input:focus {
