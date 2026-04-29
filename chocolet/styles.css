@@ -461,10 +461,29 @@ select.input {
   border: 1px solid rgba(255, 231, 214, 0.16);
   box-shadow: 0 16px 40px var(--shadow);
   cursor: pointer;
+  position: relative;
 }
 
 .avatar:hover {
   filter: brightness(1.08);
+}
+
+.avatar.avatar-mystical {
+  background-image: var(--avatar-base);
+  background-size: cover;
+  background-position: center;
+}
+
+.avatar.avatar-mystical::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--avatar-shush);
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  animation: mystical-shush 3000ms ease-in-out infinite;
 }
 
 .account-meta {

@@ -469,7 +469,7 @@ function populateAdminPackSelect() {
 
   const first = packs[0]?.id ? String(packs[0].id) : "";
   if (first) {
-    const firstBtn = el.adminPacksGrid.querySelector(`[data-admin-pack="${CSS.escape(first)}"]`);
+    const firstBtn = el.adminPacksGrid.querySelector("[data-admin-pack]");
     if (firstBtn) firstBtn.classList.add("active");
     renderAdminPackProbabilities(first);
   }
