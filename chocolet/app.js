@@ -84,7 +84,6 @@ const el = {
   bazaarList: document.getElementById("bazaarList"),
   bazaarMsg: document.getElementById("bazaarMsg"),
 
-  eventDailyWheelBtn: document.getElementById("eventDailyWheelBtn"),
   eventLowWheelBtn: document.getElementById("eventLowWheelBtn"),
   eventMidWheelBtn: document.getElementById("eventMidWheelBtn"),
   eventHighWheelBtn: document.getElementById("eventHighWheelBtn"),
@@ -1931,7 +1930,6 @@ if (el.adminAddTokensBtn) el.adminAddTokensBtn.addEventListener("click", handleA
 if (el.adminSetTokensBtn) el.adminSetTokensBtn.addEventListener("click", handleAdminSetTokens);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
 if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
-if (el.eventDailyWheelBtn) el.eventDailyWheelBtn.addEventListener("click", () => handleEventWheel("dailyAgain"));
 if (el.eventLowWheelBtn) el.eventLowWheelBtn.addEventListener("click", () => handleEventWheel("low"));
 if (el.eventMidWheelBtn) el.eventMidWheelBtn.addEventListener("click", () => handleEventWheel("mid"));
 if (el.eventHighWheelBtn) el.eventHighWheelBtn.addEventListener("click", () => handleEventWheel("high"));
