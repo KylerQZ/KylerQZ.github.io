@@ -421,6 +421,11 @@ select.input {
   background: #000;
   border: 1px solid rgba(255, 231, 214, 0.16);
   box-shadow: 0 16px 40px var(--shadow);
+  cursor: pointer;
+}
+
+.avatar:hover {
+  filter: brightness(1.08);
 }
 
 .account-meta {
@@ -971,7 +976,7 @@ select.input {
 
 .mystical-shush .blook-art {
   position: relative;
-  background-image: var(--mystical-base);
+  background-image: var(--mystical-base, none);
   background-size: cover;
   background-position: center;
 }

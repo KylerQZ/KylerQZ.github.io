@@ -70,6 +70,7 @@ const el = {
   editUsernameBtn: document.getElementById("editUsernameBtn"),
 
   avatarBox: document.getElementById("avatarBox"),
+  avatarEditor: document.getElementById("avatarEditor"),
   avatarSelect: document.getElementById("avatarSelect"),
   avatarSetBtn: document.getElementById("avatarSetBtn"),
   avatarMsg: document.getElementById("avatarMsg"),
@@ -1196,8 +1197,21 @@ async function handleSetAvatar() {
     currentUserData = { ...(currentUserData || {}), avatarBlook: picked || "" };
     renderAvatar(currentUserData);
     setAvatarMsg("Avatar updated.");
+    if (el.avatarEditor) el.avatarEditor.hidden = true;
   } catch {
     setAvatarMsg("Avatar update failed.");
+  }
+}
+
+function toggleAvatarEditor(forceOpen) {
+  if (!el.avatarEditor) return;
+  if (typeof forceOpen === "boolean") {
+    el.avatarEditor.hidden = !forceOpen;
+  } else {
+    el.avatarEditor.hidden = !el.avatarEditor.hidden;
+  }
+  if (!el.avatarEditor.hidden && el.avatarSelect) {
+    el.avatarSelect.focus();
   }
 }
 
@@ -1323,6 +1337,7 @@ async function handleAdminSetQty() {
     setAdminMsg("Set qty failed.");
   }
 }
+if (el.avatarBox) el.avatarBox.addEventListener("click", () => toggleAvatarEditor(true));
 
 el.authForm.addEventListener("submit", handleSignIn);
 el.signUpBtn.addEventListener("click", handleSignUp);
