@@ -774,12 +774,13 @@ async function openCurrentPackOnce() {
 
   if (rarityLower === "mystical") {
     const finalImg = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
+    const baseImg = img || finalImg;
     el.packOpenResult.innerHTML = `
       <div class="blook-anim mystical-anim" data-mystical-final="${escapeHtml(finalImg)}">
         <div class="mystical-rainbow" aria-hidden="true"></div>
         <div class="mystical-frog" role="img" aria-label="${escapeHtml(name)}" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
         <div class="blook-card explode explode-mystical mystical-final mystical-shush" hidden>
-          <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${finalImg ? `background-image:url('${escapeHtml(finalImg)}')` : img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+          <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="--mystical-base:url('${escapeHtml(baseImg)}');--mystical-shush:url('${escapeHtml(finalImg)}');"></div>
           <div class="blook-meta">
             <div class="blook-name">${escapeHtml(name)}</div>
             <div class="blook-sub">
