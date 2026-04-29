@@ -89,7 +89,7 @@ const el = {
   adminSetBtn: document.getElementById("adminSetBtn"),
   adminMsg: document.getElementById("adminMsg"),
 
-  adminPackSelect: document.getElementById("adminPackSelect"),
+  adminPacksGrid: document.getElementById("adminPacksGrid"),
   adminPackProbs: document.getElementById("adminPackProbs"),
 
   chatList: document.getElementById("chatList"),
@@ -441,18 +441,37 @@ function populateAdminBlookSelect() {
 }
 
 function populateAdminPackSelect() {
-  if (!el.adminPackSelect) return;
-  const opts = packs
+  if (!el.adminPacksGrid) return;
+  const html = packs
     .map((p) => {
       const id = escapeHtml(String(p?.id || ""));
       const name = escapeHtml(String(p?.name || "Pack"));
-      return `<option value="${id}">${name}</option>`;
+      const img = escapeHtml(String(p?.image || ""));
+      return `
+        <button class="admin-pack" type="button" data-admin-pack="${id}">
+          <div class="admin-pack-art" aria-hidden="true" style="${img ? `background-image:url('${img}')` : ""}"></div>
+          <div class="admin-pack-name">${name}</div>
+        </button>
+      `.trim();
     })
-    .join("");
-  el.adminPackSelect.innerHTML = opts;
-  if (packs[0]?.id) {
-    el.adminPackSelect.value = String(packs[0].id);
-    renderAdminPackProbabilities(String(packs[0].id));
+    .join("\n");
+
+  el.adminPacksGrid.innerHTML = html;
+
+  el.adminPacksGrid.querySelectorAll("[data-admin-pack]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-admin-pack") || "";
+      el.adminPacksGrid.querySelectorAll(".admin-pack").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderAdminPackProbabilities(id);
+    });
+  });
+
+  const first = packs[0]?.id ? String(packs[0].id) : "";
+  if (first) {
+    const firstBtn = el.adminPacksGrid.querySelector(`[data-admin-pack="${CSS.escape(first)}"]`);
+    if (firstBtn) firstBtn.classList.add("active");
+    renderAdminPackProbabilities(first);
   }
 }
 
@@ -1371,11 +1390,6 @@ if (el.headerAvatar) {
   el.headerAvatar.addEventListener("click", () => {
     location.hash = "#stats";
     window.setTimeout(() => toggleAvatarEditor(true), 0);
-  });
-}
-if (el.adminPackSelect) {
-  el.adminPackSelect.addEventListener("change", () => {
-    renderAdminPackProbabilities(el.adminPackSelect.value);
   });
 }
 

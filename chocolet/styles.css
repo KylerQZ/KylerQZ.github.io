@@ -599,6 +599,48 @@ select.input {
   font-weight: 700;
 }
 
+.admin-packs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-pack {
+  text-align: left;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 231, 214, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 244, 236, 0.88);
+  cursor: pointer;
+}
+
+.admin-pack:hover {
+  filter: brightness(1.05);
+}
+
+.admin-pack.active {
+  border-color: rgba(255, 207, 138, 0.40);
+  box-shadow: 0 0 0 4px rgba(255, 207, 138, 0.12);
+}
+
+.admin-pack-art {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 231, 214, 0.14);
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(0, 0, 0, 0.55);
+  margin-bottom: 8px;
+}
+
+.admin-pack-name {
+  font-weight: 900;
+  font-size: 12px;
+}
+
 .blook-card-small {
   padding: 10px;
   border-radius: 14px;
