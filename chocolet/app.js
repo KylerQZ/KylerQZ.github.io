@@ -112,6 +112,10 @@ const el = {
   chatList: document.getElementById("chatList"),
   chatForm: document.getElementById("chatForm"),
   chatInput: document.getElementById("chatInput"),
+
+  playerModal: document.getElementById("playerModal"),
+  playerModalClose: document.getElementById("playerModalClose"),
+  playerModalBody: document.getElementById("playerModalBody"),
 };
 
 const ADMIN_PIN = "67925";
@@ -120,6 +124,7 @@ const ADMIN_UNLOCK_KEY = "chocolet_admin_unlocked";
 let currentUserData;
 let chatUnsub;
 let bazaarUnsub;
+const playerCache = new Map();
 let presenceInterval;
 let adminPresenceUnsub;
 let currentShownPage;
@@ -470,13 +475,14 @@ function renderChatMessages(msgs) {
       const u = escapeHtml(m.username || "player");
       const t = escapeHtml(m.text || "");
       const admin = Boolean(m.isAdmin);
+      const uid = escapeHtml(String(m.uid || ""));
       const avatarName = String(m.avatarBlook || "");
       const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
       const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
       const userClass = admin ? "chat-user admin" : "chat-user";
       return `
         <div class="chat-msg">
-          <div class="chat-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
+          <button class="chat-avatar" type="button" data-player-uid="${uid}" aria-label="View player" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></button>
           <div class="chat-main">
             <div class="${userClass}">${u}</div>
             <div class="chat-text">${t}</div>
@@ -486,7 +492,71 @@ function renderChatMessages(msgs) {
     })
     .join("");
 
+  el.chatList.querySelectorAll("[data-player-uid]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const uid = btn.getAttribute("data-player-uid") || "";
+      openPlayerModal(uid);
+    });
+  });
+
   el.chatList.scrollTop = el.chatList.scrollHeight;
+}
+
+function closePlayerModal() {
+  if (!el.playerModal) return;
+  el.playerModal.hidden = true;
+}
+
+async function openPlayerModal(uid) {
+  if (!db) return;
+  const id = String(uid || "");
+  if (!id) return;
+  if (!el.playerModal || !el.playerModalBody) return;
+
+  el.playerModal.hidden = false;
+  el.playerModalBody.innerHTML = `<div class="placeholder">Loading…</div>`;
+
+  let data = playerCache.get(id);
+  if (!data) {
+    try {
+      const snap = await getDoc(doc(db, "users", id));
+      data = snap.exists() ? snap.data() : null;
+      if (data) playerCache.set(id, data);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!data) {
+    el.playerModalBody.innerHTML = `<div class="placeholder">Player not found.</div>`;
+    return;
+  }
+
+  const username = escapeHtml(String(data.username || "player"));
+  const isAdmin = Boolean(data.isAdmin);
+  const tokens = Math.max(0, Number(data.tokens) || 0);
+  const blooks = data?.blooks && typeof data.blooks === "object" ? data.blooks : {};
+  const blooksOwned = Object.values(blooks).reduce((a, v) => a + (Number(v) || 0), 0);
+
+  const avatarName = String(data.avatarBlook || "");
+  const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
+  const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
+
+  const nameHtml = isAdmin ? `<span class="rainbow-name">${username}</span>` : username;
+
+  el.playerModalBody.innerHTML = `
+    <div class="player-card">
+      <div class="player-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
+      <div class="player-meta">
+        <div class="player-name">${nameHtml}</div>
+        <div class="bazaar-sub">${escapeHtml(id)}</div>
+      </div>
+    </div>
+    <div class="player-stats">
+      <div class="player-stat"><div class="label">Tokens</div><div class="value">${tokens}</div></div>
+      <div class="player-stat"><div class="label">Blooks owned</div><div class="value">${blooksOwned}</div></div>
+    </div>
+  `.trim();
 }
 
 function startChatListener() {
@@ -1870,6 +1940,19 @@ async function handleAdminUnlock() {
   if (db && auth?.currentUser) {
     updateDoc(doc(db, "users", auth.currentUser.uid), { isAdmin: true }).catch(() => {});
     currentUserData = { ...(currentUserData || {}), isAdmin: true };
+if (el.playerModalClose) el.playerModalClose.addEventListener("click", closePlayerModal);
+if (el.playerModal) {
+  el.playerModal.querySelectorAll("[data-modal-close]").forEach((n) => {
+    n.addEventListener("click", closePlayerModal);
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!el.playerModal || el.playerModal.hidden) return;
+  closePlayerModal();
+});
+
     if (currentUserData) renderAccount(currentUserData);
   }
   if (el.adminPinInput) el.adminPinInput.value = "";

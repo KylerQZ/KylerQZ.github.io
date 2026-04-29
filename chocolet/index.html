@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260429-2156" />
+    <link rel="stylesheet" href="./styles.css?v=20260429-2200" />
   </head>
   <body>
     <div class="bg"></div>
@@ -257,6 +257,17 @@
       </footer>
     </main>
 
-    <script type="module" src="./app.js?v=20260429-2156"></script>
+    <div id="playerModal" class="modal" hidden>
+      <div class="modal-backdrop" data-modal-close aria-hidden="true"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Player info">
+        <div class="modal-head">
+          <div class="modal-title">Player</div>
+          <button id="playerModalClose" class="btn btn-ghost btn-xs" type="button">Close</button>
+        </div>
+        <div id="playerModalBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js?v=20260429-2200"></script>
   </body>
 </html>
