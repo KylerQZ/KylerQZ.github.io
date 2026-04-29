@@ -1963,6 +1963,9 @@ if (el.packOpenPack) {
   });
 }
 
+const legacyEventDaily = document.getElementById("eventDailyWheelBtn");
+if (legacyEventDaily) legacyEventDaily.remove();
+
 window.addEventListener("hashchange", () => {
   if (!auth?.currentUser) return;
   showPage(getPageFromHash());
