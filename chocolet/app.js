@@ -212,6 +212,7 @@ function setSignedOutUI() {
   el.accountCard.hidden = true;
   el.signOutBtn.hidden = true;
   if (el.packsList) el.packsList.textContent = "—";
+  if (el.blooksList) el.blooksList.textContent = "—";
 }
 
 function setSignedInUI() {
