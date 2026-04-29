@@ -128,6 +128,26 @@
           </div>
         </section>
 
+        <section class="card page" aria-label="Pack Opening" data-page="packopen" hidden>
+          <h2 id="packOpenTitle" class="card-title">Pack</h2>
+          <p id="packOpenSubtitle" class="card-note">Click the pack to open</p>
+
+          <div id="packOpenStage" class="packopen-stage">
+            <div id="packOpenBackdrop" class="packopen-backdrop" aria-hidden="true"></div>
+
+            <button id="packOpenPack" class="packopen-pack" type="button" aria-label="Open pack">
+              <div id="packOpenArt" class="packopen-pack-art" aria-hidden="true"></div>
+              <div id="packOpenHint" class="packopen-pack-hint">Click to open</div>
+            </button>
+
+            <div id="packOpenResult" class="packopen-result" hidden></div>
+
+            <div class="row">
+              <button id="packOpenBackBtn" class="btn btn-ghost" type="button">Back to Market</button>
+            </div>
+          </div>
+        </section>
+
         <section class="card page" aria-label="Bazaar" data-page="bazaar" hidden>
           <h2 class="card-title">Bazaar</h2>
           <p class="card-note">Player-to-player trading</p>

@@ -39,6 +39,14 @@ const el = {
   navBtns: Array.from(document.querySelectorAll("[data-nav]")),
   pages: Array.from(document.querySelectorAll("[data-page]")),
   packsList: document.getElementById("packsList"),
+  packOpenTitle: document.getElementById("packOpenTitle"),
+  packOpenSubtitle: document.getElementById("packOpenSubtitle"),
+  packOpenBackdrop: document.getElementById("packOpenBackdrop"),
+  packOpenPack: document.getElementById("packOpenPack"),
+  packOpenArt: document.getElementById("packOpenArt"),
+  packOpenHint: document.getElementById("packOpenHint"),
+  packOpenResult: document.getElementById("packOpenResult"),
+  packOpenBackBtn: document.getElementById("packOpenBackBtn"),
   authForm: document.getElementById("authForm"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
@@ -93,6 +101,53 @@ const packs = [
     image: "./assets/packs/chocolate-pack.png",
   },
 ];
+
+const packPools = {
+  "chocolate-pack": {
+    uncommon: ["Milk Choco", "Dark Choco", "White Choco", "Mint Choco", "Strawberry Choco"],
+    rare: ["Coconut Choco", "Hazelnut Choco"],
+    weights: { uncommon: 0.85, rare: 0.15 },
+  },
+};
+
+function randChoice(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function rollRarity(weights) {
+  const w = weights && typeof weights === "object" ? weights : { uncommon: 1 };
+  const entries = Object.entries(w)
+    .map(([k, v]) => [k, Math.max(0, Number(v) || 0)])
+    .filter(([, v]) => v > 0);
+  if (entries.length === 0) return "uncommon";
+  const total = entries.reduce((a, [, v]) => a + v, 0);
+  let r = Math.random() * total;
+  for (const [k, v] of entries) {
+    r -= v;
+    if (r <= 0) return k;
+  }
+  return entries[entries.length - 1][0];
+}
+
+function getPackById(id) {
+  return packs.find((p) => String(p?.id || "") === String(id || "")) || null;
+}
+
+function getBlookByName(name) {
+  const n = String(name || "");
+  return blooksCatalog.find((b) => String(b?.name || "") === n) || null;
+}
+
+function getBlookRarityByName(name) {
+  return String(getBlookByName(name)?.rarity || "uncommon").toLowerCase();
+}
+
+function getPackIdFromHash() {
+  const raw = String(location.hash || "");
+  const m = raw.match(/^#packopen\?pack=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
 const blooksCatalog = [
   {
@@ -160,7 +215,7 @@ function renderPacks() {
             <div class="pack-name">${name}</div>
             <div class="pack-desc">${desc}</div>
             <div class="row">
-              <button class="btn" type="button" disabled>Open (soon)</button>
+              <button class="btn" type="button" data-open-pack="${escapeHtml(p?.id || "")}">Open</button>
             </div>
           </div>
         </article>
@@ -169,6 +224,13 @@ function renderPacks() {
     .join("\n");
 
   el.packsList.innerHTML = html;
+
+  el.packsList.querySelectorAll("[data-open-pack]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-open-pack") || "";
+      location.hash = `#packopen?pack=${encodeURIComponent(id)}`;
+    });
+  });
 }
 
 function renderBlooks(userDoc) {
@@ -187,18 +249,87 @@ function renderBlooks(userDoc) {
     common: 0,
   };
 
-  const items = blooksCatalog
-    .map((b) => {
-      const name = String(b?.name || "Blook");
-      const qty = Number(qtyByName[name]) || 0;
-      return {
-        id: String(b?.id || name),
-        name,
-        rarity: String(b?.rarity || "uncommon"),
-        image: String(b?.image || ""),
-        qty,
-      };
-    })
+  function itemFromCatalog(b) {
+    const name = String(b?.name || "Blook");
+    const qty = Number(qtyByName[name]) || 0;
+    return {
+      id: String(b?.id || name),
+      name,
+      rarity: String(b?.rarity || "uncommon").toLowerCase(),
+      image: String(b?.image || ""),
+      qty,
+    };
+  }
+
+  function renderItemCard(b) {
+    const name = escapeHtml(b.name);
+    const rarity = escapeHtml(b.rarity);
+    const img = escapeHtml(b.image);
+    const qty = escapeHtml(String(b.qty));
+    const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
+
+    return `
+      <article class="blook-card blook-card-small" data-blook-id="${escapeHtml(b.id)}">
+        <div class="blook-art blook-art-small" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
+        <div class="blook-meta">
+          <div class="blook-name">${name}</div>
+          <div class="blook-sub">
+            <span class="blook-rarity ${rarityClass}">${rarity}</span>
+            <span class="blook-qty">x${qty}</span>
+          </div>
+        </div>
+      </article>
+    `.trim();
+  }
+
+  function blookNameSetForPack(packId) {
+    const pool = packPools[String(packId || "")] || null;
+    if (!pool || typeof pool !== "object") return new Set();
+
+    const set = new Set();
+    for (const [k, v] of Object.entries(pool)) {
+      if (k === "weights") continue;
+      if (!Array.isArray(v)) continue;
+      for (const name of v) set.add(String(name));
+    }
+    return set;
+  }
+
+  const used = new Set();
+  const sections = [];
+
+  for (const p of packs) {
+    const packId = String(p?.id || "");
+    const packName = escapeHtml(String(p?.name || "Pack"));
+    const names = blookNameSetForPack(packId);
+    if (names.size === 0) continue;
+
+    const items = blooksCatalog
+      .filter((b) => names.has(String(b?.name || "")))
+      .map(itemFromCatalog)
+      .sort((a, b) => {
+        const ra = rarityRank[a.rarity] ?? -1;
+        const rb = rarityRank[b.rarity] ?? -1;
+        if (rb !== ra) return rb - ra;
+        return a.name.localeCompare(b.name);
+      });
+
+    for (const it of items) used.add(it.name);
+
+    const grid = items.length ? items.map(renderItemCard).join("\n") : "";
+    sections.push(
+      `
+        <section class="blooks-pack">
+          <div class="blooks-pack-title">${packName}</div>
+          <div class="blooks-grid blooks-grid-small">${grid || "—"}</div>
+        </section>
+      `.trim(),
+    );
+  }
+
+  const otherItems = blooksCatalog
+    .filter((b) => !used.has(String(b?.name || "")))
+    .map(itemFromCatalog)
     .sort((a, b) => {
       const ra = rarityRank[a.rarity] ?? -1;
       const rb = rarityRank[b.rarity] ?? -1;
@@ -206,30 +337,105 @@ function renderBlooks(userDoc) {
       return a.name.localeCompare(b.name);
     });
 
-  const html = items
-    .map((b) => {
-      const name = escapeHtml(b.name);
-      const rarity = escapeHtml(b.rarity);
-      const img = escapeHtml(b.image);
-      const qty = escapeHtml(String(b.qty));
-      const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
+  if (otherItems.length) {
+    sections.push(
+      `
+        <section class="blooks-pack">
+          <div class="blooks-pack-title">Other</div>
+          <div class="blooks-grid blooks-grid-small">${otherItems.map(renderItemCard).join("\n")}</div>
+        </section>
+      `.trim(),
+    );
+  }
 
-      return `
-        <article class="blook-card" data-blook-id="${escapeHtml(b.id)}">
-          <div class="blook-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
-          <div class="blook-meta">
-            <div class="blook-name">${name}</div>
-            <div class="blook-sub">
-              <span class="blook-rarity ${rarityClass}">${rarity}</span>
-              <span class="blook-qty">x${qty}</span>
-            </div>
-          </div>
-        </article>
-      `.trim();
-    })
-    .join("\n");
+  el.blooksList.innerHTML = sections.length ? sections.join("\n") : "—";
+}
 
-  el.blooksList.innerHTML = `<div class="blooks-grid">${html}</div>`;
+function resetPackOpenUI() {
+  if (el.packOpenResult) {
+    el.packOpenResult.hidden = true;
+    el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
+    el.packOpenResult.textContent = "";
+  }
+  if (el.packOpenHint) el.packOpenHint.textContent = "Click to open";
+  if (el.packOpenPack) el.packOpenPack.disabled = false;
+}
+
+function renderPackOpenPage() {
+  if (!el.packOpenBackdrop || !el.packOpenArt || !el.packOpenTitle || !el.packOpenPack) return;
+  resetPackOpenUI();
+
+  const packId = getPackIdFromHash();
+  const p = getPackById(packId);
+  const name = p?.name || "Pack";
+  const img = p?.image || "";
+
+  el.packOpenTitle.textContent = name;
+  if (el.packOpenSubtitle) el.packOpenSubtitle.textContent = "Click the pack to open";
+
+  el.packOpenBackdrop.style.backgroundImage = img ? `url('${img}')` : "";
+  el.packOpenArt.style.backgroundImage = img ? `url('${img}')` : "";
+}
+
+async function grantBlookToUser(blookName) {
+  if (!auth?.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  const data = snap.exists() ? snap.data() : {};
+  const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+  const key = String(blookName || "Blook");
+  blooks[key] = (Number(blooks[key]) || 0) + 1;
+  await updateDoc(ref, { blooks });
+
+  renderAccount({ ...data, blooks });
+  renderBlooks({ ...data, blooks });
+}
+
+async function openCurrentPackOnce() {
+  if (!auth?.currentUser) return;
+  if (!el.packOpenPack || !el.packOpenResult) return;
+
+  const packId = getPackIdFromHash();
+  const pool = packPools[String(packId || "")] || null;
+  if (!pool) {
+    el.packOpenResult.hidden = false;
+    el.packOpenResult.textContent = "This pack isn't set up yet.";
+    return;
+  }
+
+  el.packOpenPack.disabled = true;
+  if (el.packOpenHint) el.packOpenHint.textContent = "Opening...";
+
+  const rarity = rollRarity(pool.weights);
+  const name = randChoice(pool[rarity]) || randChoice(pool.uncommon) || "Blook";
+  const blook = getBlookByName(name);
+  const img = blook?.image || "";
+
+  el.packOpenResult.hidden = false;
+  el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
+  void el.packOpenResult.offsetWidth;
+
+  const rarityClass = `rarity-${escapeHtml(String(rarity).toLowerCase())}`;
+  const explodeClass = String(rarity).toLowerCase() === "rare" ? "explode-rare" : "explode-uncommon";
+
+  el.packOpenResult.innerHTML = `
+    <div class="blook-card explode ${explodeClass} reveal">
+      <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+      <div class="blook-meta">
+        <div class="blook-name">${escapeHtml(name)}</div>
+        <div class="blook-sub">
+          <span class="blook-rarity ${rarityClass}">${escapeHtml(String(rarity))}</span>
+          <span class="blook-qty">New!</span>
+        </div>
+      </div>
+    </div>
+  `.trim();
+
+  await grantBlookToUser(name);
+
+  if (el.packOpenHint) el.packOpenHint.textContent = "Opened";
+  el.packOpenPack.disabled = false;
 }
 
 function usernameFromEmail(email) {
@@ -332,7 +538,7 @@ function setSignedInUI() {
 }
 
 function getPageFromHash() {
-  const raw = String(location.hash || "").replace(/^#/, "");
+  const raw = String(location.hash || "").replace(/^#/, "").replace(/\?.*$/, "");
   const valid = new Set(el.pages.map((p) => p.dataset.page));
   return valid.has(raw) ? raw : "stats";
 }
@@ -345,12 +551,18 @@ function showPage(page) {
   for (const b of el.navBtns) {
     b.classList.toggle("active", b.dataset.nav === target);
   }
+
+  if (target === "packopen") {
+    renderPackOpenPage();
+  }
 }
 
 async function enterApp(user) {
   setSignedInUI();
 
-  if (!location.hash || getPageFromHash() !== String(location.hash).replace(/^#/, "")) {
+  const raw = String(location.hash || "").replace(/^#/, "");
+  const currentPage = raw.replace(/\?.*$/, "");
+  if (!location.hash || getPageFromHash() !== currentPage) {
     location.hash = "#stats";
   }
 
@@ -437,6 +649,18 @@ el.editUsernameBtn.addEventListener("click", handleEditUsername);
 for (const b of el.navBtns) {
   b.addEventListener("click", () => {
     location.hash = `#${b.dataset.nav}`;
+  });
+}
+
+if (el.packOpenBackBtn) {
+  el.packOpenBackBtn.addEventListener("click", () => {
+    location.hash = "#market";
+  });
+}
+
+if (el.packOpenPack) {
+  el.packOpenPack.addEventListener("click", async () => {
+    await openCurrentPackOnce();
   });
 }
 
