@@ -94,6 +94,51 @@ const packs = [
   },
 ];
 
+const blooksCatalog = [
+  {
+    id: "milk-choco",
+    name: "Milk Choco",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.13.57.png",
+  },
+  {
+    id: "dark-choco",
+    name: "Dark Choco",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.14.11.png",
+  },
+  {
+    id: "white-choco",
+    name: "White Choco",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.14.48.png",
+  },
+  {
+    id: "mint-choco",
+    name: "Mint Choco",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.14.55.png",
+  },
+  {
+    id: "strawberry-choco",
+    name: "Strawberry Choco",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.15.04.png",
+  },
+  {
+    id: "coconut-choco",
+    name: "Coconut Choco",
+    rarity: "rare",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.15.15.png",
+  },
+  {
+    id: "hazelnut-choco",
+    name: "Hazelnut Choco",
+    rarity: "rare",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 17.15.22.png",
+  },
+];
+
 function renderPacks() {
   if (!el.packsList) return;
 
@@ -124,6 +169,67 @@ function renderPacks() {
     .join("\n");
 
   el.packsList.innerHTML = html;
+}
+
+function renderBlooks(userDoc) {
+  if (!el.blooksList) return;
+
+  const qtyByName = userDoc?.blooks && typeof userDoc.blooks === "object" ? userDoc.blooks : {};
+
+  if (!Array.isArray(blooksCatalog) || blooksCatalog.length === 0) {
+    el.blooksList.textContent = "—";
+    return;
+  }
+
+  const rarityRank = {
+    rare: 2,
+    uncommon: 1,
+    common: 0,
+  };
+
+  const items = blooksCatalog
+    .map((b) => {
+      const name = String(b?.name || "Blook");
+      const qty = Number(qtyByName[name]) || 0;
+      return {
+        id: String(b?.id || name),
+        name,
+        rarity: String(b?.rarity || "uncommon"),
+        image: String(b?.image || ""),
+        qty,
+      };
+    })
+    .sort((a, b) => {
+      const ra = rarityRank[a.rarity] ?? -1;
+      const rb = rarityRank[b.rarity] ?? -1;
+      if (rb !== ra) return rb - ra;
+      return a.name.localeCompare(b.name);
+    });
+
+  const html = items
+    .map((b) => {
+      const name = escapeHtml(b.name);
+      const rarity = escapeHtml(b.rarity);
+      const img = escapeHtml(b.image);
+      const qty = escapeHtml(String(b.qty));
+      const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
+
+      return `
+        <article class="blook-card" data-blook-id="${escapeHtml(b.id)}">
+          <div class="blook-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
+          <div class="blook-meta">
+            <div class="blook-name">${name}</div>
+            <div class="blook-sub">
+              <span class="blook-rarity ${rarityClass}">${rarity}</span>
+              <span class="blook-qty">x${qty}</span>
+            </div>
+          </div>
+        </article>
+      `.trim();
+    })
+    .join("\n");
+
+  el.blooksList.innerHTML = `<div class="blooks-grid">${html}</div>`;
 }
 
 function usernameFromEmail(email) {
@@ -196,13 +302,16 @@ function renderAccount(userDoc) {
   const createdAt = userDoc.createdAt?.toDate ? userDoc.createdAt.toDate() : null;
   const days = createdAt ? daysSince(createdAt) : "0";
 
-  const { html, count } = formatBlooks(userDoc.blooks);
+  const entries = Object.entries(userDoc.blooks || {});
+  let count = 0;
+  for (const [, qty] of entries) {
+    count += Number(qty) || 0;
+  }
 
   el.usernameText.textContent = username;
   el.tokensText.textContent = String(tokens);
   el.daysText.textContent = String(days);
   el.blooksCountText.textContent = String(count);
-  el.blooksList.innerHTML = html;
 }
 
 function setSignedOutUI() {
@@ -247,6 +356,7 @@ async function enterApp(user) {
 
   const { data } = await getOrCreateUserDoc(user);
   renderAccount(data);
+  renderBlooks(data);
   renderPacks();
   showPage(getPageFromHash());
 }
