@@ -253,18 +253,82 @@ body {
 .chat-msg {
   display: flex;
   gap: 10px;
-  align-items: baseline;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 231, 214, 0.08);
-  background: rgba(0, 0, 0, 0.18);
+  align-items: flex-start;
+  line-height: 1.25;
   margin-bottom: 8px;
+}
+
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 231, 214, 0.14);
+  background: rgba(0, 0, 0, 0.40);
+  background-size: cover;
+  background-position: center;
+  flex: 0 0 auto;
+}
+
+.chat-main {
+  display: grid;
+  gap: 2px;
 }
 
 .chat-user {
   font-weight: 900;
   color: rgba(255, 207, 138, 0.92);
   white-space: nowrap;
+}
+
+.chat-user.admin {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 207, 138, 0.95),
+    rgba(185, 124, 255, 0.95),
+    rgba(255, 132, 179, 0.90),
+    rgba(140, 245, 255, 0.92),
+    rgba(255, 207, 138, 0.95)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bazaar-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.bazaar-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 231, 214, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.bazaar-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.bazaar-title {
+  font-weight: 900;
+}
+
+.bazaar-sub {
+  font-size: 12px;
+  color: rgba(255, 244, 236, 0.72);
+}
+
+.blook-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .chat-text {
@@ -398,6 +462,12 @@ select.input {
   cursor: pointer;
 }
 
+.btn-xs {
+  padding: 6px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
 .btn:hover {
   filter: brightness(1.03);
 }
@@ -421,6 +491,27 @@ select.input {
   min-height: 18px;
   font-size: 12px;
   color: rgba(255, 244, 236, 0.85);
+}
+
+.rainbow-name {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 207, 138, 0.95),
+    rgba(185, 124, 255, 0.95),
+    rgba(255, 132, 179, 0.90),
+    rgba(140, 245, 255, 0.92),
+    rgba(255, 207, 138, 0.95)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.wheel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .setup {

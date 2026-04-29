@@ -27,6 +27,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  deleteDoc,
   query,
   orderBy,
   limit,
@@ -34,6 +35,7 @@ import {
   getCountFromServer,
   doc,
   getDoc,
+  runTransaction,
   setDoc,
   updateDoc,
   serverTimestamp,
@@ -76,6 +78,18 @@ const el = {
   avatarSetBtn: document.getElementById("avatarSetBtn"),
   avatarMsg: document.getElementById("avatarMsg"),
 
+  dailyWheelBtn: document.getElementById("dailyWheelBtn"),
+  dailyWheelMsg: document.getElementById("dailyWheelMsg"),
+
+  bazaarList: document.getElementById("bazaarList"),
+  bazaarMsg: document.getElementById("bazaarMsg"),
+
+  eventDailyWheelBtn: document.getElementById("eventDailyWheelBtn"),
+  eventLowWheelBtn: document.getElementById("eventLowWheelBtn"),
+  eventMidWheelBtn: document.getElementById("eventMidWheelBtn"),
+  eventHighWheelBtn: document.getElementById("eventHighWheelBtn"),
+  eventWheelMsg: document.getElementById("eventWheelMsg"),
+
   adminNavBtn: document.getElementById("adminNavBtn"),
   adminPinInput: document.getElementById("adminPinInput"),
   adminUnlockBtn: document.getElementById("adminUnlockBtn"),
@@ -88,6 +102,10 @@ const el = {
   adminGrantBtn: document.getElementById("adminGrantBtn"),
   adminSetBtn: document.getElementById("adminSetBtn"),
   adminMsg: document.getElementById("adminMsg"),
+
+  adminTokensQty: document.getElementById("adminTokensQty"),
+  adminAddTokensBtn: document.getElementById("adminAddTokensBtn"),
+  adminSetTokensBtn: document.getElementById("adminSetTokensBtn"),
 
   adminPacksGrid: document.getElementById("adminPacksGrid"),
   adminPackProbs: document.getElementById("adminPackProbs"),
@@ -102,11 +120,195 @@ const ADMIN_UNLOCK_KEY = "chocolet_admin_unlocked";
 
 let currentUserData;
 let chatUnsub;
+let bazaarUnsub;
 let presenceInterval;
 let adminPresenceUnsub;
 let currentShownPage;
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
+
+const PACK_COST = 20;
+
+const QUICK_SELL_TOKENS = {
+  uncommon: 5,
+  rare: 20,
+  epic: 75,
+  legendary: 100,
+  chroma: 300,
+  supreme: 500,
+  mystical: 700,
+};
+
+const WHEEL_CONFIG = {
+  dailyFree: { cost: 0, min: 700, max: 2000, daily: true },
+  dailyAgain: { cost: 700, min: 700, max: 2000, daily: false },
+  low: { cost: 200, min: 50, max: 1000, daily: false },
+  mid: { cost: 700, min: 500, max: 3000, daily: false },
+  high: { cost: 1500, min: 700, max: 5000, daily: false },
+};
+
+function setDailyWheelMsg(message) {
+  if (el.dailyWheelMsg) el.dailyWheelMsg.textContent = message || "";
+}
+
+function setEventWheelMsg(message) {
+  if (el.eventWheelMsg) el.eventWheelMsg.textContent = message || "";
+}
+
+function setBazaarMsg(message) {
+  if (el.bazaarMsg) el.bazaarMsg.textContent = message || "";
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function randIntInclusive(min, max) {
+  const a = Math.floor(Number(min) || 0);
+  const b = Math.floor(Number(max) || 0);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+async function addTokensForCurrentUser(delta) {
+  if (!db || !auth?.currentUser) return 0;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+
+  let nextTokens = 0;
+  let nextData;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const current = Math.max(0, Number(data?.tokens) || 0);
+    const next = current + (Number(delta) || 0);
+    if (next < 0) {
+      throw new Error("NOT_ENOUGH_TOKENS");
+    }
+    nextTokens = next;
+    tx.update(ref, { tokens: next });
+    nextData = { ...data, tokens: next };
+  });
+
+  if (nextData) {
+    currentUserData = { ...(currentUserData || {}), tokens: nextTokens };
+    renderAccount({ ...nextData, blooks: currentUserData?.blooks || nextData.blooks || {} });
+    renderPacks();
+  }
+  return nextTokens;
+}
+
+async function setTokensForCurrentUser(amount) {
+  if (!db || !auth?.currentUser) return 0;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const next = Math.max(0, Math.floor(Number(amount) || 0));
+  await updateDoc(ref, { tokens: next });
+  currentUserData = { ...(currentUserData || {}), tokens: next };
+  renderAccount(currentUserData);
+  renderPacks();
+  return next;
+}
+
+async function spinWheel(kind) {
+  if (!db || !auth?.currentUser) return;
+  const cfg = WHEEL_CONFIG[kind];
+  if (!cfg) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+
+  const reward = randIntInclusive(cfg.min, cfg.max);
+  const today = todayKey();
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists() ? snap.data() : {};
+
+      if (cfg.daily) {
+        const last = String(data?.lastDailyWheel || "");
+        if (last === today) {
+          throw new Error("ALREADY_SPUN");
+        }
+      }
+
+      const current = Math.max(0, Number(data?.tokens) || 0);
+      if (current < cfg.cost) {
+        throw new Error("NOT_ENOUGH_TOKENS");
+      }
+
+      const nextTokens = current - cfg.cost + reward;
+      const patch = { tokens: nextTokens };
+      if (cfg.daily) patch.lastDailyWheel = today;
+      tx.update(ref, patch);
+    });
+
+    const after = await getDoc(ref);
+    if (after.exists()) {
+      currentUserData = after.data();
+      renderAccount(currentUserData);
+      renderBlooks(currentUserData);
+      renderPacks();
+    }
+
+    return { ok: true, reward, cost: cfg.cost };
+  } catch (e) {
+    const msg = String(e?.message || "");
+    if (msg.includes("ALREADY_SPUN")) return { ok: false, reason: "ALREADY_SPUN" };
+    if (msg.includes("NOT_ENOUGH_TOKENS")) return { ok: false, reason: "NOT_ENOUGH_TOKENS" };
+    return { ok: false, reason: "FAILED" };
+  }
+}
+
+async function handleDailyWheel() {
+  setDailyWheelMsg("");
+  const res = await spinWheel("dailyFree");
+  if (!res) return;
+  if (!res.ok) {
+    if (res.reason === "ALREADY_SPUN") setDailyWheelMsg("Already spun today.");
+    else setDailyWheelMsg("Not enough tokens.");
+    return;
+  }
+  setDailyWheelMsg(`You won ${res.reward} tokens!`);
+}
+
+async function handleEventWheel(kind) {
+  setEventWheelMsg("");
+  const res = await spinWheel(kind);
+  if (!res) return;
+  if (!res.ok) {
+    setEventWheelMsg(res.reason === "NOT_ENOUGH_TOKENS" ? "Not enough tokens." : "Spin failed.");
+    return;
+  }
+  setEventWheelMsg(`Cost ${res.cost}. You won ${res.reward} tokens!`);
+}
+
+async function handleAdminAddTokens() {
+  if (!isAdminUnlocked()) return;
+  const amt = Math.max(0, Math.floor(Number(el.adminTokensQty?.value) || 0));
+  try {
+    await addTokensForCurrentUser(amt);
+    setAdminMsg("Tokens added.");
+  } catch {
+    setAdminMsg("Token update failed.");
+  }
+}
+
+async function handleAdminSetTokens() {
+  if (!isAdminUnlocked()) return;
+  const amt = Math.max(0, Math.floor(Number(el.adminTokensQty?.value) || 0));
+  try {
+    await setTokensForCurrentUser(amt);
+    setAdminMsg("Tokens set.");
+  } catch {
+    setAdminMsg("Token update failed.");
+  }
+}
 
 function isAdminUnlocked() {
   return localStorage.getItem(ADMIN_UNLOCK_KEY) === "1";
@@ -268,7 +470,20 @@ function renderChatMessages(msgs) {
     .map((m) => {
       const u = escapeHtml(m.username || "player");
       const t = escapeHtml(m.text || "");
-      return `<div class=\"chat-msg\"><span class=\"chat-user\">${u}</span><span class=\"chat-text\">${t}</span></div>`;
+      const admin = Boolean(m.isAdmin);
+      const avatarName = String(m.avatarBlook || "");
+      const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
+      const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
+      const userClass = admin ? "chat-user admin" : "chat-user";
+      return `
+        <div class="chat-msg">
+          <div class="chat-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
+          <div class="chat-main">
+            <div class="${userClass}">${u}</div>
+            <div class="chat-text">${t}</div>
+          </div>
+        </div>
+      `.trim();
     })
     .join("");
 
@@ -310,8 +525,271 @@ async function sendChatMessage(text) {
     text: cleaned,
     uid: auth.currentUser.uid,
     username,
+    avatarBlook: String(currentUserData?.avatarBlook || ""),
+    isAdmin: Boolean(currentUserData?.isAdmin),
     createdAt: serverTimestamp(),
   });
+}
+
+function renderBazaarListings(listings) {
+  if (!el.bazaarList) return;
+  if (!Array.isArray(listings) || listings.length === 0) {
+    el.bazaarList.innerHTML = "<div class=\"placeholder\">No listings yet.</div>";
+    return;
+  }
+
+  const myUid = String(auth?.currentUser?.uid || "");
+  el.bazaarList.innerHTML = listings
+    .map((l) => {
+      const id = escapeHtml(String(l.id || ""));
+      const name = escapeHtml(String(l.blookName || "Blook"));
+      const price = escapeHtml(String(l.price || "0"));
+      const sellerName = escapeHtml(String(l.sellerUsername || "player"));
+      const sellerIsAdmin = Boolean(l.sellerIsAdmin);
+      const sellerUid = String(l.sellerUid || "");
+
+      const avatarName = String(l.sellerAvatarBlook || "");
+      const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
+      const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
+
+      const sellerHtml = sellerIsAdmin
+        ? `<span class="rainbow-name">${sellerName}</span>`
+        : `<span>${sellerName}</span>`;
+
+      const action =
+        sellerUid && myUid && sellerUid === myUid
+          ? `<button class="btn btn-xs btn-secondary" type="button" data-bazaar-cancel="${id}">Cancel</button>`
+          : `<button class="btn btn-xs" type="button" data-bazaar-buy="${id}">Buy</button>`;
+
+      return `
+        <div class="bazaar-row">
+          <div class="chat-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${name}</div>
+            <div class="bazaar-sub">Seller: ${sellerHtml} · Price: ${price}</div>
+          </div>
+          <div>${action}</div>
+        </div>
+      `.trim();
+    })
+    .join("");
+
+  el.bazaarList.querySelectorAll("[data-bazaar-buy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-bazaar-buy") || "";
+      await buyBazaarListing(id);
+    });
+  });
+
+  el.bazaarList.querySelectorAll("[data-bazaar-cancel]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-bazaar-cancel") || "";
+      await cancelBazaarListing(id);
+    });
+  });
+}
+
+function startBazaarListener() {
+  if (!db || !auth?.currentUser) return;
+  if (!el.bazaarList) return;
+  if (bazaarUnsub) return;
+
+  const q = query(collection(db, "bazaarListings"), orderBy("createdAt", "desc"), limit(60));
+  bazaarUnsub = onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderBazaarListings(items);
+    },
+    () => {
+      renderBazaarListings([]);
+    },
+  );
+}
+
+function stopBazaarListener() {
+  if (bazaarUnsub) {
+    bazaarUnsub();
+    bazaarUnsub = undefined;
+  }
+}
+
+async function quickSellBlook(blookName) {
+  if (!db || !auth?.currentUser) return;
+  const name = String(blookName || "");
+  if (!name) return;
+  const rarity = getBlookRarityByName(name);
+  const reward = Number(QUICK_SELL_TOKENS[rarity] || 0);
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists() ? snap.data() : {};
+      const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+      const qty = Number(blooks[name]) || 0;
+      if (qty <= 0) throw new Error("NO_BLOOK");
+
+      const nextQty = qty - 1;
+      if (nextQty <= 0) delete blooks[name];
+      else blooks[name] = nextQty;
+
+      const currentTokens = Math.max(0, Number(data?.tokens) || 0);
+      const nextTokens = currentTokens + reward;
+      tx.update(ref, { blooks, tokens: nextTokens });
+    });
+
+    const after = await getDoc(ref);
+    if (after.exists()) {
+      currentUserData = after.data();
+      renderAccount(currentUserData);
+      renderBlooks(currentUserData);
+      renderPacks();
+    }
+    setBazaarMsg(`Quick sold ${name} for ${reward} tokens.`);
+  } catch {
+    setBazaarMsg("Quick sell failed.");
+  }
+}
+
+async function listBlookForSale(blookName, price) {
+  if (!db || !auth?.currentUser) return;
+  const name = String(blookName || "");
+  const p = Math.max(1, Math.floor(Number(price) || 0));
+  if (!name || !p) return;
+
+  const uid = auth.currentUser.uid;
+  const userRef = doc(db, "users", uid);
+  const listingRef = doc(collection(db, "bazaarListings"));
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      const data = snap.exists() ? snap.data() : {};
+      const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+      const qty = Number(blooks[name]) || 0;
+      if (qty <= 0) throw new Error("NO_BLOOK");
+
+      const nextQty = qty - 1;
+      if (nextQty <= 0) delete blooks[name];
+      else blooks[name] = nextQty;
+
+      tx.update(userRef, { blooks });
+      tx.set(listingRef, {
+        blookName: name,
+        price: p,
+        sellerUid: uid,
+        sellerUsername: String(data?.username || currentUserData?.username || "player"),
+        sellerAvatarBlook: String(data?.avatarBlook || currentUserData?.avatarBlook || ""),
+        sellerIsAdmin: Boolean(data?.isAdmin || currentUserData?.isAdmin),
+        createdAt: serverTimestamp(),
+      });
+    });
+
+    const after = await getDoc(userRef);
+    if (after.exists()) {
+      currentUserData = after.data();
+      renderAccount(currentUserData);
+      renderBlooks(currentUserData);
+      renderPacks();
+    }
+    setBazaarMsg(`Listed ${name} for ${p} tokens.`);
+  } catch {
+    setBazaarMsg("Listing failed.");
+  }
+}
+
+async function buyBazaarListing(listingId) {
+  if (!db || !auth?.currentUser) return;
+  const id = String(listingId || "");
+  if (!id) return;
+
+  setBazaarMsg("");
+  const uid = auth.currentUser.uid;
+  const buyerRef = doc(db, "users", uid);
+  const listingRef = doc(db, "bazaarListings", id);
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const listingSnap = await tx.get(listingRef);
+      if (!listingSnap.exists()) throw new Error("MISSING");
+      const listing = listingSnap.data() || {};
+      const sellerUid = String(listing?.sellerUid || "");
+      const price = Math.max(0, Math.floor(Number(listing?.price) || 0));
+      const blookName = String(listing?.blookName || "");
+      if (!sellerUid || !price || !blookName) throw new Error("BAD");
+      if (sellerUid === uid) throw new Error("SELF");
+
+      const buyerSnap = await tx.get(buyerRef);
+      const buyer = buyerSnap.exists() ? buyerSnap.data() : {};
+      const buyerTokens = Math.max(0, Number(buyer?.tokens) || 0);
+      if (buyerTokens < price) throw new Error("NOT_ENOUGH");
+
+      const sellerRef = doc(db, "users", sellerUid);
+      const sellerSnap = await tx.get(sellerRef);
+      const seller = sellerSnap.exists() ? sellerSnap.data() : {};
+
+      const buyerBlooks = buyer?.blooks && typeof buyer.blooks === "object" ? { ...buyer.blooks } : {};
+      buyerBlooks[blookName] = (Number(buyerBlooks[blookName]) || 0) + 1;
+
+      const sellerTokens = Math.max(0, Number(seller?.tokens) || 0);
+      tx.update(buyerRef, { tokens: buyerTokens - price, blooks: buyerBlooks });
+      tx.update(sellerRef, { tokens: sellerTokens + price });
+      tx.delete(listingRef);
+    });
+
+    const after = await getDoc(buyerRef);
+    if (after.exists()) {
+      currentUserData = after.data();
+      renderAccount(currentUserData);
+      renderBlooks(currentUserData);
+      renderPacks();
+    }
+    setBazaarMsg("Bought listing.");
+  } catch {
+    setBazaarMsg("Buy failed.");
+  }
+}
+
+async function cancelBazaarListing(listingId) {
+  if (!db || !auth?.currentUser) return;
+  const id = String(listingId || "");
+  if (!id) return;
+
+  setBazaarMsg("");
+  const uid = auth.currentUser.uid;
+  const userRef = doc(db, "users", uid);
+  const listingRef = doc(db, "bazaarListings", id);
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const listingSnap = await tx.get(listingRef);
+      if (!listingSnap.exists()) throw new Error("MISSING");
+      const listing = listingSnap.data() || {};
+      const sellerUid = String(listing?.sellerUid || "");
+      const blookName = String(listing?.blookName || "");
+      if (sellerUid !== uid) throw new Error("NOPE");
+
+      const userSnap = await tx.get(userRef);
+      const user = userSnap.exists() ? userSnap.data() : {};
+      const blooks = user?.blooks && typeof user.blooks === "object" ? { ...user.blooks } : {};
+      blooks[blookName] = (Number(blooks[blookName]) || 0) + 1;
+      tx.update(userRef, { blooks });
+      tx.delete(listingRef);
+    });
+
+    const after = await getDoc(userRef);
+    if (after.exists()) {
+      currentUserData = after.data();
+      renderAccount(currentUserData);
+      renderBlooks(currentUserData);
+      renderPacks();
+    }
+    setBazaarMsg("Canceled listing.");
+  } catch {
+    setBazaarMsg("Cancel failed.");
+  }
 }
 
 async function setBlookQtyForUser(blookName, qty) {
@@ -670,20 +1148,24 @@ function renderPacks() {
     return;
   }
 
+  const tokens = Math.max(0, Number(currentUserData?.tokens) || 0);
+  const canAfford = tokens >= PACK_COST;
+
   const html = packs
     .map((p) => {
       const name = escapeHtml(p?.name || "Pack");
       const desc = escapeHtml(p?.description || "");
       const img = escapeHtml(p?.image || "");
+      const disabled = canAfford ? "" : "disabled";
 
       return `
         <article class="pack-card" data-pack-id="${escapeHtml(p?.id || "")}">
           <div class="pack-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
           <div class="pack-body">
             <div class="pack-name">${name}</div>
-            <div class="pack-desc">${desc}</div>
+            <div class="pack-desc">${desc} (Cost ${PACK_COST})</div>
             <div class="row">
-              <button class="btn" type="button" data-open-pack="${escapeHtml(p?.id || "")}">Open</button>
+              <button class="btn" type="button" data-open-pack="${escapeHtml(p?.id || "")}" ${disabled}>Open</button>
             </div>
           </div>
         </article>
@@ -750,6 +1232,17 @@ function renderBlooks(userDoc) {
           ? `background-image:url('${img}')`
           : "";
 
+    const quickSell = QUICK_SELL_TOKENS[String(b.rarity || "uncommon").toLowerCase()] || 0;
+    const actions =
+      Number(b.qty) > 0
+        ? `
+            <div class="blook-actions">
+              <button class="btn btn-xs" type="button" data-quick-sell="${name}">Quick sell +${quickSell}</button>
+              <button class="btn btn-xs btn-secondary" type="button" data-list-bazaar="${name}">List</button>
+            </div>
+          `.trim()
+        : "";
+
     return `
       <article class="blook-card blook-card-small ${lockedClass} ${mysticalClass}" data-blook-id="${escapeHtml(b.id)}">
         ${lockedLabel}
@@ -760,6 +1253,7 @@ function renderBlooks(userDoc) {
             <span class="blook-rarity ${rarityClass}">${rarity}</span>
             <span class="blook-qty">x${qty}</span>
           </div>
+          ${actions}
         </div>
       </article>
     `.trim();
@@ -832,6 +1326,27 @@ function renderBlooks(userDoc) {
   }
 
   el.blooksList.innerHTML = sections.length ? sections.join("\n") : "—";
+
+  el.blooksList.querySelectorAll("[data-quick-sell]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const name = btn.getAttribute("data-quick-sell") || "";
+      await quickSellBlook(name);
+    });
+  });
+
+  el.blooksList.querySelectorAll("[data-list-bazaar]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const name = btn.getAttribute("data-list-bazaar") || "";
+      const raw = prompt(`List ${name} for how many tokens?`, "100");
+      if (raw === null) return;
+      const price = Math.max(1, Math.floor(Number(raw) || 0));
+      if (!price) return;
+      await listBlookForSale(name, price);
+      location.hash = "#bazaar";
+    });
+  });
 }
 
 let packOpenReturnTimer;
@@ -846,7 +1361,7 @@ function resetPackOpenUI() {
     el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
     el.packOpenResult.textContent = "";
   }
-  if (el.packOpenHint) el.packOpenHint.textContent = "Click to open";
+  if (el.packOpenHint) el.packOpenHint.textContent = `Click to open (Cost ${PACK_COST})`;
   if (el.packOpenPack) {
     el.packOpenPack.disabled = false;
     el.packOpenPack.hidden = false;
@@ -863,7 +1378,7 @@ function renderPackOpenPage() {
   const img = p?.image || "";
 
   el.packOpenTitle.textContent = name;
-  if (el.packOpenSubtitle) el.packOpenSubtitle.textContent = "Click the pack to open";
+  if (el.packOpenSubtitle) el.packOpenSubtitle.textContent = `Click the pack to open (Cost ${PACK_COST})`;
 
   el.packOpenBackdrop.style.backgroundImage = img ? `url('${img}')` : "";
   el.packOpenArt.style.backgroundImage = img ? `url('${img}')` : "";
@@ -937,6 +1452,18 @@ async function openCurrentPackOnce() {
   if (!pool) {
     el.packOpenResult.hidden = false;
     el.packOpenResult.textContent = "This pack isn't set up yet.";
+    return;
+  }
+
+  try {
+    await addTokensForCurrentUser(-PACK_COST);
+  } catch {
+    el.packOpenResult.hidden = false;
+    el.packOpenResult.textContent = `Not enough tokens. Cost ${PACK_COST}.`;
+    if (el.packOpenPack) {
+      el.packOpenPack.disabled = false;
+      el.packOpenPack.hidden = false;
+    }
     return;
   }
 
@@ -1117,6 +1644,7 @@ async function getOrCreateUserDoc(user) {
 function renderAccount(userDoc) {
   const username = userDoc.username || "player";
   const tokens = Number(userDoc.tokens) || 0;
+  const isAdmin = Boolean(userDoc.isAdmin);
 
   const createdAt = userDoc.createdAt?.toDate ? userDoc.createdAt.toDate() : null;
   const days = createdAt ? daysSince(createdAt) : "0";
@@ -1128,6 +1656,7 @@ function renderAccount(userDoc) {
   }
 
   el.usernameText.textContent = username;
+  el.usernameText.classList.toggle("rainbow-name", isAdmin);
   el.tokensText.textContent = String(tokens);
   el.daysText.textContent = String(days);
   el.blooksCountText.textContent = String(count);
@@ -1143,6 +1672,7 @@ function setSignedOutUI() {
   el.signOutBtn.hidden = true;
   applyAdminUIState();
   stopChatListener();
+  stopBazaarListener();
   stopAdminPresenceListener();
   stopPresence();
   if (el.packsList) el.packsList.textContent = "—";
@@ -1183,12 +1713,17 @@ function showPage(page) {
 
   if (currentShownPage !== target) {
     if (currentShownPage === "chat") stopChatListener();
+    if (currentShownPage === "bazaar") stopBazaarListener();
     if (currentShownPage === "admin") stopAdminPresenceListener();
     currentShownPage = target;
   }
 
   if (target === "chat") {
     startChatListener();
+  }
+  if (target === "bazaar") {
+    setBazaarMsg("");
+    startBazaarListener();
   }
   if (target === "admin") {
     setAdminMsg("");
@@ -1333,6 +1868,11 @@ async function handleAdminUnlock() {
   setAdminUnlocked();
   applyAdminUIState();
   setAdminUnlockMsg("Admin unlocked.");
+  if (db && auth?.currentUser) {
+    updateDoc(doc(db, "users", auth.currentUser.uid), { isAdmin: true }).catch(() => {});
+    currentUserData = { ...(currentUserData || {}), isAdmin: true };
+    if (currentUserData) renderAccount(currentUserData);
+  }
   if (el.adminPinInput) el.adminPinInput.value = "";
   location.hash = "#admin";
 }
@@ -1387,7 +1927,14 @@ if (el.adminUnlockBtn) el.adminUnlockBtn.addEventListener("click", handleAdminUn
 if (el.chatForm) el.chatForm.addEventListener("submit", handleChatSubmit);
 if (el.adminGrantBtn) el.adminGrantBtn.addEventListener("click", handleAdminGrant);
 if (el.adminSetBtn) el.adminSetBtn.addEventListener("click", handleAdminSetQty);
+if (el.adminAddTokensBtn) el.adminAddTokensBtn.addEventListener("click", handleAdminAddTokens);
+if (el.adminSetTokensBtn) el.adminSetTokensBtn.addEventListener("click", handleAdminSetTokens);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
+if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
+if (el.eventDailyWheelBtn) el.eventDailyWheelBtn.addEventListener("click", () => handleEventWheel("dailyAgain"));
+if (el.eventLowWheelBtn) el.eventLowWheelBtn.addEventListener("click", () => handleEventWheel("low"));
+if (el.eventMidWheelBtn) el.eventMidWheelBtn.addEventListener("click", () => handleEventWheel("mid"));
+if (el.eventHighWheelBtn) el.eventHighWheelBtn.addEventListener("click", () => handleEventWheel("high"));
 if (el.headerAvatar) {
   el.headerAvatar.addEventListener("click", () => {
     location.hash = "#stats";
