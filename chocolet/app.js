@@ -174,6 +174,7 @@ function renderAvatar(userDoc) {
     if (!box) continue;
     box.classList.toggle("avatar-mystical", isMystical);
     if (blook?.image) {
+      box.style.background = "";
       if (isMystical) {
         box.style.backgroundImage = "";
         box.style.setProperty("--avatar-base", `url('${blook.image}')`);
@@ -1192,6 +1193,7 @@ function showPage(page) {
   if (target === "admin") {
     setAdminMsg("");
     populateAdminBlookSelect();
+    populateAdminPackSelect();
     renderAdminStats().catch(() => {});
     startAdminPresenceListener();
   }
