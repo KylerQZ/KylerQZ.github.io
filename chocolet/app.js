@@ -106,7 +106,20 @@ const packPools = {
   "chocolate-pack": {
     uncommon: ["Milk Choco", "Dark Choco", "White Choco", "Mint Choco", "Strawberry Choco"],
     rare: ["Coconut Choco", "Hazelnut Choco"],
-    weights: { uncommon: 0.85, rare: 0.15 },
+    epic: ["Chocolate Spoon"],
+    legendary: ["Hot Cocoa"],
+    chroma: ["Chocolate Cat", "Chocolate Bunny"],
+    supreme: ["Chocolate Factory", "Crystal Spoon"],
+    mystical: ["Mystical Frog"],
+    weights: {
+      uncommon: 0.793,
+      rare: 0.15,
+      epic: 0.02,
+      legendary: 0.02,
+      chroma: 0.01,
+      supreme: 0.005,
+      mystical: 0.002,
+    },
   },
 };
 
@@ -192,6 +205,48 @@ const blooksCatalog = [
     rarity: "rare",
     image: "./assets/blooks/Screenshot 2026-04-29 at 17.15.22.png",
   },
+  {
+    id: "choco-spoon",
+    name: "Chocolate Spoon",
+    rarity: "epic",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.21.06.png",
+  },
+  {
+    id: "hot-cocoa",
+    name: "Hot Cocoa",
+    rarity: "legendary",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.28.33.png",
+  },
+  {
+    id: "choco-factory",
+    name: "Chocolate Factory",
+    rarity: "supreme",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.36.44.png",
+  },
+  {
+    id: "crystal-spoon",
+    name: "Crystal Spoon",
+    rarity: "supreme",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.36.52.png",
+  },
+  {
+    id: "choco-cat",
+    name: "Chocolate Cat",
+    rarity: "chroma",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.14.48.png",
+  },
+  {
+    id: "choco-bunny",
+    name: "Chocolate Bunny",
+    rarity: "chroma",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.15.00.png",
+  },
+  {
+    id: "mystical-frog",
+    name: "Mystical Frog",
+    rarity: "mystical",
+    image: "./assets/blooks/Screenshot 2026-04-29 at 19.49.19.png",
+  },
 ];
 
 function renderPacks() {
@@ -244,6 +299,11 @@ function renderBlooks(userDoc) {
   }
 
   const rarityRank = {
+    mystical: 7,
+    supreme: 6,
+    chroma: 5,
+    legendary: 4,
+    epic: 3,
     rare: 2,
     uncommon: 1,
     common: 0,
@@ -267,9 +327,10 @@ function renderBlooks(userDoc) {
     const img = escapeHtml(b.image);
     const qty = escapeHtml(String(b.qty));
     const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
+    const lockedClass = Number(b.qty) > 0 ? "" : "blook-locked";
 
     return `
-      <article class="blook-card blook-card-small" data-blook-id="${escapeHtml(b.id)}">
+      <article class="blook-card blook-card-small ${lockedClass}" data-blook-id="${escapeHtml(b.id)}">
         <div class="blook-art blook-art-small" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
         <div class="blook-meta">
           <div class="blook-name">${name}</div>
@@ -351,14 +412,23 @@ function renderBlooks(userDoc) {
   el.blooksList.innerHTML = sections.length ? sections.join("\n") : "—";
 }
 
+let packOpenReturnTimer;
+
 function resetPackOpenUI() {
+  if (packOpenReturnTimer) {
+    clearTimeout(packOpenReturnTimer);
+    packOpenReturnTimer = undefined;
+  }
   if (el.packOpenResult) {
     el.packOpenResult.hidden = true;
     el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
     el.packOpenResult.textContent = "";
   }
   if (el.packOpenHint) el.packOpenHint.textContent = "Click to open";
-  if (el.packOpenPack) el.packOpenPack.disabled = false;
+  if (el.packOpenPack) {
+    el.packOpenPack.disabled = false;
+    el.packOpenPack.hidden = false;
+  }
 }
 
 function renderPackOpenPage() {
@@ -392,6 +462,50 @@ async function grantBlookToUser(blookName) {
   renderBlooks({ ...data, blooks });
 }
 
+function startMysticalSequence(root) {
+  if (!root) return;
+
+  const frog = root.querySelector(".mystical-frog");
+  const finalCard = root.querySelector(".mystical-final");
+  if (!frog || !finalCard) return;
+
+  const finalPose = root.getAttribute("data-mystical-final") || "";
+
+  const positions = Array.from({ length: 7 }).map(() => {
+    const x = Math.floor(10 + Math.random() * 80);
+    const y = Math.floor(12 + Math.random() * 70);
+    return { x, y };
+  });
+
+  positions.forEach((p, i) => {
+    window.setTimeout(() => {
+      frog.style.left = `${p.x}%`;
+      frog.style.top = `${p.y}%`;
+      frog.classList.remove("mystical-teleport");
+      void frog.offsetWidth;
+      frog.classList.add("mystical-teleport");
+    }, i * 200);
+  });
+
+  window.setTimeout(() => {
+    frog.style.left = "50%";
+    frog.style.top = "46%";
+    if (finalPose) frog.style.backgroundImage = `url('${finalPose}')`;
+    frog.classList.remove("mystical-teleport");
+    void frog.offsetWidth;
+    frog.classList.add("mystical-center");
+
+    finalCard.hidden = false;
+    finalCard.classList.remove("reveal");
+    void finalCard.offsetWidth;
+    finalCard.classList.add("reveal");
+  }, positions.length * 200);
+
+  window.setTimeout(() => {
+    frog.classList.add("mystical-hide");
+  }, positions.length * 200 + 520);
+}
+
 async function openCurrentPackOnce() {
   if (!auth?.currentUser) return;
   if (!el.packOpenPack || !el.packOpenResult) return;
@@ -405,7 +519,7 @@ async function openCurrentPackOnce() {
   }
 
   el.packOpenPack.disabled = true;
-  if (el.packOpenHint) el.packOpenHint.textContent = "Opening...";
+  el.packOpenPack.hidden = true;
 
   const rarity = rollRarity(pool.weights);
   const name = randChoice(pool[rarity]) || randChoice(pool.uncommon) || "Blook";
@@ -416,26 +530,102 @@ async function openCurrentPackOnce() {
   el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
   void el.packOpenResult.offsetWidth;
 
-  const rarityClass = `rarity-${escapeHtml(String(rarity).toLowerCase())}`;
-  const explodeClass = String(rarity).toLowerCase() === "rare" ? "explode-rare" : "explode-uncommon";
+  const rarityLower = String(rarity).toLowerCase();
+  const rarityClass = `rarity-${escapeHtml(rarityLower)}`;
+
+  if (rarityLower === "mystical") {
+    const finalImg = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
+    el.packOpenResult.innerHTML = `
+      <div class="blook-anim mystical-anim" data-mystical-final="${escapeHtml(finalImg)}">
+        <div class="mystical-rainbow" aria-hidden="true"></div>
+        <div class="mystical-frog" role="img" aria-label="${escapeHtml(name)}" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+        <div class="blook-card explode explode-mystical mystical-final mystical-shush" hidden>
+          <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${finalImg ? `background-image:url('${escapeHtml(finalImg)}')` : img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+          <div class="blook-meta">
+            <div class="blook-name">${escapeHtml(name)}</div>
+            <div class="blook-sub">
+              <span class="blook-rarity ${rarityClass}">${escapeHtml(String(rarity))}</span>
+              <span class="blook-qty">New!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `.trim();
+
+    grantBlookToUser(name).catch(() => {});
+    startMysticalSequence(el.packOpenResult.querySelector(".mystical-anim"));
+
+    packOpenReturnTimer = setTimeout(() => {
+      if (getPageFromHash() === "packopen") {
+        location.hash = "#market";
+      }
+    }, 4500);
+    return;
+  }
+
+  const explodeClass =
+    rarityLower === "chroma"
+      ? "explode-chroma"
+      : rarityLower === "supreme"
+        ? "explode-supreme"
+        : rarityLower === "legendary"
+          ? "explode-legendary"
+          : rarityLower === "epic"
+            ? "explode-epic"
+            : rarityLower === "rare"
+              ? "explode-rare"
+              : "explode-uncommon";
+
+  const animClass =
+    rarityLower === "chroma"
+      ? "chroma-fall"
+      : rarityLower === "supreme"
+        ? "supreme-fireworks"
+        : rarityLower === "legendary"
+          ? "legendary-sweep"
+          : rarityLower === "epic"
+            ? "epic-spin"
+            : "";
+
+  const revealClass = rarityLower === "supreme" ? "" : "reveal";
+  const supremeCardClass = rarityLower === "supreme" ? "supreme-flip" : "";
+
+  const fireworksHtml =
+    rarityLower === "supreme"
+      ? `<div class="fireworks">${Array.from({ length: 10 })
+          .map(() => {
+            const x = Math.floor(10 + Math.random() * 80);
+            const y = Math.floor(10 + Math.random() * 55);
+            const d = Math.floor(Math.random() * 420);
+            const s = (0.9 + Math.random() * 0.8).toFixed(2);
+            return `<span class="firework" style="--x:${x}%;--y:${y}%;--d:${d}ms;--s:${s}"></span>`;
+          })
+          .join("")}</div>`
+      : "";
 
   el.packOpenResult.innerHTML = `
-    <div class="blook-card explode ${explodeClass} reveal">
-      <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
-      <div class="blook-meta">
-        <div class="blook-name">${escapeHtml(name)}</div>
-        <div class="blook-sub">
-          <span class="blook-rarity ${rarityClass}">${escapeHtml(String(rarity))}</span>
-          <span class="blook-qty">New!</span>
+    <div class="blook-anim ${animClass}">
+      ${fireworksHtml}
+      <div class="blook-card explode ${explodeClass} ${revealClass} ${supremeCardClass}">
+        <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+        <div class="blook-meta">
+          <div class="blook-name">${escapeHtml(name)}</div>
+          <div class="blook-sub">
+            <span class="blook-rarity ${rarityClass}">${escapeHtml(String(rarity))}</span>
+            <span class="blook-qty">New!</span>
+          </div>
         </div>
       </div>
     </div>
   `.trim();
 
-  await grantBlookToUser(name);
+  grantBlookToUser(name).catch(() => {});
 
-  if (el.packOpenHint) el.packOpenHint.textContent = "Opened";
-  el.packOpenPack.disabled = false;
+  packOpenReturnTimer = setTimeout(() => {
+    if (getPageFromHash() === "packopen") {
+      location.hash = "#market";
+    }
+  }, 1000);
 }
 
 function usernameFromEmail(email) {
