@@ -96,6 +96,45 @@ body {
   margin-bottom: 18px;
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.header-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 231, 214, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 14px 32px var(--shadow);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.header-avatar:hover {
+  filter: brightness(1.08);
+}
+
+.header-avatar.avatar-mystical {
+  background-image: var(--avatar-base);
+}
+
+.header-avatar.avatar-mystical::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--avatar-shush);
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  animation: mystical-shush 3000ms ease-in-out infinite;
+}
+
 .brand {
   display: flex;
   align-items: center;

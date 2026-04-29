@@ -70,6 +70,7 @@ const el = {
   editUsernameBtn: document.getElementById("editUsernameBtn"),
 
   avatarBox: document.getElementById("avatarBox"),
+  headerAvatar: document.getElementById("headerAvatar"),
   avatarEditor: document.getElementById("avatarEditor"),
   avatarSelect: document.getElementById("avatarSelect"),
   avatarSetBtn: document.getElementById("avatarSetBtn"),
@@ -162,19 +163,36 @@ function populateAvatarSelect(userDoc) {
 }
 
 function renderAvatar(userDoc) {
-  if (!el.avatarBox) return;
+  const boxes = [el.avatarBox, el.headerAvatar].filter(Boolean);
+  if (el.headerAvatar) el.headerAvatar.hidden = false;
+
   const avatarName = String(userDoc?.avatarBlook || "");
   const blook = avatarName ? getBlookByName(avatarName) : null;
-  if (blook?.image) {
-    el.avatarBox.style.backgroundImage = `url('${blook.image}')`;
-    el.avatarBox.style.backgroundSize = "cover";
-    el.avatarBox.style.backgroundPosition = "center";
-    return;
-  }
 
-  el.avatarBox.style.backgroundImage = "";
-  const c = String(userDoc?.avatarColor || "#000");
-  el.avatarBox.style.background = c;
+  const isMystical = String(blook?.rarity || "").toLowerCase() === "mystical";
+  for (const box of boxes) {
+    if (!box) continue;
+    box.classList.toggle("avatar-mystical", isMystical);
+    if (blook?.image) {
+      if (isMystical) {
+        box.style.backgroundImage = "";
+        box.style.setProperty("--avatar-base", `url('${blook.image}')`);
+        box.style.setProperty("--avatar-shush", `url('${MYSTICAL_SHUSH_IMG}')`);
+      } else {
+        box.style.removeProperty("--avatar-base");
+        box.style.removeProperty("--avatar-shush");
+        box.style.backgroundImage = `url('${blook.image}')`;
+      }
+      box.style.backgroundSize = "cover";
+      box.style.backgroundPosition = "center";
+    } else {
+      box.style.removeProperty("--avatar-base");
+      box.style.removeProperty("--avatar-shush");
+      box.style.backgroundImage = "";
+      const c = String(userDoc?.avatarColor || "#000");
+      box.style.background = c;
+    }
+  }
 }
 
 function pct(n) {
@@ -1349,7 +1367,12 @@ if (el.chatForm) el.chatForm.addEventListener("submit", handleChatSubmit);
 if (el.adminGrantBtn) el.adminGrantBtn.addEventListener("click", handleAdminGrant);
 if (el.adminSetBtn) el.adminSetBtn.addEventListener("click", handleAdminSetQty);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
-
+if (el.headerAvatar) {
+  el.headerAvatar.addEventListener("click", () => {
+    location.hash = "#stats";
+    window.setTimeout(() => toggleAvatarEditor(true), 0);
+  });
+}
 if (el.adminPackSelect) {
   el.adminPackSelect.addEventListener("change", () => {
     renderAdminPackProbabilities(el.adminPackSelect.value);
