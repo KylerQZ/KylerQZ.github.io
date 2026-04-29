@@ -69,6 +69,11 @@ const el = {
   blooksList: document.getElementById("blooksList"),
   editUsernameBtn: document.getElementById("editUsernameBtn"),
 
+  avatarBox: document.getElementById("avatarBox"),
+  avatarSelect: document.getElementById("avatarSelect"),
+  avatarSetBtn: document.getElementById("avatarSetBtn"),
+  avatarMsg: document.getElementById("avatarMsg"),
+
   adminNavBtn: document.getElementById("adminNavBtn"),
   adminPinInput: document.getElementById("adminPinInput"),
   adminUnlockBtn: document.getElementById("adminUnlockBtn"),
@@ -81,6 +86,9 @@ const el = {
   adminGrantBtn: document.getElementById("adminGrantBtn"),
   adminSetBtn: document.getElementById("adminSetBtn"),
   adminMsg: document.getElementById("adminMsg"),
+
+  adminPackSelect: document.getElementById("adminPackSelect"),
+  adminPackProbs: document.getElementById("adminPackProbs"),
 
   chatList: document.getElementById("chatList"),
   chatForm: document.getElementById("chatForm"),
@@ -95,6 +103,8 @@ let chatUnsub;
 let presenceInterval;
 let adminPresenceUnsub;
 let currentShownPage;
+
+const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
 
 function isAdminUnlocked() {
   return localStorage.getItem(ADMIN_UNLOCK_KEY) === "1";
@@ -116,6 +126,115 @@ function setAdminMsg(message) {
 function setAdminUnlockMsg(message) {
   if (!el.adminUnlockMsg) return;
   el.adminUnlockMsg.textContent = message || "";
+}
+
+function setAvatarMsg(message) {
+  if (!el.avatarMsg) return;
+  el.avatarMsg.textContent = message || "";
+}
+
+function ownedBlookNames(userDoc) {
+  const b = userDoc?.blooks && typeof userDoc.blooks === "object" ? userDoc.blooks : {};
+  return Object.entries(b)
+    .filter(([, qty]) => (Number(qty) || 0) > 0)
+    .map(([name]) => String(name));
+}
+
+function populateAvatarSelect(userDoc) {
+  if (!el.avatarSelect) return;
+  const owned = new Set(ownedBlookNames(userDoc));
+  const opts = [
+    `<option value="">Default</option>`,
+    ...blooksCatalog
+      .filter((b) => owned.has(String(b?.name || "")))
+      .slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      .map((b) => {
+        const n = escapeHtml(String(b?.name || "Blook"));
+        return `<option value="${n}">${n}</option>`;
+      }),
+  ].join("");
+  el.avatarSelect.innerHTML = opts;
+
+  const current = String(userDoc?.avatarBlook || "");
+  el.avatarSelect.value = current;
+}
+
+function renderAvatar(userDoc) {
+  if (!el.avatarBox) return;
+  const avatarName = String(userDoc?.avatarBlook || "");
+  const blook = avatarName ? getBlookByName(avatarName) : null;
+  if (blook?.image) {
+    el.avatarBox.style.backgroundImage = `url('${blook.image}')`;
+    el.avatarBox.style.backgroundSize = "cover";
+    el.avatarBox.style.backgroundPosition = "center";
+    return;
+  }
+
+  el.avatarBox.style.backgroundImage = "";
+  const c = String(userDoc?.avatarColor || "#000");
+  el.avatarBox.style.background = c;
+}
+
+function pct(n) {
+  const num = Number(n) || 0;
+  return `${(num * 100).toFixed(2)}%`;
+}
+
+function renderAdminPackProbabilities(packId) {
+  if (!el.adminPackProbs) return;
+  const id = String(packId || "");
+  const pool = packPools[id];
+  if (!pool) {
+    el.adminPackProbs.textContent = "Pack not found.";
+    return;
+  }
+
+  const weights = pool.weights && typeof pool.weights === "object" ? pool.weights : {};
+  const rarityLines = Object.keys(weights)
+    .map((r) => {
+      const w = Number(weights[r]) || 0;
+      return { rarity: String(r), w };
+    })
+    .filter((x) => x.w > 0)
+    .sort((a, b) => b.w - a.w);
+
+  const total = rarityLines.reduce((a, x) => a + x.w, 0) || 1;
+  const rarityPct = new Map(rarityLines.map((x) => [x.rarity, x.w / total]));
+
+  const rarityHtml = rarityLines
+    .map((x) => `<div class="prob-row"><div>${escapeHtml(x.rarity)}</div><div>${pct(rarityPct.get(x.rarity))}</div></div>`)
+    .join("");
+
+  const blookRows = [];
+  for (const [rarity, names] of Object.entries(pool)) {
+    if (rarity === "weights") continue;
+    if (!Array.isArray(names) || names.length === 0) continue;
+    const rp = rarityPct.get(String(rarity)) || 0;
+    const each = rp / names.length;
+    for (const n of names) {
+      blookRows.push({ rarity: String(rarity), name: String(n), p: each });
+    }
+  }
+
+  blookRows.sort((a, b) => b.p - a.p);
+  const blookHtml = blookRows
+    .map(
+      (x) =>
+        `<div class="prob-row"><div>${escapeHtml(x.name)} <span class="prob-sub">(${escapeHtml(x.rarity)})</span></div><div>${pct(x.p)}</div></div>`,
+    )
+    .join("");
+
+  el.adminPackProbs.innerHTML = `
+    <div class="prob-block">
+      <div class="prob-title">Rarity chances</div>
+      <div class="prob-list">${rarityHtml || "—"}</div>
+    </div>
+    <div class="prob-block">
+      <div class="prob-title">Blook chances</div>
+      <div class="prob-list">${blookHtml || "—"}</div>
+    </div>
+  `.trim();
 }
 
 function renderChatMessages(msgs) {
@@ -300,6 +419,22 @@ function populateAdminBlookSelect() {
     })
     .join("");
   el.adminBlookSelect.innerHTML = opts;
+}
+
+function populateAdminPackSelect() {
+  if (!el.adminPackSelect) return;
+  const opts = packs
+    .map((p) => {
+      const id = escapeHtml(String(p?.id || ""));
+      const name = escapeHtml(String(p?.name || "Pack"));
+      return `<option value="${id}">${name}</option>`;
+    })
+    .join("");
+  el.adminPackSelect.innerHTML = opts;
+  if (packs[0]?.id) {
+    el.adminPackSelect.value = String(packs[0].id);
+    renderAdminPackProbabilities(String(packs[0].id));
+  }
 }
 
 function setMsg(message) {
@@ -567,10 +702,19 @@ function renderBlooks(userDoc) {
     const qty = escapeHtml(String(b.qty));
     const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
     const lockedClass = Number(b.qty) > 0 ? "" : "blook-locked";
+    const lockedLabel = Number(b.qty) > 0 ? "" : `<div class="blook-locked-label">LOCKED</div>`;
+    const mysticalClass = String(b.rarity || "").toLowerCase() === "mystical" && Number(b.qty) > 0 ? "mystical-shush" : "";
+    const artStyle =
+      String(b.rarity || "").toLowerCase() === "mystical" && Number(b.qty) > 0
+        ? `--mystical-base:url('${img}');--mystical-shush:url('${escapeHtml(MYSTICAL_SHUSH_IMG)}');`
+        : img
+          ? `background-image:url('${img}')`
+          : "";
 
     return `
-      <article class="blook-card blook-card-small ${lockedClass}" data-blook-id="${escapeHtml(b.id)}">
-        <div class="blook-art blook-art-small" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
+      <article class="blook-card blook-card-small ${lockedClass} ${mysticalClass}" data-blook-id="${escapeHtml(b.id)}">
+        ${lockedLabel}
+        <div class="blook-art blook-art-small" role="img" aria-label="${name} artwork" style="${artStyle}"></div>
         <div class="blook-meta">
           <div class="blook-name">${name}</div>
           <div class="blook-sub">
@@ -948,6 +1092,8 @@ function renderAccount(userDoc) {
   el.tokensText.textContent = String(tokens);
   el.daysText.textContent = String(days);
   el.blooksCountText.textContent = String(count);
+  renderAvatar(userDoc);
+  populateAvatarSelect(userDoc);
 }
 
 function setSignedOutUI() {
@@ -1031,6 +1177,28 @@ async function enterApp(user) {
   showPage(getPageFromHash());
 
   startPresence();
+}
+
+async function handleSetAvatar() {
+  if (!auth?.currentUser) return;
+  if (!el.avatarSelect) return;
+  setAvatarMsg("");
+
+  const picked = String(el.avatarSelect.value || "");
+  const owned = new Set(ownedBlookNames(currentUserData));
+  if (picked && !owned.has(picked)) {
+    setAvatarMsg("You can only use owned blooks.");
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { avatarBlook: picked || "" });
+    currentUserData = { ...(currentUserData || {}), avatarBlook: picked || "" };
+    renderAvatar(currentUserData);
+    setAvatarMsg("Avatar updated.");
+  } catch {
+    setAvatarMsg("Avatar update failed.");
+  }
 }
 
 async function handleSignIn(e) {
@@ -1165,6 +1333,13 @@ if (el.adminUnlockBtn) el.adminUnlockBtn.addEventListener("click", handleAdminUn
 if (el.chatForm) el.chatForm.addEventListener("submit", handleChatSubmit);
 if (el.adminGrantBtn) el.adminGrantBtn.addEventListener("click", handleAdminGrant);
 if (el.adminSetBtn) el.adminSetBtn.addEventListener("click", handleAdminSetQty);
+if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
+
+if (el.adminPackSelect) {
+  el.adminPackSelect.addEventListener("change", () => {
+    renderAdminPackProbabilities(el.adminPackSelect.value);
+  });
+}
 
 document.addEventListener("visibilitychange", () => {
   if (!auth?.currentUser) return;
