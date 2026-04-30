@@ -147,6 +147,8 @@ const ADMIN_PIN = "67120925";
 const CREATOR_PIN = "zql2012";
 const ADMIN_UNLOCK_KEY = "chocolet_admin_unlocked";
 const CREATOR_UNLOCK_KEY = "chocolet_creator_unlocked";
+const ADMIN_PIN_FP_KEY = "chocolet_admin_pin_fp";
+const CREATOR_PIN_FP_KEY = "chocolet_creator_pin_fp";
 
 let currentUserData;
 let chatUnsub;
@@ -326,6 +328,33 @@ function isAdminUnlocked() {
 
 function isCreatorUnlocked() {
   return localStorage.getItem(CREATOR_UNLOCK_KEY) === "1";
+}
+
+function pinFingerprint(pin) {
+  const s = String(pin || "");
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 33) ^ s.charCodeAt(i);
+  }
+  return String(h >>> 0);
+}
+
+function syncUnlockWithPinVersions() {
+  const adminUnlocked = isAdminUnlocked();
+  const creatorUnlocked = isCreatorUnlocked();
+
+  if (adminUnlocked) {
+    const want = pinFingerprint(ADMIN_PIN);
+    const have = localStorage.getItem(ADMIN_PIN_FP_KEY);
+    if (have && have !== want) localStorage.removeItem(ADMIN_UNLOCK_KEY);
+    else if (!have) localStorage.setItem(ADMIN_PIN_FP_KEY, want);
+  }
+  if (creatorUnlocked) {
+    const want = pinFingerprint(CREATOR_PIN);
+    const have = localStorage.getItem(CREATOR_PIN_FP_KEY);
+    if (have && have !== want) localStorage.removeItem(CREATOR_UNLOCK_KEY);
+    else if (!have) localStorage.setItem(CREATOR_PIN_FP_KEY, want);
+  }
 }
 
 function setAdminUnlocked() {
@@ -2631,8 +2660,7 @@ function showPage(page) {
 }
 
 async function enterApp(user) {
-  localStorage.removeItem(ADMIN_UNLOCK_KEY);
-  localStorage.removeItem(CREATOR_UNLOCK_KEY);
+  syncUnlockWithPinVersions();
   setSignedInUI();
   applyAdminUIState();
 
@@ -2803,8 +2831,11 @@ async function handleAdminUnlock() {
   if (isCreatorPin) {
     setCreatorUnlocked();
     setAdminUnlocked();
+    localStorage.setItem(ADMIN_PIN_FP_KEY, pinFingerprint(ADMIN_PIN));
+    localStorage.setItem(CREATOR_PIN_FP_KEY, pinFingerprint(CREATOR_PIN));
   } else {
     setAdminUnlocked();
+    localStorage.setItem(ADMIN_PIN_FP_KEY, pinFingerprint(ADMIN_PIN));
   }
   applyAdminUIState();
 
