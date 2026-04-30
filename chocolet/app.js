@@ -167,6 +167,8 @@ let friendsCache;
 let dmSelectedUid;
 let dmPeerProfile;
 let currentShownPage;
+let dmThreadsUnsub;
+const DM_READ_KEY_PREFIX = "chocolet_dm_read_";
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
 
@@ -481,6 +483,9 @@ function renderDmFriends(list) {
       loadDmPeerProfile(dmSelectedUid).then((p) => {
         if (p && el.dmSelected && String(dmSelectedUid) === String(p.uid)) el.dmSelected.textContent = String(p.username || "player");
       }).catch(() => {});
+      if (auth?.currentUser?.uid && dmSelectedUid) {
+        markDmThreadRead(threadIdFor(auth.currentUser.uid, dmSelectedUid));
+      }
       startDmMessagesListener();
       renderDmFriends(list);
     });
@@ -836,6 +841,51 @@ function stopDmMessagesListener() {
   }
 }
 
+function stopDmThreadsListener() {
+  if (dmThreadsUnsub) {
+    dmThreadsUnsub();
+    dmThreadsUnsub = undefined;
+  }
+}
+
+function dmNavButton() {
+  return el.navBtns.find((b) => b?.dataset?.nav === "dm") || null;
+}
+
+function markDmThreadRead(threadId) {
+  const id = String(threadId || "");
+  if (!id) return;
+  localStorage.setItem(`${DM_READ_KEY_PREFIX}${id}`, String(Date.now()));
+}
+
+function startDmThreadsListener() {
+  if (!db || !auth?.currentUser) return;
+  if (dmThreadsUnsub) return;
+  const uid = auth.currentUser.uid;
+  const q = query(collection(db, "dmThreads"), where("participants", "array-contains", uid), limit(40));
+  dmThreadsUnsub = onSnapshot(
+    q,
+    (snap) => {
+      let hasUnread = false;
+      for (const d of snap.docs) {
+        const data = d.data() || {};
+        const updatedAtMs = Number(data.updatedAtMs) || 0;
+        const readAt = Number(localStorage.getItem(`${DM_READ_KEY_PREFIX}${d.id}`) || 0);
+        if (updatedAtMs > readAt) {
+          hasUnread = true;
+          break;
+        }
+      }
+      const btn = dmNavButton();
+      if (btn) btn.classList.toggle("has-unread", hasUnread);
+    },
+    () => {
+      const btn = dmNavButton();
+      if (btn) btn.classList.remove("has-unread");
+    },
+  );
+}
+
 function startDmMessagesListener() {
   if (!db || !auth?.currentUser) return;
   stopDmMessagesListener();
@@ -849,6 +899,7 @@ function startDmMessagesListener() {
   const me = auth.currentUser.uid;
   const threadId = threadIdFor(me, dmSelectedUid);
   if (!threadId) return;
+  markDmThreadRead(threadId);
   const q = query(collection(db, "dmThreads", threadId, "messages"), orderBy("createdAtMs", "asc"), limit(120));
   dmMsgUnsub = onSnapshot(
     q,
@@ -2482,6 +2533,7 @@ function setSignedOutUI() {
   stopCreatorPresenceListener();
   stopFriendsListeners();
   stopDmMessagesListener();
+  stopDmThreadsListener();
   stopUserDocListener();
   stopPresence();
   if (el.packsList) el.packsList.textContent = "—";
@@ -2562,6 +2614,9 @@ function showPage(page) {
       const picked = Array.isArray(friendsCache) ? friendsCache.find((f) => String(f.uid || "") === String(dmSelectedUid)) : null;
       el.dmSelected.textContent = String(picked?.username || "") || dmSelectedUid || "—";
     }
+    if (auth?.currentUser?.uid && dmSelectedUid) {
+      markDmThreadRead(threadIdFor(auth.currentUser.uid, dmSelectedUid));
+    }
     startDmMessagesListener();
   }
 }
@@ -2606,6 +2661,7 @@ async function enterApp(user) {
 
   startFriendsListener();
   startFriendRequestsListener();
+  startDmThreadsListener();
 
   showPage(getPageFromHash());
   startPresence();
