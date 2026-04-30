@@ -595,7 +595,7 @@ function renderAdminPackProbabilities(packId) {
 }
 
 function creatorBadgeHtml() {
-  return `<span class="creator-badge" aria-label="Creator"></span>`;
+  return `<span class="title-badge">CREATOR</span>`;
 }
 
 function renderChatMessages(msgs) {
@@ -624,7 +624,7 @@ function renderChatMessages(msgs) {
       const avatarName = String(m.avatarBlook || "");
       const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
       const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
-      const userClass = admin ? "chat-user admin" : "chat-user";
+      const userClass = creator ? "chat-user creator" : admin ? "chat-user admin" : "chat-user";
       const title = creator ? ` ${creatorBadgeHtml()}` : "";
       return `
         <div class="chat-msg">
@@ -1899,7 +1899,8 @@ function renderAccount(userDoc) {
   el.usernameText.innerHTML = isCreator
     ? `${escapeHtml(username)} ${creatorBadgeHtml()}`
     : escapeHtml(username);
-  el.usernameText.classList.toggle("rainbow-name", isAdmin);
+  el.usernameText.classList.toggle("rainbow-name", isAdmin && !isCreator);
+  el.usernameText.classList.toggle("creator-name", isCreator);
   el.tokensText.textContent = String(tokens);
   el.daysText.textContent = String(days);
   el.blooksCountText.textContent = String(count);
