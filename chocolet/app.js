@@ -594,6 +594,10 @@ function renderAdminPackProbabilities(packId) {
   `.trim();
 }
 
+function creatorBadgeHtml() {
+  return `<span class="creator-badge" aria-label="Creator"></span>`;
+}
+
 function renderChatMessages(msgs) {
   if (!el.chatList) return;
   if (!Array.isArray(msgs) || msgs.length === 0) {
@@ -601,7 +605,16 @@ function renderChatMessages(msgs) {
     return;
   }
 
-  el.chatList.innerHTML = msgs
+  const sorted = [...msgs].sort((a, b) => {
+    const ams = Number(a?.createdAtMs) || 0;
+    const bms = Number(b?.createdAtMs) || 0;
+    if (ams !== bms) return ams - bms;
+    const ad = a?.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+    const bd = b?.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+    return ad - bd;
+  });
+
+  el.chatList.innerHTML = sorted
     .map((m) => {
       const u = escapeHtml(m.username || "player");
       const t = escapeHtml(m.text || "");
@@ -612,7 +625,7 @@ function renderChatMessages(msgs) {
       const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
       const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
       const userClass = admin ? "chat-user admin" : "chat-user";
-      const title = creator ? ` <span class="title-badge">CREATOR</span>` : "";
+      const title = creator ? ` ${creatorBadgeHtml()}` : "";
       return `
         <div class="chat-msg">
           <button class="chat-avatar" type="button" data-player-uid="${uid}" aria-label="View player" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></button>
@@ -699,7 +712,7 @@ function startChatListener() {
 
   const q = chatFallbackMode
     ? query(collection(db, "chatMessages"), limit(60))
-    : query(collection(db, "chatMessages"), orderBy("createdAt", "asc"), limit(60));
+    : query(collection(db, "chatMessages"), orderBy("createdAtMs", "desc"), limit(60));
   chatUnsub = onSnapshot(
     q,
     (snap) => {
@@ -735,6 +748,7 @@ async function sendChatMessage(text) {
   if (!cleaned) return;
 
   const username = String(currentUserData?.username || "player");
+  const createdAtMs = Date.now();
   await addDoc(collection(db, "chatMessages"), {
     text: cleaned,
     uid: auth.currentUser.uid,
@@ -743,7 +757,17 @@ async function sendChatMessage(text) {
     isAdmin: Boolean(currentUserData?.isAdmin),
     isCreator: Boolean(currentUserData?.isCreator),
     createdAt: serverTimestamp(),
+    createdAtMs,
   });
+
+  try {
+    const snap = await getDocs(query(collection(db, "chatMessages"), orderBy("createdAtMs", "desc"), limit(61)));
+    if (snap.docs.length > 60) {
+      const oldest = snap.docs[snap.docs.length - 1];
+      await deleteDoc(doc(db, "chatMessages", oldest.id));
+    }
+  } catch {
+  }
 }
 
 function renderBazaarListings(listings) {
@@ -1873,7 +1897,7 @@ function renderAccount(userDoc) {
   }
 
   el.usernameText.innerHTML = isCreator
-    ? `${escapeHtml(username)} <span class="title-badge">CREATOR</span>`
+    ? `${escapeHtml(username)} ${creatorBadgeHtml()}`
     : escapeHtml(username);
   el.usernameText.classList.toggle("rainbow-name", isAdmin);
   el.tokensText.textContent = String(tokens);
