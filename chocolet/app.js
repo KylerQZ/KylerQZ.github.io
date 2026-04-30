@@ -2202,8 +2202,7 @@ async function handleCreatorSetQty() {
     setCreatorMsg(`Set ${name} to x${qty}.`);
   } catch {
     setCreatorMsg("Set qty failed.");
-  }dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
-if (el.
+  }
 }
 
 async function handleChatSubmit(e) {
@@ -2263,6 +2262,7 @@ if (el.creatorSetTokensBtn) el.creatorSetTokensBtn.addEventListener("click", han
 if (el.creatorGrantBtn) el.creatorGrantBtn.addEventListener("click", handleCreatorGrant);
 if (el.creatorSetBtn) el.creatorSetBtn.addEventListener("click", handleCreatorSetQty);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
+if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
 if (el.headerAvatar) {
   el.headerAvatar.addEventListener("click", () => {
     location.hash = "#stats";
