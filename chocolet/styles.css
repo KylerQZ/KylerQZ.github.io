@@ -293,7 +293,7 @@ body {
     1px 0 0 rgba(255, 0, 255, 0.24),
     0 0 18px rgba(255, 60, 120, 0.10),
     0 0 18px rgba(255, 220, 0, 0.06);
-  animation: creatorGlitch 3s steps(1, end) infinite;
+  animation: creatorGlitch 5.5s steps(1, end) infinite;
 }
 
 .chat-user.creator {
@@ -304,7 +304,7 @@ body {
     1px 0 0 rgba(255, 0, 255, 0.24),
     0 0 18px rgba(255, 60, 120, 0.10),
     0 0 18px rgba(255, 220, 0, 0.06);
-  animation: creatorGlitch 3s steps(1, end) infinite;
+  animation: creatorGlitch 5.5s steps(1, end) infinite;
 }
 
 .creator-name .title-badge,
@@ -314,7 +314,7 @@ body {
     0 0 14px rgba(80, 180, 255, 0.14),
     0 0 20px rgba(255, 0, 255, 0.14),
     0 0 18px rgba(255, 220, 0, 0.08);
-  animation: creatorGlitchBadge 3s steps(1, end) infinite;
+  animation: creatorGlitchBadge 5.5s steps(1, end) infinite;
 }
 
 @keyframes creatorGlitch {
@@ -327,10 +327,17 @@ body {
   }
   11%, 12% {
     text-shadow:
-      0 0 16px rgba(80, 180, 255, 0.42),
-      -2px 0 0 rgba(255, 220, 0, 0.26),
-      2px 0 0 rgba(255, 0, 255, 0.28),
-      0 0 20px rgba(255, 60, 120, 0.14);
+      0 0 18px rgba(80, 180, 255, 0.44),
+      -3px 0 0 rgba(255, 220, 0, 0.34),
+      3px 0 0 rgba(255, 0, 255, 0.32),
+      0 0 26px rgba(255, 60, 120, 0.22);
+  }
+  13%, 18% {
+    text-shadow:
+      0 0 12px rgba(80, 180, 255, 0.26),
+      -2px 0 0 rgba(255, 0, 255, 0.26),
+      2px 0 0 rgba(180, 70, 255, 0.26),
+      0 0 22px rgba(255, 220, 0, 0.12);
   }
   13%, 45% {
     text-shadow:
@@ -339,12 +346,12 @@ body {
       1px 0 0 rgba(180, 70, 255, 0.22),
       0 0 18px rgba(255, 60, 120, 0.08);
   }
-  46%, 47% {
+  46%, 48% {
     text-shadow:
-      0 0 18px rgba(80, 180, 255, 0.46),
-      -3px 0 0 rgba(255, 90, 40, 0.24),
-      3px 0 0 rgba(255, 0, 255, 0.30),
-      0 0 22px rgba(255, 220, 0, 0.10);
+      0 0 22px rgba(80, 180, 255, 0.50),
+      -4px 0 0 rgba(255, 60, 120, 0.26),
+      4px 0 0 rgba(255, 220, 0, 0.18),
+      0 0 28px rgba(180, 70, 255, 0.22);
   }
   48%, 100% {
     text-shadow:
@@ -369,6 +376,13 @@ body {
       0 0 22px rgba(255, 60, 120, 0.14);
     filter: saturate(1.4);
   }
+  13%, 18% {
+    box-shadow:
+      0 0 16px rgba(80, 180, 255, 0.22),
+      0 0 28px rgba(255, 0, 255, 0.18),
+      0 0 24px rgba(255, 220, 0, 0.14);
+    filter: saturate(1.6);
+  }
   13%, 45% {
     box-shadow:
       0 0 14px rgba(80, 180, 255, 0.20),
@@ -381,6 +395,13 @@ body {
       0 0 24px rgba(255, 90, 40, 0.14),
       0 0 26px rgba(180, 70, 255, 0.16);
     filter: saturate(1.5);
+  }
+  48%, 50% {
+    box-shadow:
+      0 0 26px rgba(80, 180, 255, 0.26),
+      0 0 30px rgba(255, 60, 120, 0.18),
+      0 0 26px rgba(255, 220, 0, 0.16);
+    filter: saturate(1.7);
   }
   48%, 100% {
     box-shadow:
