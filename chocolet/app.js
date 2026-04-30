@@ -1142,6 +1142,18 @@ async function openPlayerModal(uid) {
       ? `<span class="rainbow-name">${username}</span>`
       : username;
 
+  const myUid = String(auth?.currentUser?.uid || "");
+  const canActions = Boolean(myUid) && myUid !== id;
+  const actionsHtml = canActions
+    ? `
+    <div class="divider"></div>
+    <div class="row" style="justify-content:flex-end;">
+      <button class="btn btn-secondary" type="button" data-friend-request="${escapeHtml(id)}">Friend request</button>
+      <button class="btn" type="button" data-open-dm="${escapeHtml(id)}">DM</button>
+    </div>
+  `.trim()
+    : "";
+
   el.playerModalBody.innerHTML = `
     <div class="player-card">
       <div class="player-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
@@ -1154,7 +1166,25 @@ async function openPlayerModal(uid) {
       <div class="player-stat"><div class="label">Tokens</div><div class="value">${tokens}</div></div>
       <div class="player-stat"><div class="label">Blooks owned</div><div class="value">${blooksOwned}</div></div>
     </div>
+    ${actionsHtml}
   `.trim();
+
+  if (canActions) {
+    el.playerModalBody.querySelectorAll("[data-friend-request]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const target = btn.getAttribute("data-friend-request") || "";
+        await sendFriendRequest(target);
+        closePlayerModal();
+      });
+    });
+    el.playerModalBody.querySelectorAll("[data-open-dm]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        dmSelectedUid = btn.getAttribute("data-open-dm") || "";
+        closePlayerModal();
+        location.hash = "#dm";
+      });
+    });
+  }
 }
 
 function startChatListener() {
