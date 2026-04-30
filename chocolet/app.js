@@ -679,7 +679,7 @@ function startFriendRequestsListener() {
   if (!db || !auth?.currentUser) return;
   if (friendReqUnsub) return;
   const uid = auth.currentUser.uid;
-  const q = query(collection(db, "friendRequests"), where("toUid", "==", uid), orderBy("createdAtMs", "desc"), limit(25));
+  const q = query(collection(db, "friendRequests"), where("toUid", "==", uid), limit(25));
   friendReqUnsub = onSnapshot(
     q,
     (snap) => {
@@ -707,6 +707,7 @@ function startFriendRequestsListener() {
           );
         }
       }
+      reqs.sort((a, b) => (Number(b.createdAtMs) || 0) - (Number(a.createdAtMs) || 0));
       renderFriendRequests(reqs);
 
       if (el.toastArea) {
@@ -2686,6 +2687,16 @@ async function handleAdminUnlock() {
     return;
   }
 
+  if (db && auth?.currentUser) {
+    try {
+      const patch = isCreatorPin ? { isCreator: true, isAdmin: true } : { isAdmin: true };
+      await updateDoc(doc(db, "users", auth.currentUser.uid), patch);
+    } catch (err) {
+      setAdminUnlockMsg(err?.message || "Unlock failed.");
+      return;
+    }
+  }
+
   if (isCreatorPin) {
     setCreatorUnlocked();
     setAdminUnlocked();
@@ -2697,12 +2708,6 @@ async function handleAdminUnlock() {
   if (isCreatorPin) setAdminUnlockMsg("Creator unlocked.");
   else setAdminUnlockMsg("Admin unlocked.");
 
-  if (db && auth?.currentUser) {
-    const patch = isCreatorPin ? { isCreator: true, isAdmin: true } : { isAdmin: true };
-    updateDoc(doc(db, "users", auth.currentUser.uid), patch).catch(() => {});
-    currentUserData = { ...(currentUserData || {}), ...patch };
-    if (currentUserData) renderAccount(currentUserData);
-  }
   if (el.adminPinInput) el.adminPinInput.value = "";
   location.hash = isCreatorPin ? "#creator" : "#admin";
 }
