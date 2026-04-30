@@ -79,6 +79,9 @@ const el = {
   avatarSetBtn: document.getElementById("avatarSetBtn"),
   avatarMsg: document.getElementById("avatarMsg"),
 
+  dailyWheelBtn: document.getElementById("dailyWheelBtn"),
+  dailyWheelMsg: document.getElementById("dailyWheelMsg"),
+
   bazaarList: document.getElementById("bazaarList"),
   bazaarMsg: document.getElementById("bazaarMsg"),
 
@@ -156,6 +159,63 @@ const QUICK_SELL_TOKENS = {
 
 function setBazaarMsg(message) {
   if (el.bazaarMsg) el.bazaarMsg.textContent = message || "";
+}
+
+function setDailyWheelMsg(message) {
+  if (el.dailyWheelMsg) el.dailyWheelMsg.textContent = message || "";
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function randIntInclusive(min, max) {
+  const a = Math.floor(Number(min) || 0);
+  const b = Math.floor(Number(max) || 0);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+async function spinDailyWheel() {
+  if (!db || !auth?.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const today = todayKey();
+  const reward = randIntInclusive(700, 2000);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const last = String(data?.lastDailyWheel || "");
+    if (last === today) throw new Error("ALREADY_SPUN");
+    const current = Math.max(0, Number(data?.tokens) || 0);
+    const next = current + reward;
+    tx.set(ref, { tokens: next, lastDailyWheel: today }, { merge: true });
+  });
+
+  const after = await getDoc(ref);
+  if (after.exists()) {
+    currentUserData = after.data();
+    renderAccount(currentUserData);
+    renderPacks();
+  }
+  return reward;
+}
+
+async function handleDailyWheel() {
+  setDailyWheelMsg("");
+  try {
+    const reward = await spinDailyWheel();
+    if (typeof reward === "number") setDailyWheelMsg(`You won ${reward} tokens!`);
+  } catch (e) {
+    if (String(e?.message || "") === "ALREADY_SPUN") setDailyWheelMsg("Already spun today.");
+    else setDailyWheelMsg("Spin failed.");
+  }
 }
 
 async function loadCreatorUsersOnce() {
@@ -1158,13 +1218,13 @@ const packPools = {
     supreme: ["Chocolate Factory", "Crystal Spoon"],
     mystical: ["Mystical Frog"],
     weights: {
-      uncommon: 0.793,
+      uncommon: 0.7945,
       rare: 0.15,
       epic: 0.02,
       legendary: 0.02,
       chroma: 0.01,
       supreme: 0.005,
-      mystical: 0.002,
+      mystical: 0.0005,
     },
   },
 };
@@ -1787,7 +1847,7 @@ async function getOrCreateUserDoc(user) {
     username: usernameFromEmail(user.email),
     avatarColor: "#000000",
     createdAt: serverTimestamp(),
-    tokens: 1000,
+    tokens: 0,
     moneyResetV1: true,
     blooks: {},
   };
@@ -2142,7 +2202,8 @@ async function handleCreatorSetQty() {
     setCreatorMsg(`Set ${name} to x${qty}.`);
   } catch {
     setCreatorMsg("Set qty failed.");
-  }
+  }dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
+if (el.
 }
 
 async function handleChatSubmit(e) {
