@@ -1127,6 +1127,7 @@ async function openPlayerModal(uid) {
 
   const username = escapeHtml(String(data.username || "player"));
   const isAdmin = Boolean(data.isAdmin);
+  const isCreator = Boolean(data.isCreator);
   const tokens = Math.max(0, Number(data.tokens) || 0);
   const blooks = data?.blooks && typeof data.blooks === "object" ? data.blooks : {};
   const blooksOwned = Object.values(blooks).reduce((a, v) => a + (Number(v) || 0), 0);
@@ -1135,7 +1136,11 @@ async function openPlayerModal(uid) {
   const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
   const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
 
-  const nameHtml = isAdmin ? `<span class="rainbow-name">${username}</span>` : username;
+  const nameHtml = isCreator
+    ? `<span class="creator-name">${username} ${creatorBadgeHtml()}</span>`
+    : isAdmin
+      ? `<span class="rainbow-name">${username}</span>`
+      : username;
 
   el.playerModalBody.innerHTML = `
     <div class="player-card">

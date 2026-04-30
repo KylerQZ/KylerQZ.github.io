@@ -286,29 +286,34 @@ body {
 }
 
 .creator-name {
-  color: rgba(80, 180, 255, 0.98);
+  color: rgba(220, 245, 255, 0.98);
   text-shadow:
-    0 0 10px rgba(80, 180, 255, 0.28),
-    -1px 0 0 rgba(0, 255, 255, 0.22),
-    1px 0 0 rgba(255, 0, 255, 0.18);
+    0 0 10px rgba(80, 180, 255, 0.22),
+    -1px 0 0 rgba(0, 255, 255, 0.18),
+    1px 0 0 rgba(255, 0, 255, 0.24),
+    0 0 18px rgba(255, 60, 120, 0.10),
+    0 0 18px rgba(255, 220, 0, 0.06);
   animation: creatorGlitch 3s steps(1, end) infinite;
 }
 
 .chat-user.creator {
-  color: rgba(80, 180, 255, 0.98);
+  color: rgba(220, 245, 255, 0.98);
   text-shadow:
-    0 0 10px rgba(80, 180, 255, 0.28),
-    -1px 0 0 rgba(0, 255, 255, 0.22),
-    1px 0 0 rgba(255, 0, 255, 0.18);
+    0 0 10px rgba(80, 180, 255, 0.22),
+    -1px 0 0 rgba(0, 255, 255, 0.18),
+    1px 0 0 rgba(255, 0, 255, 0.24),
+    0 0 18px rgba(255, 60, 120, 0.10),
+    0 0 18px rgba(255, 220, 0, 0.06);
   animation: creatorGlitch 3s steps(1, end) infinite;
 }
 
 .creator-name .title-badge,
 .chat-user.creator .title-badge {
-  border-color: rgba(80, 180, 255, 0.22);
+  border-color: rgba(255, 0, 255, 0.18);
   box-shadow:
-    0 0 14px rgba(80, 180, 255, 0.20),
-    0 0 18px rgba(255, 0, 255, 0.10);
+    0 0 14px rgba(80, 180, 255, 0.14),
+    0 0 20px rgba(255, 0, 255, 0.14),
+    0 0 18px rgba(255, 220, 0, 0.08);
   animation: creatorGlitchBadge 3s steps(1, end) infinite;
 }
 
