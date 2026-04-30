@@ -169,6 +169,7 @@ let dmPeerProfile;
 let currentShownPage;
 let dmThreadsUnsub;
 const DM_READ_KEY_PREFIX = "chocolet_dm_read_";
+let dmThreadsCache;
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
 
@@ -852,10 +853,27 @@ function dmNavButton() {
   return el.navBtns.find((b) => b?.dataset?.nav === "dm") || null;
 }
 
+function updateDmUnreadBadge() {
+  const btn = dmNavButton();
+  if (!btn) return;
+  const threads = Array.isArray(dmThreadsCache) ? dmThreadsCache : [];
+  let hasUnread = false;
+  for (const t of threads) {
+    const updatedAtMs = Number(t?.updatedAtMs) || 0;
+    const readAt = Number(localStorage.getItem(`${DM_READ_KEY_PREFIX}${t.id}`) || 0);
+    if (updatedAtMs > readAt) {
+      hasUnread = true;
+      break;
+    }
+  }
+  btn.classList.toggle("has-unread", hasUnread);
+}
+
 function markDmThreadRead(threadId) {
   const id = String(threadId || "");
   if (!id) return;
   localStorage.setItem(`${DM_READ_KEY_PREFIX}${id}`, String(Date.now()));
+  updateDmUnreadBadge();
 }
 
 function startDmThreadsListener() {
@@ -866,20 +884,11 @@ function startDmThreadsListener() {
   dmThreadsUnsub = onSnapshot(
     q,
     (snap) => {
-      let hasUnread = false;
-      for (const d of snap.docs) {
-        const data = d.data() || {};
-        const updatedAtMs = Number(data.updatedAtMs) || 0;
-        const readAt = Number(localStorage.getItem(`${DM_READ_KEY_PREFIX}${d.id}`) || 0);
-        if (updatedAtMs > readAt) {
-          hasUnread = true;
-          break;
-        }
-      }
-      const btn = dmNavButton();
-      if (btn) btn.classList.toggle("has-unread", hasUnread);
+      dmThreadsCache = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+      updateDmUnreadBadge();
     },
     () => {
+      dmThreadsCache = [];
       const btn = dmNavButton();
       if (btn) btn.classList.remove("has-unread");
     },
