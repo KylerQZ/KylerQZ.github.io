@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260430-2050" />
+    <link rel="stylesheet" href="./styles.css?v=20260430-2130" />
   </head>
   <body>
     <div class="bg"></div>
@@ -31,7 +31,7 @@
         <button class="navbtn" type="button" data-nav="market">Market</button>
         <button class="navbtn" type="button" data-nav="bazaar">Bazaar</button>
         <button class="navbtn" type="button" data-nav="chat">Chat</button>
-        <button class="navbtn" type="button" data-nav="events">Events</button>
+        <button class="navbtn" type="button" data-nav="dm">DM</button>
         <button id="adminNavBtn" class="navbtn" type="button" data-nav="admin" hidden>Admin</button>
         <button id="creatorNavBtn" class="navbtn" type="button" data-nav="creator" hidden>Creator</button>
       </nav>
@@ -115,6 +115,16 @@
             <button id="dailyWheelBtn" class="btn" type="button">Daily wheel (free)</button>
           </div>
           <p id="dailyWheelMsg" class="msg" aria-live="polite"></p>
+
+          <div class="divider"></div>
+
+          <h3 class="card-title">Friends</h3>
+          <div id="friendsList" class="bazaar-list"></div>
+
+          <div class="divider"></div>
+
+          <h3 class="card-title">Friend requests</h3>
+          <div id="friendReqList" class="bazaar-list"></div>
 
           <div id="avatarEditor" hidden>
             <div class="row">
@@ -256,6 +266,16 @@
           </div>
 
           <div class="row">
+            <div class="label">Admin</div>
+            <div id="creatorAdminState" class="value">—</div>
+          </div>
+
+          <div class="row">
+            <button id="creatorGrantAdminBtn" class="btn" type="button">Grant admin</button>
+            <button id="creatorRevokeAdminBtn" class="btn btn-secondary" type="button">Remove admin</button>
+          </div>
+
+          <div class="row">
             <input id="creatorTokensQty" class="input" type="number" min="0" max="999999" value="1000" />
           </div>
           <div class="row">
@@ -273,10 +293,23 @@
           </div>
         </section>
 
-        <section class="card page" aria-label="Events" data-page="events" hidden>
-          <h2 class="card-title">Events</h2>
-          <p class="card-note">Limited-time events and quests</p>
-          <div class="placeholder">No events right now.</div>
+        <section class="card page" aria-label="DM" data-page="dm" hidden>
+          <h2 class="card-title">DM</h2>
+          <p class="card-note">Private messages with friends</p>
+          <div class="dm">
+            <div id="dmFriends" class="bazaar-list" aria-label="Friends"></div>
+            <div class="divider"></div>
+            <div class="row">
+              <div class="label">Chatting with</div>
+              <div id="dmSelected" class="value">—</div>
+            </div>
+            <div id="dmList" class="chat-list" aria-label="DM messages"></div>
+            <form id="dmForm" class="chat-form">
+              <input id="dmInput" class="input" type="text" maxlength="160" placeholder="DM..." required />
+              <button id="dmSendBtn" class="btn" type="submit">Send</button>
+            </form>
+            <p id="dmMsg" class="msg" aria-live="polite"></p>
+          </div>
         </section>
       </section>
 
@@ -296,6 +329,8 @@
       </div>
     </div>
 
-    <script type="module" src="./app.js?v=20260430-2050"></script>
+    <div id="toastArea" class="toast-area" aria-live="polite"></div>
+
+    <script type="module" src="./app.js?v=20260430-2130"></script>
   </body>
 </html>

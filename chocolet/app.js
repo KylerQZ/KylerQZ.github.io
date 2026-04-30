@@ -30,6 +30,7 @@ import {
   deleteDoc,
   getDocs,
   query,
+  where,
   orderBy,
   limit,
   onSnapshot,
@@ -121,9 +122,25 @@ const el = {
   chatForm: document.getElementById("chatForm"),
   chatInput: document.getElementById("chatInput"),
 
+  friendsList: document.getElementById("friendsList"),
+  friendReqList: document.getElementById("friendReqList"),
+
+  dmFriends: document.getElementById("dmFriends"),
+  dmSelected: document.getElementById("dmSelected"),
+  dmList: document.getElementById("dmList"),
+  dmForm: document.getElementById("dmForm"),
+  dmInput: document.getElementById("dmInput"),
+  dmMsg: document.getElementById("dmMsg"),
+
+  toastArea: document.getElementById("toastArea"),
+
   playerModal: document.getElementById("playerModal"),
   playerModalClose: document.getElementById("playerModalClose"),
   playerModalBody: document.getElementById("playerModalBody"),
+
+  creatorAdminState: document.getElementById("creatorAdminState"),
+  creatorGrantAdminBtn: document.getElementById("creatorGrantAdminBtn"),
+  creatorRevokeAdminBtn: document.getElementById("creatorRevokeAdminBtn"),
 };
 
 const ADMIN_PIN = "67120925";
@@ -134,6 +151,10 @@ const CREATOR_UNLOCK_KEY = "chocolet_creator_unlocked";
 let currentUserData;
 let chatUnsub;
 let bazaarUnsub;
+let friendsUnsub;
+let friendReqUnsub;
+let dmFriendsUnsub;
+let dmMsgUnsub;
 const playerCache = new Map();
 let chatFallbackMode = false;
 let presenceInterval;
@@ -141,6 +162,8 @@ let adminPresenceUnsub;
 let creatorPresenceUnsub;
 let creatorSelectedUid;
 let creatorAllUsers;
+let friendsCache;
+let dmSelectedUid;
 let currentShownPage;
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
@@ -321,6 +344,206 @@ function setCreatorMsg(message) {
   if (el.creatorMsg) el.creatorMsg.textContent = message || "";
 }
 
+function setDmMsg(message) {
+  if (el.dmMsg) el.dmMsg.textContent = message || "";
+}
+
+function toast(html) {
+  if (!el.toastArea) return;
+  const wrap = document.createElement("div");
+  wrap.className = "toast";
+  wrap.innerHTML = html;
+  el.toastArea.appendChild(wrap);
+  window.setTimeout(() => {
+    wrap.remove();
+  }, 9000);
+}
+
+function threadIdFor(u1, u2) {
+  const a = String(u1 || "");
+  const b = String(u2 || "");
+  if (!a || !b) return "";
+  return [a, b].sort().join("_");
+}
+
+function renderFriends(list) {
+  if (!el.friendsList) return;
+  if (!Array.isArray(list) || list.length === 0) {
+    el.friendsList.innerHTML = "<div class=\"placeholder\">No friends yet.</div>";
+    return;
+  }
+  el.friendsList.innerHTML = list
+    .map((f) => {
+      const uid = escapeHtml(String(f.uid || ""));
+      const name = escapeHtml(String(f.username || "player"));
+      return `
+        <div class="bazaar-row">
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${name}</div>
+            <div class="bazaar-sub">${uid}</div>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+}
+
+function renderFriendRequests(list) {
+  if (!el.friendReqList) return;
+  if (!Array.isArray(list) || list.length === 0) {
+    el.friendReqList.innerHTML = "<div class=\"placeholder\">No requests.</div>";
+    return;
+  }
+
+  el.friendReqList.innerHTML = list
+    .map((r) => {
+      const id = escapeHtml(String(r.id || ""));
+      const fromUid = escapeHtml(String(r.fromUid || ""));
+      const fromName = escapeHtml(String(r.fromUsername || "player"));
+      return `
+        <div class="bazaar-row">
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${fromName}</div>
+            <div class="bazaar-sub">${fromUid}</div>
+          </div>
+          <div class="row" style="justify-content:flex-end;">
+            <button class="btn btn-xs" type="button" data-fr-accept="${id}">Accept</button>
+            <button class="btn btn-xs btn-secondary" type="button" data-fr-decline="${id}">Decline</button>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+
+  el.friendReqList.querySelectorAll("[data-fr-accept]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-fr-accept") || "";
+      await acceptFriendRequest(id);
+    });
+  });
+  el.friendReqList.querySelectorAll("[data-fr-decline]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-fr-decline") || "";
+      await declineFriendRequest(id);
+    });
+  });
+}
+
+function renderDmFriends(list) {
+  if (!el.dmFriends) return;
+  if (!Array.isArray(list) || list.length === 0) {
+    el.dmFriends.innerHTML = "<div class=\"placeholder\">No friends yet.</div>";
+    return;
+  }
+  el.dmFriends.innerHTML = list
+    .map((f) => {
+      const uid = escapeHtml(String(f.uid || ""));
+      const name = escapeHtml(String(f.username || "player"));
+      const active = dmSelectedUid && dmSelectedUid === String(f.uid) ? "active" : "";
+      return `
+        <div class="bazaar-row ${active}">
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${name}</div>
+            <div class="bazaar-sub">Tap to chat</div>
+          </div>
+          <div>
+            <button class="btn btn-xs" type="button" data-dm-pick="${uid}">Open</button>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+  el.dmFriends.querySelectorAll("[data-dm-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      dmSelectedUid = btn.getAttribute("data-dm-pick") || "";
+      if (el.dmSelected) el.dmSelected.textContent = dmSelectedUid || "—";
+      startDmMessagesListener();
+      renderDmFriends(list);
+    });
+  });
+}
+
+function renderDmMessages(msgs) {
+  if (!el.dmList) return;
+  if (!Array.isArray(msgs) || msgs.length === 0) {
+    el.dmList.innerHTML = "<div class=\"placeholder\">No messages yet.</div>";
+    return;
+  }
+  const sorted = [...msgs].sort((a, b) => (Number(a?.createdAtMs) || 0) - (Number(b?.createdAtMs) || 0));
+  el.dmList.innerHTML = sorted
+    .map((m) => {
+      const me = String(m.uid || "") === String(auth?.currentUser?.uid || "");
+      const u = escapeHtml(String(m.username || "player"));
+      const t = escapeHtml(String(m.text || ""));
+      const who = me ? "chat-user admin" : "chat-user";
+      return `
+        <div class="chat-msg">
+          <div class="chat-main">
+            <div class="${who}">${u}</div>
+            <div class="chat-text">${t}</div>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+  el.dmList.scrollTop = el.dmList.scrollHeight;
+}
+
+async function refreshCreatorSelectedAdminState() {
+  if (!db) return;
+  if (!el.creatorAdminState) return;
+  if (!creatorSelectedUid) {
+    el.creatorAdminState.textContent = "—";
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, "users", creatorSelectedUid));
+    const data = snap.exists() ? snap.data() : {};
+    el.creatorAdminState.textContent = data?.isAdmin ? "Yes" : "No";
+  } catch {
+    el.creatorAdminState.textContent = "—";
+  }
+}
+
+async function setUserAdminFlag(uid, isAdmin) {
+  if (!db) return;
+  const id = String(uid || "");
+  if (!id) return;
+  await updateDoc(doc(db, "users", id), { isAdmin: Boolean(isAdmin) });
+}
+
+async function handleCreatorGrantAdmin() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  setCreatorMsg("");
+  try {
+    await setUserAdminFlag(creatorSelectedUid, true);
+    setCreatorMsg("Admin granted.");
+    await refreshCreatorSelectedAdminState();
+  } catch {
+    setCreatorMsg("Admin update failed.");
+  }
+}
+
+async function handleCreatorRevokeAdmin() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  setCreatorMsg("");
+  try {
+    await setUserAdminFlag(creatorSelectedUid, false);
+    setCreatorMsg("Admin removed.");
+    await refreshCreatorSelectedAdminState();
+  } catch {
+    setCreatorMsg("Admin update failed.");
+  }
+}
+
 function populateCreatorBlookSelect() {
   if (!el.creatorBlookSelect) return;
   const opts = [...blooksCatalog]
@@ -368,7 +591,231 @@ function renderCreatorUsers(items) {
       creatorSelectedUid = btn.getAttribute("data-creator-pick") || "";
       if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
       setCreatorMsg("");
+      refreshCreatorSelectedAdminState().catch(() => {});
     });
+  });
+}
+
+function friendsCol(uid) {
+  return collection(db, "friends", String(uid || ""), "items");
+}
+
+function friendDoc(uid, friendUid) {
+  return doc(db, "friends", String(uid || ""), "items", String(friendUid || ""));
+}
+
+function stopFriendsListeners() {
+  if (friendsUnsub) {
+    friendsUnsub();
+    friendsUnsub = undefined;
+  }
+  if (friendReqUnsub) {
+    friendReqUnsub();
+    friendReqUnsub = undefined;
+  }
+}
+
+function startFriendsListener() {
+  if (!db || !auth?.currentUser) return;
+  if (friendsUnsub) return;
+  const uid = auth.currentUser.uid;
+  friendsUnsub = onSnapshot(
+    friendsCol(uid),
+    (snap) => {
+      friendsCache = snap.docs.map((d) => ({ uid: d.id, ...(d.data() || {}) }));
+      friendsCache.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
+      renderFriends(friendsCache);
+      if (currentShownPage === "dm") renderDmFriends(friendsCache);
+    },
+    () => {
+      friendsCache = [];
+      renderFriends([]);
+      if (currentShownPage === "dm") renderDmFriends([]);
+    },
+  );
+}
+
+let seenFriendReqIds = new Set();
+
+function startFriendRequestsListener() {
+  if (!db || !auth?.currentUser) return;
+  if (friendReqUnsub) return;
+  const uid = auth.currentUser.uid;
+  const q = query(collection(db, "friendRequests"), where("toUid", "==", uid), orderBy("createdAtMs", "desc"), limit(25));
+  friendReqUnsub = onSnapshot(
+    q,
+    (snap) => {
+      const now = Date.now();
+      const reqs = [];
+      for (const d of snap.docs) {
+        const data = d.data() || {};
+        const expires = Number(data.expiresAtMs) || 0;
+        if (expires && expires < now) {
+          deleteDoc(doc(db, "friendRequests", d.id)).catch(() => {});
+          continue;
+        }
+        reqs.push({ id: d.id, ...data });
+        if (!seenFriendReqIds.has(d.id)) {
+          seenFriendReqIds.add(d.id);
+          toast(
+            `
+              <div class="toast-title">Friend request</div>
+              <div class="toast-text">${escapeHtml(String(data.fromUsername || "player"))} sent you a request.</div>
+              <div class="row" style="justify-content:flex-end;">
+                <button class="btn btn-xs" type="button" data-toast-accept="${escapeHtml(d.id)}">Accept</button>
+                <button class="btn btn-xs btn-secondary" type="button" data-toast-decline="${escapeHtml(d.id)}">Decline</button>
+              </div>
+            `.trim(),
+          );
+        }
+      }
+      renderFriendRequests(reqs);
+
+      if (el.toastArea) {
+        el.toastArea.querySelectorAll("[data-toast-accept]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-toast-accept") || "";
+            await acceptFriendRequest(id);
+          });
+        });
+        el.toastArea.querySelectorAll("[data-toast-decline]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-toast-decline") || "";
+            await declineFriendRequest(id);
+          });
+        });
+      }
+    },
+    () => {
+      renderFriendRequests([]);
+    },
+  );
+}
+
+async function sendFriendRequest(toUid) {
+  if (!db || !auth?.currentUser) return;
+  const fromUid = auth.currentUser.uid;
+  const target = String(toUid || "");
+  if (!target || target === fromUid) return;
+
+  const isFriend = Array.isArray(friendsCache) && friendsCache.some((f) => String(f.uid) === target);
+  if (isFriend) return;
+
+  const now = Date.now();
+  const expiresAtMs = now + 5 * 86400000;
+  const fromUsername = String(currentUserData?.username || "player");
+
+  let toUsername = "player";
+  try {
+    const snap = await getDoc(doc(db, "users", target));
+    if (snap.exists()) toUsername = String(snap.data()?.username || "player");
+  } catch {
+  }
+
+  const id = `${fromUid}_${target}`;
+  await setDoc(
+    doc(db, "friendRequests", id),
+    {
+      fromUid,
+      toUid: target,
+      fromUsername,
+      toUsername,
+      createdAt: serverTimestamp(),
+      createdAtMs: now,
+      expiresAtMs,
+    },
+    { merge: true },
+  );
+}
+
+async function acceptFriendRequest(reqId) {
+  if (!db || !auth?.currentUser) return;
+  const me = auth.currentUser.uid;
+  const id = String(reqId || "");
+  if (!id) return;
+
+  const snap = await getDoc(doc(db, "friendRequests", id));
+  if (!snap.exists()) return;
+  const data = snap.data() || {};
+  if (String(data.toUid || "") !== me) return;
+
+  const otherUid = String(data.fromUid || "");
+  if (!otherUid) return;
+
+  const now = Date.now();
+  const myName = String(currentUserData?.username || "player");
+  await setDoc(friendDoc(me, otherUid), { uid: otherUid, username: String(data.fromUsername || "player"), createdAtMs: now }, { merge: true });
+  await setDoc(friendDoc(otherUid, me), { uid: me, username: myName, createdAtMs: now }, { merge: true });
+  await deleteDoc(doc(db, "friendRequests", id));
+}
+
+async function declineFriendRequest(reqId) {
+  if (!db || !auth?.currentUser) return;
+  const id = String(reqId || "");
+  if (!id) return;
+  try {
+    await deleteDoc(doc(db, "friendRequests", id));
+  } catch {
+  }
+}
+
+function stopDmMessagesListener() {
+  if (dmMsgUnsub) {
+    dmMsgUnsub();
+    dmMsgUnsub = undefined;
+  }
+}
+
+function startDmMessagesListener() {
+  if (!db || !auth?.currentUser) return;
+  stopDmMessagesListener();
+  if (!dmSelectedUid) {
+    renderDmMessages([]);
+    return;
+  }
+
+  const me = auth.currentUser.uid;
+  const threadId = threadIdFor(me, dmSelectedUid);
+  if (!threadId) return;
+  const q = query(collection(db, "dmThreads", threadId, "messages"), orderBy("createdAtMs", "asc"), limit(120));
+  dmMsgUnsub = onSnapshot(
+    q,
+    (snap) => {
+      const msgs = snap.docs.map((d) => d.data());
+      renderDmMessages(msgs);
+    },
+    () => {
+      renderDmMessages([]);
+    },
+  );
+}
+
+async function sendDmMessage(text) {
+  if (!db || !auth?.currentUser) return;
+  const me = auth.currentUser.uid;
+  const cleaned = String(text || "").trim().slice(0, 160);
+  if (!cleaned) return;
+  if (!dmSelectedUid) return;
+
+  const isFriend = Array.isArray(friendsCache) && friendsCache.some((f) => String(f.uid) === String(dmSelectedUid));
+  if (!isFriend) {
+    setDmMsg("You can only DM friends.");
+    return;
+  }
+
+  const now = Date.now();
+  const threadId = threadIdFor(me, dmSelectedUid);
+  await setDoc(
+    doc(db, "dmThreads", threadId),
+    { participants: [me, String(dmSelectedUid)], updatedAtMs: now },
+    { merge: true },
+  );
+  await addDoc(collection(db, "dmThreads", threadId, "messages"), {
+    uid: me,
+    username: String(currentUserData?.username || "player"),
+    text: cleaned,
+    createdAt: serverTimestamp(),
+    createdAtMs: now,
   });
 }
 
@@ -2242,6 +2689,19 @@ async function handleChatSubmit(e) {
   }
 }
 
+async function handleDmSubmit(e) {
+  e.preventDefault();
+  if (!el.dmInput) return;
+  const text = el.dmInput.value;
+  el.dmInput.value = "";
+  setDmMsg("");
+  try {
+    await sendDmMessage(text);
+  } catch {
+    el.dmInput.value = text;
+  }
+}
+
 async function handleAdminGrant() {
   if (!isAdminUnlocked()) return;
   const name = String(el.adminBlookSelect?.value || "");
@@ -2286,8 +2746,11 @@ if (el.creatorAddTokensBtn) el.creatorAddTokensBtn.addEventListener("click", han
 if (el.creatorSetTokensBtn) el.creatorSetTokensBtn.addEventListener("click", handleCreatorSetTokens);
 if (el.creatorGrantBtn) el.creatorGrantBtn.addEventListener("click", handleCreatorGrant);
 if (el.creatorSetBtn) el.creatorSetBtn.addEventListener("click", handleCreatorSetQty);
+if (el.creatorGrantAdminBtn) el.creatorGrantAdminBtn.addEventListener("click", handleCreatorGrantAdmin);
+if (el.creatorRevokeAdminBtn) el.creatorRevokeAdminBtn.addEventListener("click", handleCreatorRevokeAdmin);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
 if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
+if (el.dmForm) el.dmForm.addEventListener("submit", handleDmSubmit);
 if (el.headerAvatar) {
   el.headerAvatar.addEventListener("click", () => {
     location.hash = "#stats";
