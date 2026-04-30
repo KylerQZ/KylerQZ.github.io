@@ -28,6 +28,7 @@ import {
   collection,
   addDoc,
   deleteDoc,
+  getDocs,
   query,
   orderBy,
   limit,
@@ -78,16 +79,8 @@ const el = {
   avatarSetBtn: document.getElementById("avatarSetBtn"),
   avatarMsg: document.getElementById("avatarMsg"),
 
-  dailyWheelBtn: document.getElementById("dailyWheelBtn"),
-  dailyWheelMsg: document.getElementById("dailyWheelMsg"),
-
   bazaarList: document.getElementById("bazaarList"),
   bazaarMsg: document.getElementById("bazaarMsg"),
-
-  eventLowWheelBtn: document.getElementById("eventLowWheelBtn"),
-  eventMidWheelBtn: document.getElementById("eventMidWheelBtn"),
-  eventHighWheelBtn: document.getElementById("eventHighWheelBtn"),
-  eventWheelMsg: document.getElementById("eventWheelMsg"),
 
   adminNavBtn: document.getElementById("adminNavBtn"),
   adminPinInput: document.getElementById("adminPinInput"),
@@ -106,6 +99,18 @@ const el = {
   adminAddTokensBtn: document.getElementById("adminAddTokensBtn"),
   adminSetTokensBtn: document.getElementById("adminSetTokensBtn"),
 
+  creatorNavBtn: document.getElementById("creatorNavBtn"),
+  creatorUsers: document.getElementById("creatorUsers"),
+  creatorMsg: document.getElementById("creatorMsg"),
+  creatorSelected: document.getElementById("creatorSelected"),
+  creatorTokensQty: document.getElementById("creatorTokensQty"),
+  creatorAddTokensBtn: document.getElementById("creatorAddTokensBtn"),
+  creatorSetTokensBtn: document.getElementById("creatorSetTokensBtn"),
+  creatorBlookSelect: document.getElementById("creatorBlookSelect"),
+  creatorBlookQty: document.getElementById("creatorBlookQty"),
+  creatorGrantBtn: document.getElementById("creatorGrantBtn"),
+  creatorSetBtn: document.getElementById("creatorSetBtn"),
+
   adminPacksGrid: document.getElementById("adminPacksGrid"),
   adminPackProbs: document.getElementById("adminPackProbs"),
 
@@ -118,15 +123,21 @@ const el = {
   playerModalBody: document.getElementById("playerModalBody"),
 };
 
-const ADMIN_PIN = "67925";
+const ADMIN_PIN = "67120925";
+const CREATOR_PIN = "zql2012";
 const ADMIN_UNLOCK_KEY = "chocolet_admin_unlocked";
+const CREATOR_UNLOCK_KEY = "chocolet_creator_unlocked";
 
 let currentUserData;
 let chatUnsub;
 let bazaarUnsub;
 const playerCache = new Map();
+let chatFallbackMode = false;
 let presenceInterval;
 let adminPresenceUnsub;
+let creatorPresenceUnsub;
+let creatorSelectedUid;
+let creatorAllUsers;
 let currentShownPage;
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
@@ -143,40 +154,20 @@ const QUICK_SELL_TOKENS = {
   mystical: 700,
 };
 
-const WHEEL_CONFIG = {
-  dailyFree: { cost: 0, min: 700, max: 2000, daily: true },
-  dailyAgain: { cost: 700, min: 700, max: 2000, daily: false },
-  low: { cost: 200, min: 50, max: 1000, daily: false },
-  mid: { cost: 700, min: 500, max: 3000, daily: false },
-  high: { cost: 1500, min: 700, max: 5000, daily: false },
-};
-
-function setDailyWheelMsg(message) {
-  if (el.dailyWheelMsg) el.dailyWheelMsg.textContent = message || "";
-}
-
-function setEventWheelMsg(message) {
-  if (el.eventWheelMsg) el.eventWheelMsg.textContent = message || "";
-}
-
 function setBazaarMsg(message) {
   if (el.bazaarMsg) el.bazaarMsg.textContent = message || "";
 }
 
-function todayKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function randIntInclusive(min, max) {
-  const a = Math.floor(Number(min) || 0);
-  const b = Math.floor(Number(max) || 0);
-  const lo = Math.min(a, b);
-  const hi = Math.max(a, b);
-  return lo + Math.floor(Math.random() * (hi - lo + 1));
+async function loadCreatorUsersOnce() {
+  if (!db) return [];
+  if (Array.isArray(creatorAllUsers)) return creatorAllUsers;
+  const snap = await getDocs(collection(db, "users"));
+  creatorAllUsers = snap.docs.map((d) => {
+    const data = d.data() || {};
+    return { uid: d.id, username: String(data.username || "player") };
+  });
+  creatorAllUsers.sort((a, b) => String(a.username).localeCompare(String(b.username)));
+  return creatorAllUsers;
 }
 
 async function addTokensForCurrentUser(delta) {
@@ -208,7 +199,7 @@ async function addTokensForCurrentUser(delta) {
 }
 
 async function setTokensForCurrentUser(amount) {
-  if (!db || !auth?.currentUser) return 0;
+  if (!db || !auth?.currentUser) return;
   const uid = auth.currentUser.uid;
   const ref = doc(db, "users", uid);
   const next = Math.max(0, Math.floor(Number(amount) || 0));
@@ -217,79 +208,6 @@ async function setTokensForCurrentUser(amount) {
   renderAccount(currentUserData);
   renderPacks();
   return next;
-}
-
-async function spinWheel(kind) {
-  if (!db || !auth?.currentUser) return;
-  const cfg = WHEEL_CONFIG[kind];
-  if (!cfg) return;
-  const uid = auth.currentUser.uid;
-  const ref = doc(db, "users", uid);
-
-  const reward = randIntInclusive(cfg.min, cfg.max);
-  const today = todayKey();
-
-  try {
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
-      const data = snap.exists() ? snap.data() : {};
-
-      if (cfg.daily) {
-        const last = String(data?.lastDailyWheel || "");
-        if (last === today) {
-          throw new Error("ALREADY_SPUN");
-        }
-      }
-
-      const current = Math.max(0, Number(data?.tokens) || 0);
-      if (current < cfg.cost) {
-        throw new Error("NOT_ENOUGH_TOKENS");
-      }
-
-      const nextTokens = current - cfg.cost + reward;
-      const patch = { tokens: nextTokens };
-      if (cfg.daily) patch.lastDailyWheel = today;
-      tx.update(ref, patch);
-    });
-
-    const after = await getDoc(ref);
-    if (after.exists()) {
-      currentUserData = after.data();
-      renderAccount(currentUserData);
-      renderBlooks(currentUserData);
-      renderPacks();
-    }
-
-    return { ok: true, reward, cost: cfg.cost };
-  } catch (e) {
-    const msg = String(e?.message || "");
-    if (msg.includes("ALREADY_SPUN")) return { ok: false, reason: "ALREADY_SPUN" };
-    if (msg.includes("NOT_ENOUGH_TOKENS")) return { ok: false, reason: "NOT_ENOUGH_TOKENS" };
-    return { ok: false, reason: "FAILED" };
-  }
-}
-
-async function handleDailyWheel() {
-  setDailyWheelMsg("");
-  const res = await spinWheel("dailyFree");
-  if (!res) return;
-  if (!res.ok) {
-    if (res.reason === "ALREADY_SPUN") setDailyWheelMsg("Already spun today.");
-    else setDailyWheelMsg("Not enough tokens.");
-    return;
-  }
-  setDailyWheelMsg(`You won ${res.reward} tokens!`);
-}
-
-async function handleEventWheel(kind) {
-  setEventWheelMsg("");
-  const res = await spinWheel(kind);
-  if (!res) return;
-  if (!res.ok) {
-    setEventWheelMsg(res.reason === "NOT_ENOUGH_TOKENS" ? "Not enough tokens." : "Spin failed.");
-    return;
-  }
-  setEventWheelMsg(`Cost ${res.cost}. You won ${res.reward} tokens!`);
 }
 
 async function handleAdminAddTokens() {
@@ -318,22 +236,175 @@ function isAdminUnlocked() {
   return localStorage.getItem(ADMIN_UNLOCK_KEY) === "1";
 }
 
+function isCreatorUnlocked() {
+  return localStorage.getItem(CREATOR_UNLOCK_KEY) === "1";
+}
+
 function setAdminUnlocked() {
   localStorage.setItem(ADMIN_UNLOCK_KEY, "1");
 }
 
+function setCreatorUnlocked() {
+  localStorage.setItem(CREATOR_UNLOCK_KEY, "1");
+}
+
 function applyAdminUIState() {
   if (el.adminNavBtn) el.adminNavBtn.hidden = !isAdminUnlocked();
+  if (el.creatorNavBtn) el.creatorNavBtn.hidden = !isCreatorUnlocked();
 }
 
 function setAdminMsg(message) {
-  if (!el.adminMsg) return;
-  el.adminMsg.textContent = message || "";
+  if (el.adminMsg) el.adminMsg.textContent = message || "";
+}
+
+function setCreatorMsg(message) {
+  if (el.creatorMsg) el.creatorMsg.textContent = message || "";
+}
+
+function populateCreatorBlookSelect() {
+  if (!el.creatorBlookSelect) return;
+  const opts = [...blooksCatalog]
+    .slice()
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .map((b) => {
+      const n = escapeHtml(String(b.name || "Blook"));
+      return `<option value="${n}">${n}</option>`;
+    })
+    .join("");
+  el.creatorBlookSelect.innerHTML = opts;
+}
+
+function renderCreatorUsers(items) {
+  if (!el.creatorUsers) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    el.creatorUsers.innerHTML = "<div class=\"placeholder\">No players yet.</div>";
+    return;
+  }
+
+  const now = Date.now();
+  el.creatorUsers.innerHTML = items
+    .map((x) => {
+      const uid = escapeHtml(String(x.uid || ""));
+      const name = escapeHtml(String(x.username || "player"));
+      const ts = x.lastSeen?.toDate ? x.lastSeen.toDate() : null;
+      const online = ts ? now - ts.getTime() <= 65000 : false;
+      const status = online ? "Online" : "Offline";
+      return `
+        <div class="bazaar-row">
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${name}</div>
+            <div class="bazaar-sub">${status}</div>
+          </div>
+          <div>
+            <button class="btn btn-xs" type="button" data-creator-pick="${uid}">Edit</button>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+
+  el.creatorUsers.querySelectorAll("[data-creator-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      creatorSelectedUid = btn.getAttribute("data-creator-pick") || "";
+      if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
+      setCreatorMsg("");
+    });
+  });
+}
+
+function startCreatorPresenceListener() {
+  if (!db) return;
+  if (creatorPresenceUnsub) return;
+  if (!el.creatorUsers) return;
+
+  loadCreatorUsersOnce()
+    .then(() => {
+      renderCreatorUsers((creatorAllUsers || []).map((u) => ({ ...u })));
+    })
+    .catch(() => {});
+
+  creatorPresenceUnsub = onSnapshot(
+    collection(db, "presence"),
+    (snap) => {
+      const pres = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      const base = Array.isArray(creatorAllUsers) ? creatorAllUsers : [];
+      const merged = base.map((u) => ({ ...u, ...(pres.get(u.uid) || {}) }));
+      for (const [uid, data] of pres.entries()) {
+        if (!merged.some((x) => x.uid === uid)) merged.push({ uid, ...(data || {}) });
+      }
+      merged.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
+      renderCreatorUsers(merged);
+    },
+    () => {
+      renderCreatorUsers([]);
+    },
+  );
+}
+
+function stopCreatorPresenceListener() {
+  if (creatorPresenceUnsub) {
+    creatorPresenceUnsub();
+    creatorPresenceUnsub = undefined;
+  }
+}
+
+async function addTokensForUser(uid, delta) {
+  if (!db) return;
+  const id = String(uid || "");
+  if (!id) return;
+  const ref = doc(db, "users", id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const current = Math.max(0, Number(data?.tokens) || 0);
+    const next = Math.max(0, current + (Number(delta) || 0));
+    tx.set(ref, { tokens: next }, { merge: true });
+  });
+}
+
+async function setTokensForUser(uid, amount) {
+  if (!db) return;
+  const id = String(uid || "");
+  if (!id) return;
+  const next = Math.max(0, Math.floor(Number(amount) || 0));
+  await updateDoc(doc(db, "users", id), { tokens: next });
+}
+
+async function addBlookQtyForUserId(uid, blookName, qty) {
+  if (!db) return;
+  const id = String(uid || "");
+  const name = String(blookName || "");
+  const addQty = Math.max(1, Math.floor(Number(qty) || 1));
+  if (!id || !name) return;
+  const ref = doc(db, "users", id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+    blooks[name] = (Number(blooks[name]) || 0) + addQty;
+    tx.set(ref, { blooks }, { merge: true });
+  });
+}
+
+async function setBlookQtyForUserId(uid, blookName, qty) {
+  if (!db) return;
+  const id = String(uid || "");
+  const name = String(blookName || "");
+  const next = Math.max(0, Math.floor(Number(qty) || 0));
+  if (!id || !name) return;
+  const ref = doc(db, "users", id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+    if (next <= 0) delete blooks[name];
+    else blooks[name] = next;
+    tx.set(ref, { blooks }, { merge: true });
+  });
 }
 
 function setAdminUnlockMsg(message) {
-  if (!el.adminUnlockMsg) return;
-  el.adminUnlockMsg.textContent = message || "";
+  if (el.adminUnlockMsg) el.adminUnlockMsg.textContent = message || "";
 }
 
 function setAvatarMsg(message) {
@@ -475,16 +546,18 @@ function renderChatMessages(msgs) {
       const u = escapeHtml(m.username || "player");
       const t = escapeHtml(m.text || "");
       const admin = Boolean(m.isAdmin);
+      const creator = Boolean(m.isCreator);
       const uid = escapeHtml(String(m.uid || ""));
       const avatarName = String(m.avatarBlook || "");
       const avatarBlook = avatarName ? getBlookByName(avatarName) : null;
       const avatarImg = escapeHtml(String(avatarBlook?.image || ""));
       const userClass = admin ? "chat-user admin" : "chat-user";
+      const title = creator ? ` <span class="title-badge">CREATOR</span>` : "";
       return `
         <div class="chat-msg">
           <button class="chat-avatar" type="button" data-player-uid="${uid}" aria-label="View player" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></button>
           <div class="chat-main">
-            <div class="${userClass}">${u}</div>
+            <div class="${userClass}">${u}${title}</div>
             <div class="chat-text">${t}</div>
           </div>
         </div>
@@ -564,15 +637,27 @@ function startChatListener() {
   if (!el.chatList) return;
   if (chatUnsub) return;
 
-  const q = query(collection(db, "chatMessages"), orderBy("createdAt", "asc"), limit(60));
+  const q = chatFallbackMode
+    ? query(collection(db, "chatMessages"), limit(60))
+    : query(collection(db, "chatMessages"), orderBy("createdAt", "asc"), limit(60));
   chatUnsub = onSnapshot(
     q,
     (snap) => {
-      const msgs = snap.docs.map((d) => d.data());
-      renderChatMessages(msgs);
+      try {
+        const msgs = snap.docs.map((d) => d.data());
+        renderChatMessages(msgs);
+      } catch {
+        el.chatList.innerHTML = "<div class=\"placeholder\">Chat failed to render.</div>";
+      }
     },
     () => {
-      renderChatMessages([]);
+      if (!chatFallbackMode) {
+        chatFallbackMode = true;
+        stopChatListener();
+        startChatListener();
+        return;
+      }
+      el.chatList.innerHTML = "<div class=\"placeholder\">Chat failed to load.</div>";
     },
   );
 }
@@ -596,6 +681,7 @@ async function sendChatMessage(text) {
     username,
     avatarBlook: String(currentUserData?.avatarBlook || ""),
     isAdmin: Boolean(currentUserData?.isAdmin),
+    isCreator: Boolean(currentUserData?.isCreator),
     createdAt: serverTimestamp(),
   });
 }
@@ -1701,7 +1787,8 @@ async function getOrCreateUserDoc(user) {
     username: usernameFromEmail(user.email),
     avatarColor: "#000000",
     createdAt: serverTimestamp(),
-    tokens: 0,
+    tokens: 1000,
+    moneyResetV1: true,
     blooks: {},
   };
 
@@ -1714,6 +1801,7 @@ function renderAccount(userDoc) {
   const username = userDoc.username || "player";
   const tokens = Number(userDoc.tokens) || 0;
   const isAdmin = Boolean(userDoc.isAdmin);
+  const isCreator = Boolean(userDoc.isCreator);
 
   const createdAt = userDoc.createdAt?.toDate ? userDoc.createdAt.toDate() : null;
   const days = createdAt ? daysSince(createdAt) : "0";
@@ -1724,7 +1812,9 @@ function renderAccount(userDoc) {
     count += Number(qty) || 0;
   }
 
-  el.usernameText.textContent = username;
+  el.usernameText.innerHTML = isCreator
+    ? `${escapeHtml(username)} <span class="title-badge">CREATOR</span>`
+    : escapeHtml(username);
   el.usernameText.classList.toggle("rainbow-name", isAdmin);
   el.tokensText.textContent = String(tokens);
   el.daysText.textContent = String(days);
@@ -1743,6 +1833,7 @@ function setSignedOutUI() {
   stopChatListener();
   stopBazaarListener();
   stopAdminPresenceListener();
+  stopCreatorPresenceListener();
   stopPresence();
   if (el.packsList) el.packsList.textContent = "—";
   if (el.blooksList) el.blooksList.textContent = "—";
@@ -1769,6 +1860,11 @@ function showPage(page) {
     return;
   }
 
+  if (target === "creator" && !isCreatorUnlocked()) {
+    location.hash = "#stats";
+    return;
+  }
+
   for (const p of el.pages) {
     p.hidden = p.dataset.page !== target;
   }
@@ -1784,6 +1880,7 @@ function showPage(page) {
     if (currentShownPage === "chat") stopChatListener();
     if (currentShownPage === "bazaar") stopBazaarListener();
     if (currentShownPage === "admin") stopAdminPresenceListener();
+    if (currentShownPage === "creator") stopCreatorPresenceListener();
     currentShownPage = target;
   }
 
@@ -1801,6 +1898,12 @@ function showPage(page) {
     renderAdminStats().catch(() => {});
     startAdminPresenceListener();
   }
+  if (target === "creator") {
+    setCreatorMsg("");
+    populateCreatorBlookSelect();
+    startCreatorPresenceListener();
+    if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
+  }
 }
 
 async function enterApp(user) {
@@ -1815,8 +1918,26 @@ async function enterApp(user) {
 
   const { data } = await getOrCreateUserDoc(user);
   currentUserData = data;
-  renderAccount(data);
-  renderBlooks(data);
+
+  if (!data?.moneyResetV1) {
+    try {
+      const uid = user.uid;
+      const ref = doc(db, "users", uid);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const cur = snap.exists() ? snap.data() : {};
+        const blooks = cur?.blooks && typeof cur.blooks === "object" ? { ...cur.blooks } : {};
+        const frog = Number(blooks["Mystical Frog"]) || 0;
+        if (frog > 1) blooks["Mystical Frog"] = 1;
+        tx.set(ref, { tokens: 1000, blooks, moneyResetV1: true }, { merge: true });
+        currentUserData = { ...cur, ...currentUserData, tokens: 1000, blooks, moneyResetV1: true };
+      });
+    } catch {
+    }
+  }
+
+  renderAccount(currentUserData);
+  renderBlooks(currentUserData);
   renderPacks();
   showPage(getPageFromHash());
 
@@ -1930,33 +2051,98 @@ async function handleEditUsername() {
 
 async function handleAdminUnlock() {
   const pin = String(el.adminPinInput?.value || "").trim();
-  if (pin !== ADMIN_PIN) {
+  const isAdminPin = pin === ADMIN_PIN;
+  const isCreatorPin = pin === CREATOR_PIN;
+  if (!isAdminPin && !isCreatorPin) {
     setAdminUnlockMsg("Wrong PIN.");
     return;
   }
-  setAdminUnlocked();
+
+  if (isCreatorPin) {
+    setCreatorUnlocked();
+    setAdminUnlocked();
+  } else {
+    setAdminUnlocked();
+  }
   applyAdminUIState();
-  setAdminUnlockMsg("Admin unlocked.");
+
+  if (isCreatorPin) setAdminUnlockMsg("Creator unlocked.");
+  else setAdminUnlockMsg("Admin unlocked.");
+
   if (db && auth?.currentUser) {
-    updateDoc(doc(db, "users", auth.currentUser.uid), { isAdmin: true }).catch(() => {});
-    currentUserData = { ...(currentUserData || {}), isAdmin: true };
-if (el.playerModalClose) el.playerModalClose.addEventListener("click", closePlayerModal);
-if (el.playerModal) {
-  el.playerModal.querySelectorAll("[data-modal-close]").forEach((n) => {
-    n.addEventListener("click", closePlayerModal);
-  });
-}
-
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  if (!el.playerModal || el.playerModal.hidden) return;
-  closePlayerModal();
-});
-
+    const patch = isCreatorPin ? { isCreator: true, isAdmin: true } : { isAdmin: true };
+    updateDoc(doc(db, "users", auth.currentUser.uid), patch).catch(() => {});
+    currentUserData = { ...(currentUserData || {}), ...patch };
     if (currentUserData) renderAccount(currentUserData);
   }
   if (el.adminPinInput) el.adminPinInput.value = "";
-  location.hash = "#admin";
+  location.hash = isCreatorPin ? "#creator" : "#admin";
+}
+
+async function handleCreatorAddTokens() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  const amt = Math.max(0, Math.floor(Number(el.creatorTokensQty?.value) || 0));
+  try {
+    await addTokensForUser(creatorSelectedUid, amt);
+    setCreatorMsg("Tokens added.");
+  } catch {
+    setCreatorMsg("Token update failed.");
+  }
+}
+
+async function handleCreatorSetTokens() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  const amt = Math.max(0, Math.floor(Number(el.creatorTokensQty?.value) || 0));
+  try {
+    await setTokensForUser(creatorSelectedUid, amt);
+    setCreatorMsg("Tokens set.");
+  } catch {
+    setCreatorMsg("Token update failed.");
+  }
+}
+
+async function handleCreatorGrant() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  const name = String(el.creatorBlookSelect?.value || "");
+  const qty = Math.max(1, Math.floor(Number(el.creatorBlookQty?.value) || 1));
+  if (!name) return;
+  setCreatorMsg("");
+  try {
+    await addBlookQtyForUserId(creatorSelectedUid, name, qty);
+    setCreatorMsg(`Granted ${qty}x ${name}.`);
+  } catch {
+    setCreatorMsg("Grant failed.");
+  }
+}
+
+async function handleCreatorSetQty() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  const name = String(el.creatorBlookSelect?.value || "");
+  const qty = Math.max(0, Math.floor(Number(el.creatorBlookQty?.value) || 0));
+  if (!name) return;
+  setCreatorMsg("");
+  try {
+    await setBlookQtyForUserId(creatorSelectedUid, name, qty);
+    setCreatorMsg(`Set ${name} to x${qty}.`);
+  } catch {
+    setCreatorMsg("Set qty failed.");
+  }
 }
 
 async function handleChatSubmit(e) {
@@ -2011,17 +2197,30 @@ if (el.adminGrantBtn) el.adminGrantBtn.addEventListener("click", handleAdminGran
 if (el.adminSetBtn) el.adminSetBtn.addEventListener("click", handleAdminSetQty);
 if (el.adminAddTokensBtn) el.adminAddTokensBtn.addEventListener("click", handleAdminAddTokens);
 if (el.adminSetTokensBtn) el.adminSetTokensBtn.addEventListener("click", handleAdminSetTokens);
+if (el.creatorAddTokensBtn) el.creatorAddTokensBtn.addEventListener("click", handleCreatorAddTokens);
+if (el.creatorSetTokensBtn) el.creatorSetTokensBtn.addEventListener("click", handleCreatorSetTokens);
+if (el.creatorGrantBtn) el.creatorGrantBtn.addEventListener("click", handleCreatorGrant);
+if (el.creatorSetBtn) el.creatorSetBtn.addEventListener("click", handleCreatorSetQty);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
-if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
-if (el.eventLowWheelBtn) el.eventLowWheelBtn.addEventListener("click", () => handleEventWheel("low"));
-if (el.eventMidWheelBtn) el.eventMidWheelBtn.addEventListener("click", () => handleEventWheel("mid"));
-if (el.eventHighWheelBtn) el.eventHighWheelBtn.addEventListener("click", () => handleEventWheel("high"));
 if (el.headerAvatar) {
   el.headerAvatar.addEventListener("click", () => {
     location.hash = "#stats";
     window.setTimeout(() => toggleAvatarEditor(true), 0);
   });
 }
+
+if (el.playerModalClose) el.playerModalClose.addEventListener("click", closePlayerModal);
+if (el.playerModal) {
+  el.playerModal.querySelectorAll("[data-modal-close]").forEach((n) => {
+    n.addEventListener("click", closePlayerModal);
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!el.playerModal || el.playerModal.hidden) return;
+  closePlayerModal();
+});
 
 document.addEventListener("visibilitychange", () => {
   if (!auth?.currentUser) return;
@@ -2045,9 +2244,6 @@ if (el.packOpenPack) {
     await openCurrentPackOnce();
   });
 }
-
-const legacyEventDaily = document.getElementById("eventDailyWheelBtn");
-if (legacyEventDaily) legacyEventDaily.remove();
 
 window.addEventListener("hashchange", () => {
   if (!auth?.currentUser) return;

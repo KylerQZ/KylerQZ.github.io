@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260429-2200" />
+    <link rel="stylesheet" href="./styles.css?v=20260430-2020" />
   </head>
   <body>
     <div class="bg"></div>
@@ -33,6 +33,7 @@
         <button class="navbtn" type="button" data-nav="chat">Chat</button>
         <button class="navbtn" type="button" data-nav="events">Events</button>
         <button id="adminNavBtn" class="navbtn" type="button" data-nav="admin" hidden>Admin</button>
+        <button id="creatorNavBtn" class="navbtn" type="button" data-nav="creator" hidden>Creator</button>
       </nav>
 
       <section id="authView" class="card-grid">
@@ -107,13 +108,6 @@
               </div>
             </div>
           </div>
-
-          <div class="divider"></div>
-
-          <div class="row">
-            <button id="dailyWheelBtn" class="btn" type="button">Daily wheel (free)</button>
-          </div>
-          <p id="dailyWheelMsg" class="msg" aria-live="polite"></p>
 
           <div id="avatarEditor" hidden>
             <div class="row">
@@ -240,15 +234,42 @@
           <p id="adminMsg" class="msg" aria-live="polite"></p>
         </section>
 
+        <section class="card page" aria-label="Creator" data-page="creator" hidden>
+          <h2 class="card-title">Creator</h2>
+          <p class="card-note">Player management</p>
+
+          <div id="creatorUsers" class="bazaar-list"></div>
+          <p id="creatorMsg" class="msg" aria-live="polite"></p>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <div class="label">Selected</div>
+            <div id="creatorSelected" class="value">—</div>
+          </div>
+
+          <div class="row">
+            <input id="creatorTokensQty" class="input" type="number" min="0" max="999999" value="1000" />
+          </div>
+          <div class="row">
+            <button id="creatorAddTokensBtn" class="btn" type="button">Add tokens</button>
+            <button id="creatorSetTokensBtn" class="btn btn-secondary" type="button">Set tokens</button>
+          </div>
+
+          <div class="row">
+            <select id="creatorBlookSelect" class="input" aria-label="Pick blook"></select>
+            <input id="creatorBlookQty" class="input" type="number" min="1" max="999" value="1" />
+          </div>
+          <div class="row">
+            <button id="creatorGrantBtn" class="btn" type="button">Grant</button>
+            <button id="creatorSetBtn" class="btn btn-secondary" type="button">Set qty</button>
+          </div>
+        </section>
+
         <section class="card page" aria-label="Events" data-page="events" hidden>
           <h2 class="card-title">Events</h2>
           <p class="card-note">Limited-time events and quests</p>
-          <div class="wheel-grid">
-            <button id="eventLowWheelBtn" class="btn btn-secondary" type="button">Low wheel (200)</button>
-            <button id="eventMidWheelBtn" class="btn btn-secondary" type="button">Mid wheel (700)</button>
-            <button id="eventHighWheelBtn" class="btn btn-secondary" type="button">High wheel (1500)</button>
-          </div>
-          <p id="eventWheelMsg" class="msg" aria-live="polite"></p>
+          <div class="placeholder">No events right now.</div>
         </section>
       </section>
 
@@ -268,6 +289,6 @@
       </div>
     </div>
 
-    <script type="module" src="./app.js?v=20260429-2200"></script>
+    <script type="module" src="./app.js?v=20260430-2020"></script>
   </body>
 </html>
