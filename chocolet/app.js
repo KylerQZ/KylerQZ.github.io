@@ -165,6 +165,7 @@ let creatorSelectedUid;
 let creatorAllUsers;
 let friendsCache;
 let dmSelectedUid;
+let dmPeerProfile;
 let currentShownPage;
 
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
@@ -367,6 +368,26 @@ function threadIdFor(u1, u2) {
   return [a, b].sort().join("_");
 }
 
+async function loadDmPeerProfile(uid) {
+  if (!db) return null;
+  const id = String(uid || "");
+  if (!id) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", id));
+    const data = snap.exists() ? snap.data() : {};
+    dmPeerProfile = {
+      uid: id,
+      username: String(data?.username || "player"),
+      isAdmin: Boolean(data?.isAdmin),
+      isCreator: Boolean(data?.isCreator),
+    };
+    return dmPeerProfile;
+  } catch {
+    dmPeerProfile = { uid: id, username: "player", isAdmin: false, isCreator: false };
+    return dmPeerProfile;
+  }
+}
+
 function renderFriends(list) {
   if (!el.friendsList) return;
   if (!Array.isArray(list) || list.length === 0) {
@@ -375,13 +396,11 @@ function renderFriends(list) {
   }
   el.friendsList.innerHTML = list
     .map((f) => {
-      const uid = escapeHtml(String(f.uid || ""));
       const name = escapeHtml(String(f.username || "player"));
       return `
         <div class="bazaar-row">
           <div class="bazaar-meta">
             <div class="bazaar-title">${name}</div>
-            <div class="bazaar-sub">${uid}</div>
           </div>
         </div>
       `.trim();
@@ -399,13 +418,11 @@ function renderFriendRequests(list) {
   el.friendReqList.innerHTML = list
     .map((r) => {
       const id = escapeHtml(String(r.id || ""));
-      const fromUid = escapeHtml(String(r.fromUid || ""));
       const fromName = escapeHtml(String(r.fromUsername || "player"));
       return `
         <div class="bazaar-row">
           <div class="bazaar-meta">
             <div class="bazaar-title">${fromName}</div>
-            <div class="bazaar-sub">${fromUid}</div>
           </div>
           <div class="row" style="justify-content:flex-end;">
             <button class="btn btn-xs" type="button" data-fr-accept="${id}">Accept</button>
@@ -457,7 +474,13 @@ function renderDmFriends(list) {
   el.dmFriends.querySelectorAll("[data-dm-pick]").forEach((btn) => {
     btn.addEventListener("click", () => {
       dmSelectedUid = btn.getAttribute("data-dm-pick") || "";
-      if (el.dmSelected) el.dmSelected.textContent = dmSelectedUid || "—";
+      if (el.dmSelected) {
+        const picked = list.find((f) => String(f.uid || "") === String(dmSelectedUid));
+        el.dmSelected.textContent = String(picked?.username || "player");
+      }
+      loadDmPeerProfile(dmSelectedUid).then((p) => {
+        if (p && el.dmSelected && String(dmSelectedUid) === String(p.uid)) el.dmSelected.textContent = String(p.username || "player");
+      }).catch(() => {});
       startDmMessagesListener();
       renderDmFriends(list);
     });
@@ -473,14 +496,22 @@ function renderDmMessages(msgs) {
   const sorted = [...msgs].sort((a, b) => (Number(a?.createdAtMs) || 0) - (Number(b?.createdAtMs) || 0));
   el.dmList.innerHTML = sorted
     .map((m) => {
-      const me = String(m.uid || "") === String(auth?.currentUser?.uid || "");
-      const u = escapeHtml(String(m.username || "player"));
+      const myUid = String(auth?.currentUser?.uid || "");
+      const uid = String(m.uid || "");
+      const isMe = uid && myUid && uid === myUid;
+
+      const peer = dmPeerProfile && String(dmPeerProfile.uid || "") === uid ? dmPeerProfile : null;
+      const creator = typeof m.isCreator === "boolean" ? m.isCreator : isMe ? Boolean(currentUserData?.isCreator) : Boolean(peer?.isCreator);
+      const admin = typeof m.isAdmin === "boolean" ? m.isAdmin : isMe ? Boolean(currentUserData?.isAdmin) : Boolean(peer?.isAdmin);
+
+      const u = escapeHtml(String(m.username || (isMe ? currentUserData?.username : peer?.username) || "player"));
       const t = escapeHtml(String(m.text || ""));
-      const who = me ? "chat-user admin" : "chat-user";
+      const who = creator ? "chat-user creator" : admin ? "chat-user admin" : "chat-user";
+      const title = creator ? ` ${creatorBadgeHtml()}` : "";
       return `
         <div class="chat-msg">
           <div class="chat-main">
-            <div class="${who}">${u}</div>
+            <div class="${who}">${u}${title}</div>
             <div class="chat-text">${t}</div>
           </div>
         </div>
@@ -813,6 +844,8 @@ function startDmMessagesListener() {
     return;
   }
 
+  loadDmPeerProfile(dmSelectedUid).catch(() => {});
+
   const me = auth.currentUser.uid;
   const threadId = threadIdFor(me, dmSelectedUid);
   if (!threadId) return;
@@ -852,6 +885,8 @@ async function sendDmMessage(text) {
   await addDoc(collection(db, "dmThreads", threadId, "messages"), {
     uid: me,
     username: String(currentUserData?.username || "player"),
+    isAdmin: Boolean(currentUserData?.isAdmin),
+    isCreator: Boolean(currentUserData?.isCreator),
     text: cleaned,
     createdAt: serverTimestamp(),
     createdAtMs: now,
