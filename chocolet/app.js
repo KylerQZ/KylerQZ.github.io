@@ -155,6 +155,7 @@ let friendsUnsub;
 let friendReqUnsub;
 let dmFriendsUnsub;
 let dmMsgUnsub;
+let userDocUnsub;
 const playerCache = new Map();
 let chatFallbackMode = false;
 let presenceInterval;
@@ -510,6 +511,8 @@ async function setUserAdminFlag(uid, isAdmin) {
   const id = String(uid || "");
   if (!id) return;
   await updateDoc(doc(db, "users", id), { isAdmin: Boolean(isAdmin) });
+
+  playerCache.delete(id);
 }
 
 async function handleCreatorGrantAdmin() {
@@ -613,6 +616,41 @@ function stopFriendsListeners() {
     friendReqUnsub();
     friendReqUnsub = undefined;
   }
+}
+
+function stopUserDocListener() {
+  if (userDocUnsub) {
+    userDocUnsub();
+    userDocUnsub = undefined;
+  }
+}
+
+function startUserDocListener() {
+  if (!db || !auth?.currentUser) return;
+  if (userDocUnsub) return;
+  const uid = auth.currentUser.uid;
+  userDocUnsub = onSnapshot(
+    doc(db, "users", uid),
+    (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() || {};
+      currentUserData = data;
+      playerCache.set(uid, data);
+
+      renderAccount(data);
+      renderBlooks(data);
+      renderPacks();
+
+      if (!Boolean(data.isAdmin)) localStorage.removeItem(ADMIN_UNLOCK_KEY);
+      if (!Boolean(data.isCreator)) localStorage.removeItem(CREATOR_UNLOCK_KEY);
+      applyAdminUIState();
+
+      const page = getPageFromHash();
+      if (page === "admin" && !isAdminUnlocked()) location.hash = "#stats";
+      if (page === "creator" && !isCreatorUnlocked()) location.hash = "#stats";
+    },
+    () => {},
+  );
 }
 
 function startFriendsListener() {
@@ -867,6 +905,8 @@ async function addTokensForUser(uid, delta) {
     const next = Math.max(0, current + (Number(delta) || 0));
     tx.set(ref, { tokens: next }, { merge: true });
   });
+
+  playerCache.delete(id);
 }
 
 async function setTokensForUser(uid, amount) {
@@ -875,6 +915,8 @@ async function setTokensForUser(uid, amount) {
   if (!id) return;
   const next = Math.max(0, Math.floor(Number(amount) || 0));
   await updateDoc(doc(db, "users", id), { tokens: next });
+
+  playerCache.delete(id);
 }
 
 async function addBlookQtyForUserId(uid, blookName, qty) {
@@ -1144,15 +1186,13 @@ async function openPlayerModal(uid) {
 
   const myUid = String(auth?.currentUser?.uid || "");
   const canActions = Boolean(myUid) && myUid !== id;
-  const actionsHtml = canActions
-    ? `
+  const actionsHtml = `
     <div class="divider"></div>
     <div class="row" style="justify-content:flex-end;">
-      <button class="btn btn-secondary" type="button" data-friend-request="${escapeHtml(id)}">Friend request</button>
-      <button class="btn" type="button" data-open-dm="${escapeHtml(id)}">DM</button>
+      <button class="btn btn-secondary" type="button" data-friend-request="${escapeHtml(id)}" ${canActions ? "" : "disabled"}>Friend request</button>
+      <button class="btn" type="button" data-open-dm="${escapeHtml(id)}" ${canActions ? "" : "disabled"}>DM</button>
     </div>
-  `.trim()
-    : "";
+  `.trim();
 
   el.playerModalBody.innerHTML = `
     <div class="player-card">
@@ -1169,22 +1209,22 @@ async function openPlayerModal(uid) {
     ${actionsHtml}
   `.trim();
 
-  if (canActions) {
-    el.playerModalBody.querySelectorAll("[data-friend-request]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const target = btn.getAttribute("data-friend-request") || "";
-        await sendFriendRequest(target);
-        closePlayerModal();
-      });
+  el.playerModalBody.querySelectorAll("[data-friend-request]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!canActions) return;
+      const target = btn.getAttribute("data-friend-request") || "";
+      await sendFriendRequest(target);
+      closePlayerModal();
     });
-    el.playerModalBody.querySelectorAll("[data-open-dm]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        dmSelectedUid = btn.getAttribute("data-open-dm") || "";
-        closePlayerModal();
-        location.hash = "#dm";
-      });
+  });
+  el.playerModalBody.querySelectorAll("[data-open-dm]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!canActions) return;
+      dmSelectedUid = btn.getAttribute("data-open-dm") || "";
+      closePlayerModal();
+      location.hash = "#dm";
     });
-  }
+  });
 }
 
 function startChatListener() {
@@ -1746,7 +1786,7 @@ function rollRarity(weights) {
     .map(([k, v]) => [k, Math.max(0, Number(v) || 0)])
     .filter(([, v]) => v > 0);
   if (entries.length === 0) return "uncommon";
-  const total = entries.reduce((a, [, v]) => a + v, 0);
+  const total = entries.reduce((a, [, v]) => a + v, 0) || 1;
   let r = Math.random() * total;
   for (const [k, v] of entries) {
     r -= v;
@@ -2118,6 +2158,9 @@ async function grantBlookToUser(blookName) {
 
   renderAccount({ ...data, blooks });
   renderBlooks({ ...data, blooks });
+  renderPacks();
+
+  playerCache.delete(uid);
 }
 
 function startMysticalSequence(root) {
@@ -2401,6 +2444,9 @@ function setSignedOutUI() {
   stopBazaarListener();
   stopAdminPresenceListener();
   stopCreatorPresenceListener();
+  stopFriendsListeners();
+  stopDmMessagesListener();
+  stopUserDocListener();
   stopPresence();
   if (el.packsList) el.packsList.textContent = "—";
   if (el.blooksList) el.blooksList.textContent = "—";
@@ -2448,6 +2494,7 @@ function showPage(page) {
     if (currentShownPage === "bazaar") stopBazaarListener();
     if (currentShownPage === "admin") stopAdminPresenceListener();
     if (currentShownPage === "creator") stopCreatorPresenceListener();
+    if (currentShownPage === "dm") stopDmMessagesListener();
     currentShownPage = target;
   }
 
@@ -2471,9 +2518,18 @@ function showPage(page) {
     startCreatorPresenceListener();
     if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
   }
+
+  if (target === "dm") {
+    setDmMsg("");
+    renderDmFriends(Array.isArray(friendsCache) ? friendsCache : []);
+    if (el.dmSelected) el.dmSelected.textContent = dmSelectedUid || "—";
+    startDmMessagesListener();
+  }
 }
 
 async function enterApp(user) {
+  localStorage.removeItem(ADMIN_UNLOCK_KEY);
+  localStorage.removeItem(CREATOR_UNLOCK_KEY);
   setSignedInUI();
   applyAdminUIState();
 
@@ -2506,8 +2562,13 @@ async function enterApp(user) {
   renderAccount(currentUserData);
   renderBlooks(currentUserData);
   renderPacks();
-  showPage(getPageFromHash());
 
+  startUserDocListener();
+
+  startFriendsListener();
+  startFriendRequestsListener();
+
+  showPage(getPageFromHash());
   startPresence();
 }
 
