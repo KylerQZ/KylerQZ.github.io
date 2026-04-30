@@ -2523,7 +2523,10 @@ function showPage(page) {
   if (target === "dm") {
     setDmMsg("");
     renderDmFriends(Array.isArray(friendsCache) ? friendsCache : []);
-    if (el.dmSelected) el.dmSelected.textContent = dmSelectedUid || "—";
+    if (el.dmSelected) {
+      const picked = Array.isArray(friendsCache) ? friendsCache.find((f) => String(f.uid || "") === String(dmSelectedUid)) : null;
+      el.dmSelected.textContent = String(picked?.username || "") || dmSelectedUid || "—";
+    }
     startDmMessagesListener();
   }
 }
