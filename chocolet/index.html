@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260430-2505" />
+    <link rel="stylesheet" href="./styles.css?v=20260501-1825" />
   </head>
   <body>
     <div class="bg"></div>
@@ -271,6 +271,39 @@
           </div>
 
           <div class="row">
+            <div class="label">Tokens</div>
+            <div id="creatorTokensState" class="value">—</div>
+          </div>
+
+          <div class="row">
+            <div class="label">Blooks</div>
+            <div id="creatorBlooksState" class="value">—</div>
+          </div>
+
+          <div id="creatorBlooksList" class="bazaar-list"></div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <div class="label">Ban</div>
+            <div id="creatorBanState" class="value">—</div>
+          </div>
+
+          <div class="row">
+            <input id="creatorBanQty" class="input" type="number" min="1" max="999999" value="7" />
+            <select id="creatorBanUnit" class="input" aria-label="Ban time unit">
+              <option value="minutes">minutes</option>
+              <option value="hours">hours</option>
+              <option value="days" selected>days</option>
+            </select>
+          </div>
+          <div class="row">
+            <button id="creatorBanBtn" class="btn" type="button">Ban</button>
+            <button id="creatorBanForeverBtn" class="btn btn-secondary" type="button">Ban forever</button>
+            <button id="creatorUnbanBtn" class="btn btn-ghost" type="button">Unban</button>
+          </div>
+
+          <div class="row">
             <button id="creatorGrantAdminBtn" class="btn" type="button">Grant admin</button>
             <button id="creatorRevokeAdminBtn" class="btn btn-secondary" type="button">Remove admin</button>
           </div>
@@ -331,6 +364,6 @@
 
     <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
-    <script type="module" src="./app.js?v=20260430-2505"></script>
+    <script type="module" src="./app.js?v=20260501-1825"></script>
   </body>
 </html>

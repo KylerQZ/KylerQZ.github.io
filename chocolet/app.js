@@ -107,6 +107,15 @@ const el = {
   creatorUsers: document.getElementById("creatorUsers"),
   creatorMsg: document.getElementById("creatorMsg"),
   creatorSelected: document.getElementById("creatorSelected"),
+  creatorTokensState: document.getElementById("creatorTokensState"),
+  creatorBlooksState: document.getElementById("creatorBlooksState"),
+  creatorBlooksList: document.getElementById("creatorBlooksList"),
+  creatorBanState: document.getElementById("creatorBanState"),
+  creatorBanQty: document.getElementById("creatorBanQty"),
+  creatorBanUnit: document.getElementById("creatorBanUnit"),
+  creatorBanBtn: document.getElementById("creatorBanBtn"),
+  creatorBanForeverBtn: document.getElementById("creatorBanForeverBtn"),
+  creatorUnbanBtn: document.getElementById("creatorUnbanBtn"),
   creatorTokensQty: document.getElementById("creatorTokensQty"),
   creatorAddTokensBtn: document.getElementById("creatorAddTokensBtn"),
   creatorSetTokensBtn: document.getElementById("creatorSetTokensBtn"),
@@ -163,8 +172,11 @@ let chatFallbackMode = false;
 let presenceInterval;
 let adminPresenceUnsub;
 let creatorPresenceUnsub;
+let creatorUsersUnsub;
 let creatorSelectedUid;
 let creatorAllUsers;
+let creatorUsersCache;
+let creatorPresenceCache;
 let friendsCache;
 let dmSelectedUid;
 let dmPeerProfile;
@@ -254,10 +266,66 @@ async function loadCreatorUsersOnce() {
   const snap = await getDocs(collection(db, "users"));
   creatorAllUsers = snap.docs.map((d) => {
     const data = d.data() || {};
-    return { uid: d.id, username: String(data.username || "player") };
+    return { uid: d.id, username: String(data.username || "player"), tokens: Number(data.tokens) || 0, blooks: data.blooks || {}, bannedUntilMs: Number(data.bannedUntilMs) || 0 };
   });
   creatorAllUsers.sort((a, b) => String(a.username).localeCompare(String(b.username)));
   return creatorAllUsers;
+}
+
+function blooksCountFromDoc(userDoc) {
+  const b = userDoc?.blooks && typeof userDoc.blooks === "object" ? userDoc.blooks : {};
+  let count = 0;
+  for (const [, qty] of Object.entries(b)) count += Number(qty) || 0;
+  return count;
+}
+
+function isBannedDoc(userDoc) {
+  const until = Number(userDoc?.bannedUntilMs) || 0;
+  if (until === -1) return true;
+  if (!until) return false;
+  return Date.now() < until;
+}
+
+function formatBanState(userDoc) {
+  const until = Number(userDoc?.bannedUntilMs) || 0;
+  if (!until) return "Not banned";
+  if (until === -1) return "Banned forever";
+  const d = new Date(until);
+  return `Banned until ${d.toLocaleString()}`;
+}
+
+function renderCreatorBlooksList(userDoc) {
+  if (!el.creatorBlooksList) return;
+  const b = userDoc?.blooks && typeof userDoc.blooks === "object" ? userDoc.blooks : {};
+  const rows = Object.entries(b)
+    .map(([name, qty]) => ({ name: String(name), qty: Number(qty) || 0 }))
+    .filter((x) => x.qty > 0)
+    .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+  if (rows.length === 0) {
+    el.creatorBlooksList.innerHTML = "<div class=\"placeholder\">No blooks.</div>";
+    return;
+  }
+  el.creatorBlooksList.innerHTML = rows
+    .map((x) => {
+      const name = escapeHtml(x.name);
+      const qty = escapeHtml(String(x.qty));
+      return `
+        <div class="bazaar-row">
+          <div class="bazaar-meta">
+            <div class="bazaar-title">${name}</div>
+            <div class="bazaar-sub">x${qty}</div>
+          </div>
+        </div>
+      `.trim();
+    })
+    .join("");
+}
+
+function getCreatorCachedUser(uid) {
+  const id = String(uid || "");
+  if (!id) return null;
+  const list = Array.isArray(creatorUsersCache) ? creatorUsersCache : Array.isArray(creatorAllUsers) ? creatorAllUsers : [];
+  return list.find((u) => String(u.uid || "") === id) || null;
 }
 
 async function addTokensForCurrentUser(delta) {
@@ -561,14 +629,105 @@ async function refreshCreatorSelectedAdminState() {
   if (!el.creatorAdminState) return;
   if (!creatorSelectedUid) {
     el.creatorAdminState.textContent = "—";
+    if (el.creatorTokensState) el.creatorTokensState.textContent = "—";
+    if (el.creatorBlooksState) el.creatorBlooksState.textContent = "—";
+    if (el.creatorBanState) el.creatorBanState.textContent = "—";
+    if (el.creatorBlooksList) el.creatorBlooksList.innerHTML = "";
     return;
   }
   try {
-    const snap = await getDoc(doc(db, "users", creatorSelectedUid));
-    const data = snap.exists() ? snap.data() : {};
-    el.creatorAdminState.textContent = data?.isAdmin ? "Yes" : "No";
+    const cached = getCreatorCachedUser(creatorSelectedUid);
+    const data = cached
+      ? cached
+      : (() => {
+          return null;
+        })();
+
+    let userDoc = data;
+    if (!userDoc) {
+      const snap = await getDoc(doc(db, "users", creatorSelectedUid));
+      userDoc = snap.exists() ? snap.data() : {};
+    }
+
+    el.creatorAdminState.textContent = userDoc?.isAdmin ? "Yes" : "No";
+    if (el.creatorTokensState) el.creatorTokensState.textContent = String(Number(userDoc?.tokens) || 0);
+    if (el.creatorBlooksState) el.creatorBlooksState.textContent = String(blooksCountFromDoc(userDoc));
+    if (el.creatorBanState) el.creatorBanState.textContent = formatBanState(userDoc);
+    renderCreatorBlooksList(userDoc);
   } catch {
     el.creatorAdminState.textContent = "—";
+    if (el.creatorTokensState) el.creatorTokensState.textContent = "—";
+    if (el.creatorBlooksState) el.creatorBlooksState.textContent = "—";
+    if (el.creatorBanState) el.creatorBanState.textContent = "—";
+    if (el.creatorBlooksList) el.creatorBlooksList.innerHTML = "";
+  }
+}
+
+async function setUserBanUntil(uid, untilMs) {
+  if (!db) return;
+  const id = String(uid || "");
+  if (!id) return;
+  await updateDoc(doc(db, "users", id), {
+    bannedUntilMs: untilMs,
+    bannedAtMs: Date.now(),
+    bannedByUid: String(auth?.currentUser?.uid || ""),
+  });
+}
+
+async function handleCreatorBan() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  if (auth?.currentUser?.uid && creatorSelectedUid === auth.currentUser.uid) {
+    setCreatorMsg("You can't ban yourself.");
+    return;
+  }
+  const qty = Math.max(1, Math.floor(Number(el.creatorBanQty?.value) || 0));
+  const unit = String(el.creatorBanUnit?.value || "days");
+  const mult = unit === "minutes" ? 60_000 : unit === "hours" ? 3_600_000 : 86_400_000;
+  const until = Date.now() + qty * mult;
+  try {
+    await setUserBanUntil(creatorSelectedUid, until);
+    setCreatorMsg("Player banned.");
+    await refreshCreatorSelectedAdminState();
+  } catch {
+    setCreatorMsg("Ban failed.");
+  }
+}
+
+async function handleCreatorBanForever() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  if (auth?.currentUser?.uid && creatorSelectedUid === auth.currentUser.uid) {
+    setCreatorMsg("You can't ban yourself.");
+    return;
+  }
+  try {
+    await setUserBanUntil(creatorSelectedUid, -1);
+    setCreatorMsg("Player banned forever.");
+    await refreshCreatorSelectedAdminState();
+  } catch {
+    setCreatorMsg("Ban failed.");
+  }
+}
+
+async function handleCreatorUnban() {
+  if (!isCreatorUnlocked()) return;
+  if (!creatorSelectedUid) {
+    setCreatorMsg("Pick a player first.");
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "users", creatorSelectedUid), { bannedUntilMs: 0 });
+    setCreatorMsg("Player unbanned.");
+    await refreshCreatorSelectedAdminState();
+  } catch {
+    setCreatorMsg("Unban failed.");
   }
 }
 
@@ -638,14 +797,17 @@ function renderCreatorUsers(items) {
     .map((x) => {
       const uid = escapeHtml(String(x.uid || ""));
       const name = escapeHtml(String(x.username || "player"));
+      const tokens = escapeHtml(String(Number(x.tokens) || 0));
+      const blooksCount = escapeHtml(String(Number(x.blooksCount) || 0));
       const ts = x.lastSeen?.toDate ? x.lastSeen.toDate() : null;
       const online = ts ? now - ts.getTime() <= 65000 : false;
       const status = online ? "Online" : "Offline";
+      const banned = isBannedDoc(x) ? " · BANNED" : "";
       return `
         <div class="bazaar-row">
           <div class="bazaar-meta">
             <div class="bazaar-title">${name}</div>
-            <div class="bazaar-sub">${status}</div>
+            <div class="bazaar-sub">${status}${banned} · ${tokens} tokens · ${blooksCount} blooks</div>
           </div>
           <div>
             <button class="btn btn-xs" type="button" data-creator-pick="${uid}">Edit</button>
@@ -658,11 +820,24 @@ function renderCreatorUsers(items) {
   el.creatorUsers.querySelectorAll("[data-creator-pick]").forEach((btn) => {
     btn.addEventListener("click", () => {
       creatorSelectedUid = btn.getAttribute("data-creator-pick") || "";
-      if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
+      const picked = getCreatorCachedUser(creatorSelectedUid);
+      if (el.creatorSelected) el.creatorSelected.textContent = String(picked?.username || "") || "—";
       setCreatorMsg("");
       refreshCreatorSelectedAdminState().catch(() => {});
     });
   });
+}
+
+function mergeCreatorUsersForRender() {
+  const base = Array.isArray(creatorUsersCache) ? creatorUsersCache : Array.isArray(creatorAllUsers) ? creatorAllUsers : [];
+  const pres = creatorPresenceCache instanceof Map ? creatorPresenceCache : new Map();
+  const merged = base.map((u) => {
+    const p = pres.get(String(u.uid || "")) || {};
+    const blooksCount = blooksCountFromDoc(u);
+    return { ...u, ...p, blooksCount };
+  });
+  merged.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
+  return merged;
 }
 
 function friendsCol(uid) {
@@ -700,6 +875,7 @@ function startUserDocListener() {
     (snap) => {
       if (!snap.exists()) return;
       const data = snap.data() || {};
+      if (kickIfBanned(data)) return;
       currentUserData = data;
       playerCache.set(uid, data);
 
@@ -984,38 +1160,75 @@ async function sendDmMessage(text) {
 
 function startCreatorPresenceListener() {
   if (!db) return;
-  if (creatorPresenceUnsub) return;
+  if (creatorPresenceUnsub || creatorUsersUnsub) return;
   if (!el.creatorUsers) return;
 
-  loadCreatorUsersOnce()
-    .then(() => {
-      renderCreatorUsers((creatorAllUsers || []).map((u) => ({ ...u })));
-    })
-    .catch(() => {});
+  creatorUsersUnsub = onSnapshot(
+    collection(db, "users"),
+    (snap) => {
+      creatorUsersCache = snap.docs.map((d) => {
+        const data = d.data() || {};
+        return {
+          uid: d.id,
+          username: String(data.username || "player"),
+          tokens: Number(data.tokens) || 0,
+          blooks: data.blooks || {},
+          isAdmin: Boolean(data.isAdmin),
+          isCreator: Boolean(data.isCreator),
+          bannedUntilMs: Number(data.bannedUntilMs) || 0,
+        };
+      });
+      creatorAllUsers = creatorUsersCache;
+      renderCreatorUsers(mergeCreatorUsersForRender());
+      refreshCreatorSelectedAdminState().catch(() => {});
+    },
+    () => {
+      creatorUsersCache = [];
+      creatorAllUsers = [];
+      renderCreatorUsers([]);
+    },
+  );
 
   creatorPresenceUnsub = onSnapshot(
     collection(db, "presence"),
     (snap) => {
-      const pres = new Map(snap.docs.map((d) => [d.id, d.data()]));
-      const base = Array.isArray(creatorAllUsers) ? creatorAllUsers : [];
-      const merged = base.map((u) => ({ ...u, ...(pres.get(u.uid) || {}) }));
-      for (const [uid, data] of pres.entries()) {
-        if (!merged.some((x) => x.uid === uid)) merged.push({ uid, ...(data || {}) });
-      }
-      merged.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
-      renderCreatorUsers(merged);
+      creatorPresenceCache = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      renderCreatorUsers(mergeCreatorUsersForRender());
     },
     () => {
-      renderCreatorUsers([]);
+      creatorPresenceCache = new Map();
+      renderCreatorUsers(mergeCreatorUsersForRender());
     },
   );
 }
 
 function stopCreatorPresenceListener() {
+  if (creatorUsersUnsub) {
+    creatorUsersUnsub();
+    creatorUsersUnsub = undefined;
+  }
   if (creatorPresenceUnsub) {
     creatorPresenceUnsub();
     creatorPresenceUnsub = undefined;
   }
+  creatorUsersCache = undefined;
+  creatorPresenceCache = undefined;
+}
+
+function banKickMessage(userDoc) {
+  const until = Number(userDoc?.bannedUntilMs) || 0;
+  if (until === -1) return "You are banned forever.";
+  if (until) return `You are banned until ${new Date(until).toLocaleString()}.`;
+  return "You are banned.";
+}
+
+function kickIfBanned(userDoc) {
+  if (!isBannedDoc(userDoc)) return false;
+  const msg = banKickMessage(userDoc);
+  setSignedOutUI();
+  signOut(auth).catch(() => {});
+  setMsg(msg);
+  return true;
 }
 
 async function addTokensForUser(uid, delta) {
@@ -2642,7 +2855,9 @@ function showPage(page) {
     setCreatorMsg("");
     populateCreatorBlookSelect();
     startCreatorPresenceListener();
-    if (el.creatorSelected) el.creatorSelected.textContent = creatorSelectedUid || "—";
+    const picked = getCreatorCachedUser(creatorSelectedUid);
+    if (el.creatorSelected) el.creatorSelected.textContent = String(picked?.username || "") || "—";
+    refreshCreatorSelectedAdminState().catch(() => {});
   }
 
   if (target === "dm") {
@@ -2672,6 +2887,8 @@ async function enterApp(user) {
 
   const { data } = await getOrCreateUserDoc(user);
   currentUserData = data;
+
+  if (kickIfBanned(data)) return;
 
   if (!data?.moneyResetV1) {
     try {
@@ -2981,6 +3198,9 @@ if (el.creatorAddTokensBtn) el.creatorAddTokensBtn.addEventListener("click", han
 if (el.creatorSetTokensBtn) el.creatorSetTokensBtn.addEventListener("click", handleCreatorSetTokens);
 if (el.creatorGrantBtn) el.creatorGrantBtn.addEventListener("click", handleCreatorGrant);
 if (el.creatorSetBtn) el.creatorSetBtn.addEventListener("click", handleCreatorSetQty);
+if (el.creatorBanBtn) el.creatorBanBtn.addEventListener("click", handleCreatorBan);
+if (el.creatorBanForeverBtn) el.creatorBanForeverBtn.addEventListener("click", handleCreatorBanForever);
+if (el.creatorUnbanBtn) el.creatorUnbanBtn.addEventListener("click", handleCreatorUnban);
 if (el.creatorGrantAdminBtn) el.creatorGrantAdminBtn.addEventListener("click", handleCreatorGrantAdmin);
 if (el.creatorRevokeAdminBtn) el.creatorRevokeAdminBtn.addEventListener("click", handleCreatorRevokeAdmin);
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
