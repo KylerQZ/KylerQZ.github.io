@@ -2074,6 +2074,30 @@ function formatBlooks(blooks) {
   return { html, count };
 }
 
+function formatCompactQty(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "0";
+  const abs = Math.abs(num);
+  const units = [
+    ["", 1],
+    ["K", 1e3],
+    ["M", 1e6],
+    ["B", 1e9],
+    ["T", 1e12],
+    ["Qa", 1e15],
+    ["Qi", 1e18],
+  ];
+  let u = units[0];
+  for (let i = 0; i < units.length; i++) {
+    if (abs >= units[i][1]) u = units[i];
+  }
+  const v = num / u[1];
+  const dec = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  let s = v.toFixed(dec);
+  s = s.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+  return `${s}${u[0]}`;
+}
+
 function escapeHtml(s) {
   return String(s)
     .replaceAll("&", "&amp;")
@@ -2319,7 +2343,8 @@ function renderBlooks(userDoc) {
     const name = escapeHtml(b.name);
     const rarity = escapeHtml(b.rarity);
     const img = escapeHtml(b.image);
-    const qty = escapeHtml(String(b.qty));
+    const qty = escapeHtml(formatCompactQty(b.qty));
+    const qtyFull = escapeHtml(String(b.qty));
     const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
     const lockedClass = Number(b.qty) > 0 ? "" : "blook-locked";
     const lockedLabel = Number(b.qty) > 0 ? "" : `<div class="blook-locked-label">LOCKED</div>`;
@@ -2350,7 +2375,7 @@ function renderBlooks(userDoc) {
           <div class="blook-name">${name}</div>
           <div class="blook-sub">
             <span class="blook-rarity ${rarityClass}">${rarity}</span>
-            <span class="blook-qty">x${qty}</span>
+            <span class="blook-qty" title="x${qtyFull}">x${qty}</span>
           </div>
           ${actions}
         </div>

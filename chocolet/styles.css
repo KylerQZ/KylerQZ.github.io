@@ -1095,6 +1095,11 @@ select.input {
   font-weight: 900;
   font-size: 11px;
   color: rgba(255, 244, 236, 0.78);
+  display: inline-block;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rarity-uncommon {
