@@ -2114,6 +2114,12 @@ const packs = [
     description: "Your first pack.",
     image: "./assets/packs/chocolate-pack.png",
   },
+  {
+    id: "spy-pack",
+    name: "Spy Pack",
+    description: "Secret gadgets.",
+    image: "./assets/packs/Screenshot 2026-05-12 at 21.37.36.png",
+  },
 ];
 
 const packPools = {
@@ -2133,6 +2139,14 @@ const packPools = {
       chroma: 0.004,
       supreme: 0.0015,
       mystical: 0.00015,
+    },
+  },
+  "spy-pack": {
+    uncommon: ["Telephone", "Keys", "Hat"],
+    rare: ["Listening Device", "Camera", "Codebreaker"],
+    weights: {
+      uncommon: 0.85,
+      rare: 0.15,
     },
   },
 };
@@ -2260,6 +2274,42 @@ const blooksCatalog = [
     name: "Mystical Frog",
     rarity: "mystical",
     image: "./assets/blooks/Screenshot 2026-04-29 at 19.49.19.png",
+  },
+  {
+    id: "telephone",
+    name: "Telephone",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.03.png",
+  },
+  {
+    id: "keys",
+    name: "Keys",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.11.png",
+  },
+  {
+    id: "hat",
+    name: "Hat",
+    rarity: "uncommon",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.17.png",
+  },
+  {
+    id: "listening-device",
+    name: "Listening Device",
+    rarity: "rare",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
+  },
+  {
+    id: "camera",
+    name: "Camera",
+    rarity: "rare",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
+  },
+  {
+    id: "codebreaker",
+    name: "Codebreaker",
+    rarity: "rare",
+    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
   },
 ];
 
