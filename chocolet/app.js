@@ -197,6 +197,7 @@ const QUICK_SELL_TOKENS = {
   chroma: 300,
   supreme: 500,
   mystical: 700,
+  ultra: 1500,
 };
 
 function setBazaarMsg(message) {
@@ -2149,14 +2150,16 @@ const packPools = {
     chroma: ["Globe Model", "Safe House Blueprint", "Server"],
     supreme: ["Safe", "Mystery Key"],
     mystical: ["Super Spy", "TS File 07"],
+    ultra: ["Old Pictures Collection"],
     weights: {
-      uncommon: 0.81935,
+      uncommon: 0.8193,
       rare: 0.15,
       epic: 0.015,
       legendary: 0.01,
       chroma: 0.004,
       supreme: 0.0015,
       mystical: 0.00015,
+      ultra: 0.00005,
     },
   },
 };
@@ -2375,6 +2378,12 @@ const blooksCatalog = [
     rarity: "supreme",
     image: "./assets/blooks/Screenshot 2026-05-14 at 18.17.39.png",
   },
+  {
+    id: "old-pictures-collection",
+    name: "Old Pictures Collection",
+    rarity: "ultra",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 19.01.45.png",
+  },
 ];
 
 function renderPacks() {
@@ -2431,6 +2440,7 @@ function renderBlooks(userDoc) {
   }
 
   const rarityRank = {
+    ultra: 8,
     mystical: 7,
     supreme: 6,
     chroma: 5,
@@ -2521,6 +2531,11 @@ function renderBlooks(userDoc) {
 
     const items = blooksCatalog
       .filter((b) => names.has(String(b?.name || "")))
+      .filter((b) => {
+        const r = String(b?.rarity || "").toLowerCase();
+        const q = Number(qtyByName[String(b?.name || "")]) || 0;
+        return !(r === "ultra" && q <= 0);
+      })
       .map(itemFromCatalog)
       .sort((a, b) => {
         const ra = rarityRank[a.rarity] ?? -1;
@@ -2544,6 +2559,11 @@ function renderBlooks(userDoc) {
 
   const otherItems = blooksCatalog
     .filter((b) => !used.has(String(b?.name || "")))
+    .filter((b) => {
+      const r = String(b?.rarity || "").toLowerCase();
+      const q = Number(qtyByName[String(b?.name || "")]) || 0;
+      return !(r === "ultra" && q <= 0);
+    })
     .map(itemFromCatalog)
     .sort((a, b) => {
       const ra = rarityRank[a.rarity] ?? -1;
@@ -2640,6 +2660,40 @@ async function grantBlookToUser(blookName) {
   playerCache.delete(uid);
 }
 
+function startUltraSequence(root) {
+  if (!root) return;
+
+  const titleEl = root.querySelector(".ultra-text");
+  const frameEls = Array.from(root.querySelectorAll(".ultra-frame"));
+  const finalCard = root.querySelector(".ultra-final");
+
+  const titleShowMs = 1200;
+  const frameDurMs = 1600;
+
+  if (titleEl) {
+    titleEl.classList.add("ultra-text-in");
+    window.setTimeout(() => titleEl.classList.add("ultra-text-out"), titleShowMs);
+  }
+
+  frameEls.forEach((f, i) => {
+    const t = titleShowMs + 300 + i * frameDurMs;
+    window.setTimeout(() => {
+      frameEls.forEach((ff) => ff.classList.remove("ultra-frame-active"));
+      f.classList.add("ultra-frame-active");
+    }, t);
+  });
+
+  const finalAt = titleShowMs + 300 + frameEls.length * frameDurMs;
+  window.setTimeout(() => {
+    frameEls.forEach((ff) => ff.classList.remove("ultra-frame-active"));
+    if (finalCard) {
+      finalCard.hidden = false;
+      void finalCard.offsetWidth;
+      finalCard.classList.add("reveal");
+    }
+  }, finalAt);
+}
+
 function startMysticalSequence(root) {
   if (!root) return;
 
@@ -2722,6 +2776,53 @@ async function openCurrentPackOnce() {
 
   const rarityLower = String(rarity).toLowerCase();
   const rarityClass = `rarity-${escapeHtml(rarityLower)}`;
+
+  if (rarityLower === "ultra") {
+    const captions = [
+      "The old memories...",
+      "Faces forgotten by time.",
+      "Each photo, a story untold.",
+      "Names lost to the wind.",
+    ];
+    const frames = captions
+      .map(
+        (c, i) => `
+          <div class="ultra-frame ultra-frame-${i + 1}" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}">
+            <div class="ultra-vignette" aria-hidden="true"></div>
+            <div class="ultra-caption">${escapeHtml(c)}</div>
+          </div>
+        `,
+      )
+      .join("");
+
+    el.packOpenResult.innerHTML = `
+      <div class="blook-anim ultra-anim">
+        <div class="ultra-bg" aria-hidden="true"></div>
+        <div class="ultra-text" aria-hidden="true">ULTRA</div>
+        <div class="ultra-cinema">${frames}</div>
+        <div class="blook-card explode explode-ultra ultra-final" hidden>
+          <div class="blook-art" role="img" aria-label="${escapeHtml(name)} artwork" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}"></div>
+          <div class="blook-meta">
+            <div class="blook-name">${escapeHtml(name)}</div>
+            <div class="blook-sub">
+              <span class="blook-rarity ${rarityClass}">${escapeHtml(String(rarity))}</span>
+              <span class="blook-qty">New!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `.trim();
+
+    grantBlookToUser(name).catch(() => {});
+    startUltraSequence(el.packOpenResult.querySelector(".ultra-anim"));
+
+    packOpenReturnTimer = setTimeout(() => {
+      if (getPageFromHash() === "packopen") {
+        location.hash = "#market";
+      }
+    }, 11000);
+    return;
+  }
 
   if (rarityLower === "mystical") {
     const finalImg = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
