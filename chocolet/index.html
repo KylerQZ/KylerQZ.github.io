@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260514-2225" />
+    <link rel="stylesheet" href="./styles.css?v=20260514-2315" />
   </head>
   <body>
     <div class="bg"></div>
@@ -39,7 +39,7 @@
       <section id="authView" class="card-grid">
         <section class="card" aria-label="Login">
           <h2 class="card-title">Login</h2>
-          <p class="card-note">Email + PIN</p>
+          <p class="card-note">Email + password</p>
 
           <form id="authForm" class="form">
             <label class="field">
@@ -48,26 +48,13 @@
             </label>
 
             <label class="field">
-              <span class="field-label">PIN</span>
-              <div class="row">
-                <input
-                  id="password"
-                  class="input"
-                  type="text"
-                  inputmode="text"
-                  autocomplete="one-time-code"
-                  placeholder="Enter PIN"
-                  minlength="14"
-                  maxlength="14"
-                  required
-                />
-                <button id="getLoginPinBtn" class="btn btn-secondary" type="button">Get PIN</button>
-              </div>
+              <span class="field-label">Password</span>
+              <input id="password" class="input" type="password" autocomplete="current-password" placeholder="••••••••" minlength="6" required />
             </label>
 
             <div class="row">
-              <button id="signInBtn" class="btn" type="submit">Login</button>
-              <button id="signUpBtn" class="btn btn-secondary" type="button" hidden>Create account</button>
+              <button id="signInBtn" class="btn" type="submit">Sign in</button>
+              <button id="signUpBtn" class="btn btn-secondary" type="button">Create account</button>
             </div>
 
             <p id="authMsg" class="msg" aria-live="polite"></p>
@@ -377,6 +364,6 @@
 
     <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
-    <script type="module" src="./app.js?v=20260514-2225"></script>
+    <script type="module" src="./app.js?v=20260514-2315"></script>
   </body>
 </html>

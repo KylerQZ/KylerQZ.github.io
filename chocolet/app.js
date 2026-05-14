@@ -19,10 +19,10 @@ import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.
 import {
   getAuth,
   onAuthStateChanged,
-  signInWithCustomToken,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 import {
   getFirestore,
   collection,
@@ -61,7 +61,7 @@ const el = {
   authForm: document.getElementById("authForm"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
-  getLoginPinBtn: document.getElementById("getLoginPinBtn"),
+  signUpBtn: document.getElementById("signUpBtn"),
   signOutBtn: document.getElementById("signOutBtn"),
   authMsg: document.getElementById("authMsg"),
 
@@ -2947,11 +2947,10 @@ function ensureConfigPresent() {
 let app;
 let auth;
 let db;
-let functions;
 
 function initFirebase() {
   if (!ensureConfigPresent()) return false;
-  if (app && auth && db && functions) return true;
+  if (app && auth && db) return true;
   try {
     app = initializeApp(firebaseConfig);
   } catch (e) {
@@ -2959,7 +2958,6 @@ function initFirebase() {
   }
   auth = getAuth(app);
   db = getFirestore(app);
-  functions = getFunctions(app);
   return true;
 }
 
@@ -3205,41 +3203,34 @@ async function handleSignIn(e) {
   setMsg("");
 
   const email = el.email.value.trim();
-  const pin = String(el.password.value || "").trim();
+  const password = el.password.value;
 
   try {
-    const verifyLoginPin = httpsCallable(functions, "verifyLoginPin");
-    const res = await verifyLoginPin({ email, pin });
-    const token = res?.data?.token;
-    if (!token) throw new Error("Missing token");
-    await signInWithCustomToken(auth, token);
+    await signInWithEmailAndPassword(auth, email, password);
     setMsg("Signed in.");
-    if (el.password) el.password.value = "";
+    if (auth.currentUser) {
+      await enterApp(auth.currentUser);
+    }
   } catch (err) {
-    const msg = err?.message || "Sign in failed.";
-    setMsg(msg);
+    setMsg(err?.message || "Sign in failed.");
   }
 }
 
-async function handleGetLoginPin() {
+async function handleSignUp() {
   if (!initFirebase()) return;
   setMsg("");
 
   const email = el.email.value.trim();
-  if (!email) {
-    setMsg("Enter your email first.");
-    return;
-  }
+  const password = el.password.value;
 
-  if (el.getLoginPinBtn) el.getLoginPinBtn.disabled = true;
   try {
-    const requestLoginPin = httpsCallable(functions, "requestLoginPin");
-    await requestLoginPin({ email });
-    setMsg("PIN sent. Check your email.");
+    await createUserWithEmailAndPassword(auth, email, password);
+    setMsg("Account created.");
+    if (auth.currentUser) {
+      await enterApp(auth.currentUser);
+    }
   } catch (err) {
-    setMsg(err?.message || "Failed to send PIN.");
-  } finally {
-    if (el.getLoginPinBtn) el.getLoginPinBtn.disabled = false;
+    setMsg(err?.message || "Sign up failed.");
   }
 }
 
@@ -3433,7 +3424,7 @@ async function handleAdminSetQty() {
 if (el.avatarBox) el.avatarBox.addEventListener("click", () => toggleAvatarEditor(true));
 
 el.authForm.addEventListener("submit", handleSignIn);
-if (el.getLoginPinBtn) el.getLoginPinBtn.addEventListener("click", handleGetLoginPin);
+el.signUpBtn.addEventListener("click", handleSignUp);
 el.signOutBtn.addEventListener("click", handleSignOut);
 el.editUsernameBtn.addEventListener("click", handleEditUsername);
 
