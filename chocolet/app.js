@@ -19,10 +19,10 @@ import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.
 import {
   getAuth,
   onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  signInWithCustomToken,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 import {
   getFirestore,
   collection,
@@ -61,7 +61,7 @@ const el = {
   authForm: document.getElementById("authForm"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
-  signUpBtn: document.getElementById("signUpBtn"),
+  getLoginPinBtn: document.getElementById("getLoginPinBtn"),
   signOutBtn: document.getElementById("signOutBtn"),
   authMsg: document.getElementById("authMsg"),
 
@@ -2144,9 +2144,19 @@ const packPools = {
   "spy-pack": {
     uncommon: ["Telephone", "Keys", "Hat"],
     rare: ["Listening Device", "Camera", "Codebreaker"],
+    epic: ["TS File 07", "Super Spy"],
+    legendary: ["Computer"],
+    chroma: ["Spy"],
+    supreme: ["Safe House Blueprint", "Server", "Globe Model"],
+    mystical: ["Safe", "Mystery Key"],
     weights: {
-      uncommon: 0.85,
+      uncommon: 0.81935,
       rare: 0.15,
+      epic: 0.015,
+      legendary: 0.01,
+      chroma: 0.004,
+      supreme: 0.0015,
+      mystical: 0.00015,
     },
   },
 };
@@ -2297,19 +2307,73 @@ const blooksCatalog = [
     id: "listening-device",
     name: "Listening Device",
     rarity: "rare",
-    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
+    image: "./assets/blooks/Screenshot 2026-05-13 at 17.38.43.png",
   },
   {
     id: "camera",
     name: "Camera",
     rarity: "rare",
-    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
+    image: "./assets/blooks/Screenshot 2026-05-13 at 17.38.24.png",
   },
   {
     id: "codebreaker",
     name: "Codebreaker",
     rarity: "rare",
-    image: "./assets/blooks/Screenshot 2026-05-08 at 21.04.25.png",
+    image: "./assets/blooks/Screenshot 2026-05-13 at 17.38.33.png",
+  },
+  {
+    id: "ts-file-07",
+    name: "TS File 07",
+    rarity: "epic",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.36.12.png",
+  },
+  {
+    id: "super-spy",
+    name: "Super Spy",
+    rarity: "epic",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.05.12.png",
+  },
+  {
+    id: "computer",
+    name: "Computer",
+    rarity: "legendary",
+    image: "./assets/blooks/Screenshot 2026-05-13 at 18.11.04.png",
+  },
+  {
+    id: "spy",
+    name: "Spy",
+    rarity: "chroma",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.21.09.png",
+  },
+  {
+    id: "safe-house-blueprint",
+    name: "Safe House Blueprint",
+    rarity: "supreme",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.15.23.png",
+  },
+  {
+    id: "server",
+    name: "Server",
+    rarity: "supreme",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.15.33.png",
+  },
+  {
+    id: "globe-model",
+    name: "Globe Model",
+    rarity: "supreme",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.15.39.png",
+  },
+  {
+    id: "safe",
+    name: "Safe",
+    rarity: "mystical",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.17.33.png",
+  },
+  {
+    id: "mystery-key",
+    name: "Mystery Key",
+    rarity: "mystical",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.17.39.png",
   },
 ];
 
@@ -2782,10 +2846,11 @@ function ensureConfigPresent() {
 let app;
 let auth;
 let db;
+let functions;
 
 function initFirebase() {
   if (!ensureConfigPresent()) return false;
-  if (app && auth && db) return true;
+  if (app && auth && db && functions) return true;
   try {
     app = initializeApp(firebaseConfig);
   } catch (e) {
@@ -2793,6 +2858,7 @@ function initFirebase() {
   }
   auth = getAuth(app);
   db = getFirestore(app);
+  functions = getFunctions(app);
   return true;
 }
 
@@ -3038,34 +3104,41 @@ async function handleSignIn(e) {
   setMsg("");
 
   const email = el.email.value.trim();
-  const password = el.password.value;
+  const pin = String(el.password.value || "").trim();
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    const verifyLoginPin = httpsCallable(functions, "verifyLoginPin");
+    const res = await verifyLoginPin({ email, pin });
+    const token = res?.data?.token;
+    if (!token) throw new Error("Missing token");
+    await signInWithCustomToken(auth, token);
     setMsg("Signed in.");
-    if (auth.currentUser) {
-      await enterApp(auth.currentUser);
-    }
+    if (el.password) el.password.value = "";
   } catch (err) {
-    setMsg(err?.message || "Sign in failed.");
+    const msg = err?.message || "Sign in failed.";
+    setMsg(msg);
   }
 }
 
-async function handleSignUp() {
+async function handleGetLoginPin() {
   if (!initFirebase()) return;
   setMsg("");
 
   const email = el.email.value.trim();
-  const password = el.password.value;
+  if (!email) {
+    setMsg("Enter your email first.");
+    return;
+  }
 
+  if (el.getLoginPinBtn) el.getLoginPinBtn.disabled = true;
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    setMsg("Account created.");
-    if (auth.currentUser) {
-      await enterApp(auth.currentUser);
-    }
+    const requestLoginPin = httpsCallable(functions, "requestLoginPin");
+    await requestLoginPin({ email });
+    setMsg("PIN sent. Check your email.");
   } catch (err) {
-    setMsg(err?.message || "Sign up failed.");
+    setMsg(err?.message || "Failed to send PIN.");
+  } finally {
+    if (el.getLoginPinBtn) el.getLoginPinBtn.disabled = false;
   }
 }
 
@@ -3259,7 +3332,7 @@ async function handleAdminSetQty() {
 if (el.avatarBox) el.avatarBox.addEventListener("click", () => toggleAvatarEditor(true));
 
 el.authForm.addEventListener("submit", handleSignIn);
-el.signUpBtn.addEventListener("click", handleSignUp);
+if (el.getLoginPinBtn) el.getLoginPinBtn.addEventListener("click", handleGetLoginPin);
 el.signOutBtn.addEventListener("click", handleSignOut);
 el.editUsernameBtn.addEventListener("click", handleEditUsername);
 
