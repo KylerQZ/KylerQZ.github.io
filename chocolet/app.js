@@ -2144,15 +2144,13 @@ const packPools = {
   "spy-pack": {
     uncommon: ["Telephone", "Keys", "Hat"],
     rare: ["Listening Device", "Camera", "Codebreaker"],
-    epic: ["TS File 07", "Super Spy"],
     legendary: ["Computer"],
-    chroma: ["Spy"],
-    supreme: ["Safe House Blueprint", "Server", "Globe Model"],
-    mystical: ["Safe", "Mystery Key"],
+    chroma: ["Globe Model"],
+    supreme: ["Safe House Blueprint", "Server"],
+    mystical: ["Safe", "Mystery Key", "Super Spy", "TS File 07"],
     weights: {
       uncommon: 0.81935,
       rare: 0.15,
-      epic: 0.015,
       legendary: 0.01,
       chroma: 0.004,
       supreme: 0.0015,
@@ -2324,13 +2322,13 @@ const blooksCatalog = [
   {
     id: "ts-file-07",
     name: "TS File 07",
-    rarity: "epic",
+    rarity: "mystical",
     image: "./assets/blooks/Screenshot 2026-05-14 at 18.36.12.png",
   },
   {
     id: "super-spy",
     name: "Super Spy",
-    rarity: "epic",
+    rarity: "mystical",
     image: "./assets/blooks/Screenshot 2026-05-14 at 18.05.12.png",
   },
   {
@@ -2360,7 +2358,7 @@ const blooksCatalog = [
   {
     id: "globe-model",
     name: "Globe Model",
-    rarity: "supreme",
+    rarity: "chroma",
     image: "./assets/blooks/Screenshot 2026-05-14 at 18.15.39.png",
   },
   {
