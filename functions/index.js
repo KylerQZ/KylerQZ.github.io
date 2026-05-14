@@ -1,12 +1,35 @@
 const crypto = require("crypto");
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
 const db = admin.firestore();
+
+const SMTP_HOST = defineSecret("SMTP_HOST");
+const SMTP_PORT = defineSecret("SMTP_PORT");
+const SMTP_USER = defineSecret("SMTP_USER");
+const SMTP_PASS = defineSecret("SMTP_PASS");
+const SMTP_FROM = defineSecret("SMTP_FROM");
+
+function buildTransport() {
+  const host = SMTP_HOST.value();
+  const port = Number(SMTP_PORT.value() || 465);
+  const user = SMTP_USER.value();
+  const pass = SMTP_PASS.value();
+  if (!host || !user || !pass) {
+    throw new Error("SMTP secrets not configured.");
+  }
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
 
 function normalizeEmail(email) {
   return String(email || "")
@@ -34,57 +57,61 @@ function sha256(s) {
   return crypto.createHash("sha256").update(String(s || "")).digest("hex");
 }
 
-function requireEnv(name) {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
+exports.requestLoginPin = onCall(
+  { secrets: [SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM] },
+  async (req) => {
+    const email = normalizeEmail(req.data?.email);
+    if (!email || !email.includes("@")) {
+      throw new HttpsError("invalid-argument", "Email is required.");
+    }
 
-exports.requestLoginPin = onCall(async (req) => {
-  const email = normalizeEmail(req.data?.email);
-  if (!email || !email.includes("@")) {
-    throw new HttpsError("invalid-argument", "Email is required.");
-  }
+    const fromEmail = SMTP_FROM.value() || SMTP_USER.value();
+    if (!fromEmail) {
+      throw new HttpsError("failed-precondition", "SMTP_FROM not configured.");
+    }
 
-  const apiKey = requireEnv("SENDGRID_API_KEY");
-  const fromEmail = requireEnv("FROM_EMAIL");
+    let transport;
+    try {
+      transport = buildTransport();
+    } catch (e) {
+      throw new HttpsError("failed-precondition", e.message || "SMTP not configured.");
+    }
 
-  sgMail.setApiKey(apiKey);
+    const now = Date.now();
+    const pin = randomPin(14);
+    const pinHash = sha256(pin);
+    const expiresAtMs = now + 5 * 60 * 1000;
 
-  const now = Date.now();
-  const pin = randomPin(14);
-  const pinHash = sha256(pin);
-  const expiresAtMs = now + 5 * 60 * 1000;
+    const id = pinDocIdForEmail(email);
+    const ref = db.collection("loginPins").doc(id);
 
-  const id = pinDocIdForEmail(email);
-  const ref = db.collection("loginPins").doc(id);
-
-  await ref.set({
-    email,
-    pinHash,
-    attemptsLeft: 3,
-    createdAtMs: now,
-    expiresAtMs,
-    used: false,
-  });
-
-  const subject = "Your Chocolet login PIN";
-  const text = `Your login PIN is: ${pin}\n\nThis PIN expires in 5 minutes.`;
-
-  try {
-    await sgMail.send({
-      to: email,
-      from: fromEmail,
-      subject,
-      text,
+    await ref.set({
+      email,
+      pinHash,
+      attemptsLeft: 3,
+      createdAtMs: now,
+      expiresAtMs,
+      used: false,
     });
-  } catch (e) {
-    await ref.delete().catch(() => {});
-    throw new HttpsError("internal", "Failed to send email.");
-  }
 
-  return { ok: true };
-});
+    const subject = "Your Chocolet login PIN";
+    const text = `Your login PIN is: ${pin}\n\nThis PIN expires in 5 minutes.`;
+
+    try {
+      await transport.sendMail({
+        from: fromEmail,
+        to: email,
+        subject,
+        text,
+      });
+    } catch (e) {
+      await ref.delete().catch(() => {});
+      throw new HttpsError("internal", `Failed to send email: ${e?.message || "unknown"}`);
+    }
+
+    return { ok: true };
+  },
+);
 
 exports.verifyLoginPin = onCall(async (req) => {
   const email = normalizeEmail(req.data?.email);
