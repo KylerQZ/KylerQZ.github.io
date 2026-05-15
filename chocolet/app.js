@@ -1334,7 +1334,7 @@ function renderAvatar(userDoc) {
   const avatarName = String(userDoc?.avatarBlook || "");
   const blook = avatarName ? getBlookByName(avatarName) : null;
 
-  const isMystical = String(blook?.rarity || "").toLowerCase() === "mystical";
+  const isMystical = String(blook?.rarity || "").toLowerCase() === "mystical" && String(blook?.name || "") === "Mystical Frog";
   for (const box of boxes) {
     if (!box) continue;
     box.classList.toggle("avatar-mystical", isMystical);
@@ -2472,13 +2472,13 @@ function renderBlooks(userDoc) {
     const rarityClass = `rarity-${escapeHtml(String(b.rarity || "uncommon").toLowerCase())}`;
     const lockedClass = Number(b.qty) > 0 ? "" : "blook-locked";
     const lockedLabel = Number(b.qty) > 0 ? "" : `<div class="blook-locked-label">LOCKED</div>`;
-    const mysticalClass = String(b.rarity || "").toLowerCase() === "mystical" && Number(b.qty) > 0 ? "mystical-shush" : "";
-    const artStyle =
-      String(b.rarity || "").toLowerCase() === "mystical" && Number(b.qty) > 0
-        ? `--mystical-base:url('${img}');--mystical-shush:url('${escapeHtml(MYSTICAL_SHUSH_IMG)}');`
-        : img
-          ? `background-image:url('${img}')`
-          : "";
+    const isMysticalFrog = String(b.name) === "Mystical Frog" && Number(b.qty) > 0;
+    const mysticalClass = isMysticalFrog ? "mystical-shush" : "";
+    const artStyle = isMysticalFrog
+      ? `--mystical-base:url('${img}');--mystical-shush:url('${escapeHtml(MYSTICAL_SHUSH_IMG)}');`
+      : img
+        ? `background-image:url('${img}')`
+        : "";
 
     const quickSell = QUICK_SELL_TOKENS[String(b.rarity || "uncommon").toLowerCase()] || 0;
     const actions =
@@ -2824,7 +2824,7 @@ async function openCurrentPackOnce() {
     return;
   }
 
-  if (rarityLower === "mystical") {
+  if (rarityLower === "mystical" && name === "Mystical Frog") {
     const finalImg = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
     const baseImg = img || finalImg;
     el.packOpenResult.innerHTML = `
@@ -2856,17 +2856,19 @@ async function openCurrentPackOnce() {
   }
 
   const explodeClass =
-    rarityLower === "chroma"
-      ? "explode-chroma"
-      : rarityLower === "supreme"
-        ? "explode-supreme"
-        : rarityLower === "legendary"
-          ? "explode-legendary"
-          : rarityLower === "epic"
-            ? "explode-epic"
-            : rarityLower === "rare"
-              ? "explode-rare"
-              : "explode-uncommon";
+    rarityLower === "mystical"
+      ? "explode-mystical"
+      : rarityLower === "chroma"
+        ? "explode-chroma"
+        : rarityLower === "supreme"
+          ? "explode-supreme"
+          : rarityLower === "legendary"
+            ? "explode-legendary"
+            : rarityLower === "epic"
+              ? "explode-epic"
+              : rarityLower === "rare"
+                ? "explode-rare"
+                : "explode-uncommon";
 
   const animClass =
     rarityLower === "chroma"
