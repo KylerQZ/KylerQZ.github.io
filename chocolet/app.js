@@ -2334,7 +2334,7 @@ const blooksCatalog = [
     id: "super-spy",
     name: "Super Spy",
     rarity: "mystical",
-    image: "./assets/blooks/Screenshot 2026-05-14 at 18.05.12.png",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.21.09.png",
   },
   {
     id: "computer",
@@ -2346,7 +2346,7 @@ const blooksCatalog = [
     id: "spy",
     name: "Spy",
     rarity: "legendary",
-    image: "./assets/blooks/Screenshot 2026-05-14 at 18.21.09.png",
+    image: "./assets/blooks/Screenshot 2026-05-14 at 18.05.12.png",
   },
   {
     id: "safe-house-blueprint",
