@@ -752,8 +752,9 @@ async function handleCreatorGrantAdmin() {
     await setUserAdminFlag(creatorSelectedUid, true);
     setCreatorMsg("Admin granted.");
     await refreshCreatorSelectedAdminState();
-  } catch {
-    setCreatorMsg("Admin update failed.");
+  } catch (err) {
+    console.error("grant admin failed", err);
+    setCreatorMsg(`Admin update failed: ${err?.code || err?.message || "unknown"}`);
   }
 }
 
@@ -768,8 +769,9 @@ async function handleCreatorRevokeAdmin() {
     await setUserAdminFlag(creatorSelectedUid, false);
     setCreatorMsg("Admin removed.");
     await refreshCreatorSelectedAdminState();
-  } catch {
-    setCreatorMsg("Admin update failed.");
+  } catch (err) {
+    console.error("revoke admin failed", err);
+    setCreatorMsg(`Admin update failed: ${err?.code || err?.message || "unknown"}`);
   }
 }
 
