@@ -1223,7 +1223,7 @@ select.input {
 
 .ultra-frame {
   position: absolute;
-  inset: 8% 8%;
+  inset: 3% 3%;
   border-radius: 18px;
   background-size: cover;
   background-position: center;
