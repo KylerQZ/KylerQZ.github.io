@@ -759,7 +759,14 @@ async function handleCreatorGrantAdmin() {
 }
 
 async function handleCreatorRevokeAdmin() {
-  if (!isCreatorUnlocked()) return;
+  console.log("[creator] revoke admin click", {
+    creatorUnlocked: isCreatorUnlocked(),
+    creatorSelectedUid,
+  });
+  if (!isCreatorUnlocked()) {
+    setCreatorMsg("Creator is locked. Re-enter creator PIN.");
+    return;
+  }
   if (!creatorSelectedUid) {
     setCreatorMsg("Pick a player first.");
     return;
