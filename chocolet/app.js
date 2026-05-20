@@ -150,6 +150,13 @@ const el = {
   creatorAdminState: document.getElementById("creatorAdminState"),
   creatorGrantAdminBtn: document.getElementById("creatorGrantAdminBtn"),
   creatorRevokeAdminBtn: document.getElementById("creatorRevokeAdminBtn"),
+
+  creatorWeightsPackSelect: document.getElementById("creatorWeightsPackSelect"),
+  creatorWeightsInputs: document.getElementById("creatorWeightsInputs"),
+  creatorWeightsSum: document.getElementById("creatorWeightsSum"),
+  creatorSaveWeightsBtn: document.getElementById("creatorSaveWeightsBtn"),
+  creatorResetWeightsBtn: document.getElementById("creatorResetWeightsBtn"),
+  creatorWeightsMsg: document.getElementById("creatorWeightsMsg"),
 };
 
 const ADMIN_PIN = "67120925";
@@ -739,6 +746,119 @@ async function setUserAdminFlag(uid, isAdmin) {
   await updateDoc(doc(db, "users", id), { isAdmin: Boolean(isAdmin) });
 
   playerCache.delete(id);
+}
+
+function populateCreatorWeightsPackSelect() {
+  if (!el.creatorWeightsPackSelect) return;
+  const cur = String(el.creatorWeightsPackSelect.value || "");
+  const opts = packs
+    .map((p) => {
+      const id = escapeHtml(String(p?.id || ""));
+      const name = escapeHtml(String(p?.name || p?.id || "Pack"));
+      return `<option value="${id}">${name}</option>`;
+    })
+    .join("");
+  el.creatorWeightsPackSelect.innerHTML = opts;
+  if (cur && packPools[cur]) el.creatorWeightsPackSelect.value = cur;
+}
+
+function setCreatorWeightsMsg(message) {
+  if (el.creatorWeightsMsg) el.creatorWeightsMsg.textContent = message || "";
+}
+
+function updateCreatorWeightsSum() {
+  if (!el.creatorWeightsInputs || !el.creatorWeightsSum) return;
+  const inputs = el.creatorWeightsInputs.querySelectorAll("input[data-rarity]");
+  let total = 0;
+  inputs.forEach((inp) => {
+    const v = Number(inp.value) || 0;
+    if (v > 0) total += v;
+  });
+  el.creatorWeightsSum.textContent = total ? `${total.toFixed(6)} (will be normalized)` : "0";
+}
+
+function renderCreatorWeightsEditor(packId) {
+  if (!el.creatorWeightsInputs) return;
+  const id = String(packId || "");
+  const pool = packPools[id];
+  if (!pool || !pool.weights) {
+    el.creatorWeightsInputs.innerHTML = "<div class=\"placeholder\">Pack not found.</div>";
+    if (el.creatorWeightsSum) el.creatorWeightsSum.textContent = "—";
+    return;
+  }
+
+  const defaults = DEFAULT_PACK_WEIGHTS[id] || {};
+  const keys = Array.from(new Set([...Object.keys(defaults), ...Object.keys(pool.weights)]));
+
+  el.creatorWeightsInputs.innerHTML = keys
+    .map((rarity) => {
+      const cur = Number(pool.weights[rarity]) || 0;
+      const def = Number(defaults[rarity]) || 0;
+      return `
+        <div class="weights-row">
+          <div class="weights-label">${escapeHtml(rarity)}</div>
+          <input class="input weights-input" type="number" step="0.00001" min="0" data-rarity="${escapeHtml(rarity)}" value="${cur}" />
+          <div class="weights-default">def ${def}</div>
+        </div>
+      `.trim();
+    })
+    .join("");
+
+  el.creatorWeightsInputs.querySelectorAll("input[data-rarity]").forEach((inp) => {
+    inp.addEventListener("input", updateCreatorWeightsSum);
+  });
+  updateCreatorWeightsSum();
+}
+
+async function handleSaveCreatorPackWeights() {
+  if (!isCreatorUnlocked()) {
+    setCreatorWeightsMsg("Creator is locked.");
+    return;
+  }
+  if (!db || !el.creatorWeightsPackSelect || !el.creatorWeightsInputs) return;
+  const packId = String(el.creatorWeightsPackSelect.value || "");
+  if (!packId || !packPools[packId]) {
+    setCreatorWeightsMsg("Pick a pack first.");
+    return;
+  }
+  const next = {};
+  el.creatorWeightsInputs.querySelectorAll("input[data-rarity]").forEach((inp) => {
+    const k = inp.getAttribute("data-rarity") || "";
+    const v = Number(inp.value);
+    if (k && Number.isFinite(v) && v >= 0) next[k] = v;
+  });
+  const total = Object.values(next).reduce((a, b) => a + b, 0);
+  if (total <= 0) {
+    setCreatorWeightsMsg("At least one weight must be > 0.");
+    return;
+  }
+  try {
+    await setDoc(doc(db, "config", "packWeights"), { packs: { [packId]: next } }, { merge: true });
+    setCreatorWeightsMsg("Saved. Live for all players.");
+  } catch (err) {
+    console.error("save pack weights failed", err);
+    setCreatorWeightsMsg(`Save failed: ${err?.code || err?.message || "unknown"}`);
+  }
+}
+
+async function handleResetCreatorPackWeights() {
+  if (!isCreatorUnlocked()) {
+    setCreatorWeightsMsg("Creator is locked.");
+    return;
+  }
+  if (!db || !el.creatorWeightsPackSelect) return;
+  const packId = String(el.creatorWeightsPackSelect.value || "");
+  if (!packId || !DEFAULT_PACK_WEIGHTS[packId]) return;
+  try {
+    await setDoc(
+      doc(db, "config", "packWeights"),
+      { packs: { [packId]: { ...DEFAULT_PACK_WEIGHTS[packId] } } },
+      { merge: true },
+    );
+    setCreatorWeightsMsg("Reset to default.");
+  } catch (err) {
+    setCreatorWeightsMsg(`Reset failed: ${err?.code || err?.message || "unknown"}`);
+  }
 }
 
 async function handleCreatorGrantAdmin() {
@@ -2190,6 +2310,54 @@ const packPools = {
   },
 };
 
+const DEFAULT_PACK_WEIGHTS = (() => {
+  const out = {};
+  for (const [id, pool] of Object.entries(packPools)) {
+    out[id] = { ...(pool.weights || {}) };
+  }
+  return out;
+})();
+
+let packWeightsUnsub;
+
+function applyPackWeightsOverride(remote) {
+  for (const [id, pool] of Object.entries(packPools)) {
+    const defaults = DEFAULT_PACK_WEIGHTS[id] || {};
+    const incoming = (remote && remote[id]) || null;
+    const merged = { ...defaults };
+    if (incoming && typeof incoming === "object") {
+      for (const k of Object.keys(merged)) {
+        const v = Number(incoming[k]);
+        if (Number.isFinite(v) && v >= 0) merged[k] = v;
+      }
+    }
+    for (const k of Object.keys(pool.weights || {})) {
+      pool.weights[k] = merged[k] ?? 0;
+    }
+    for (const k of Object.keys(merged)) {
+      if (!(k in pool.weights)) pool.weights[k] = merged[k];
+    }
+  }
+}
+
+function startPackWeightsListener() {
+  if (!db || packWeightsUnsub) return;
+  try {
+    packWeightsUnsub = onSnapshot(
+      doc(db, "config", "packWeights"),
+      (snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        applyPackWeightsOverride(data?.packs || null);
+        if (getPageFromHash() === "creator" && el.creatorWeightsPackSelect) {
+          renderCreatorWeightsEditor(el.creatorWeightsPackSelect.value);
+        }
+      },
+      () => {},
+    );
+  } catch {
+  }
+}
+
 function randChoice(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
@@ -3133,6 +3301,12 @@ function showPage(page) {
     const picked = getCreatorCachedUser(creatorSelectedUid);
     if (el.creatorSelected) el.creatorSelected.textContent = String(picked?.username || "") || "—";
     refreshCreatorSelectedAdminState().catch(() => {});
+
+    populateCreatorWeightsPackSelect();
+    if (el.creatorWeightsPackSelect) {
+      renderCreatorWeightsEditor(el.creatorWeightsPackSelect.value);
+    }
+    setCreatorWeightsMsg("");
   }
 
   if (target === "dm") {
@@ -3191,6 +3365,7 @@ async function enterApp(user) {
   startFriendsListener();
   startFriendRequestsListener();
   startDmThreadsListener();
+  startPackWeightsListener();
 
   showPage(getPageFromHash());
   startPresence();
@@ -3478,6 +3653,32 @@ if (el.creatorBanForeverBtn) el.creatorBanForeverBtn.addEventListener("click", h
 if (el.creatorUnbanBtn) el.creatorUnbanBtn.addEventListener("click", handleCreatorUnban);
 if (el.creatorGrantAdminBtn) el.creatorGrantAdminBtn.addEventListener("click", handleCreatorGrantAdmin);
 if (el.creatorRevokeAdminBtn) el.creatorRevokeAdminBtn.addEventListener("click", handleCreatorRevokeAdmin);
+if (el.creatorSaveWeightsBtn) el.creatorSaveWeightsBtn.addEventListener("click", handleSaveCreatorPackWeights);
+if (el.creatorResetWeightsBtn) el.creatorResetWeightsBtn.addEventListener("click", handleResetCreatorPackWeights);
+if (el.creatorWeightsPackSelect) {
+  el.creatorWeightsPackSelect.addEventListener("change", () => {
+    renderCreatorWeightsEditor(el.creatorWeightsPackSelect.value);
+  });
+}
+
+(function initCollapsibleCards() {
+  const cards = document.querySelectorAll(".card.page");
+  cards.forEach((card) => {
+    const title = card.querySelector(":scope > .card-title");
+    if (!title) return;
+    if (card.querySelector(":scope > .card-collapse-btn")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost btn-xs card-collapse-btn";
+    btn.textContent = "Short";
+    btn.setAttribute("aria-label", "Collapse section");
+    btn.addEventListener("click", () => {
+      const collapsed = card.classList.toggle("card-collapsed");
+      btn.textContent = collapsed ? "Expand" : "Short";
+    });
+    title.insertAdjacentElement("afterend", btn);
+  });
+})();
 if (el.avatarSetBtn) el.avatarSetBtn.addEventListener("click", handleSetAvatar);
 if (el.dailyWheelBtn) el.dailyWheelBtn.addEventListener("click", handleDailyWheel);
 if (el.dmForm) el.dmForm.addEventListener("submit", handleDmSubmit);

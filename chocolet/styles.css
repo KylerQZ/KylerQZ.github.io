@@ -1303,6 +1303,53 @@ select.input {
   z-index: 5;
 }
 
+.card.page {
+  position: relative;
+}
+
+.card-collapse-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.card.card-collapsed > *:not(.card-title):not(.card-collapse-btn) {
+  display: none !important;
+}
+
+.card.card-collapsed {
+  padding-bottom: 14px;
+}
+
+.weights-grid {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.weights-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 90px;
+  gap: 8px;
+  align-items: center;
+}
+
+.weights-label {
+  text-transform: capitalize;
+  color: rgba(255, 231, 214, 0.85);
+  font-weight: 600;
+}
+
+.weights-input {
+  width: 100%;
+}
+
+.weights-default {
+  font-size: 12px;
+  color: rgba(255, 231, 214, 0.55);
+  text-align: right;
+}
+
 .packopen-stage {
   position: relative;
   overflow: hidden;
