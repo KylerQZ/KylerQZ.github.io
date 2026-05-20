@@ -2794,6 +2794,12 @@ async function openCurrentPackOnce() {
   const rarityClass = `rarity-${escapeHtml(rarityLower)}`;
 
   if (rarityLower === "ultra") {
+    const memoryPhotos = [
+      "./assets/blooks/Screenshot 2026-05-14 at 22.16.18.png",
+      "./assets/blooks/Screenshot 2026-05-14 at 22.16.26.png",
+      "./assets/blooks/Screenshot 2026-05-14 at 22.16.36.png",
+      img || "./assets/blooks/Screenshot 2026-05-14 at 19.01.45.png",
+    ];
     const captions = [
       "The old memories...",
       "Faces forgotten by time.",
@@ -2801,14 +2807,15 @@ async function openCurrentPackOnce() {
       "Names lost to the wind.",
     ];
     const frames = captions
-      .map(
-        (c, i) => `
-          <div class="ultra-frame ultra-frame-${i + 1}" style="${img ? `background-image:url('${escapeHtml(img)}')` : ""}">
+      .map((c, i) => {
+        const frameImg = memoryPhotos[i] || img || "";
+        return `
+          <div class="ultra-frame ultra-frame-${i + 1}" style="${frameImg ? `background-image:url('${escapeHtml(frameImg)}')` : ""}">
             <div class="ultra-vignette" aria-hidden="true"></div>
             <div class="ultra-caption">${escapeHtml(c)}</div>
           </div>
-        `,
-      )
+        `;
+      })
       .join("");
 
     el.packOpenResult.innerHTML = `
