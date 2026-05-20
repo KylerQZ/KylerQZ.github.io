@@ -742,7 +742,14 @@ async function setUserAdminFlag(uid, isAdmin) {
 }
 
 async function handleCreatorGrantAdmin() {
-  if (!isCreatorUnlocked()) return;
+  console.log("[creator] grant admin click", {
+    creatorUnlocked: isCreatorUnlocked(),
+    creatorSelectedUid,
+  });
+  if (!isCreatorUnlocked()) {
+    setCreatorMsg("Creator is locked. Re-enter creator PIN.");
+    return;
+  }
   if (!creatorSelectedUid) {
     setCreatorMsg("Pick a player first.");
     return;
