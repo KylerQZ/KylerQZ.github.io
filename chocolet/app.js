@@ -900,8 +900,18 @@ function startUserDocListener() {
       renderBlooks(data);
       renderPacks();
 
-      if (!Boolean(data.isAdmin)) localStorage.removeItem(ADMIN_UNLOCK_KEY);
-      if (!Boolean(data.isCreator)) localStorage.removeItem(CREATOR_UNLOCK_KEY);
+      if (Boolean(data.isAdmin)) {
+        localStorage.setItem(ADMIN_UNLOCK_KEY, "1");
+        localStorage.setItem(ADMIN_PIN_FP_KEY, pinFingerprint(ADMIN_PIN));
+      } else {
+        localStorage.removeItem(ADMIN_UNLOCK_KEY);
+      }
+      if (Boolean(data.isCreator)) {
+        localStorage.setItem(CREATOR_UNLOCK_KEY, "1");
+        localStorage.setItem(CREATOR_PIN_FP_KEY, pinFingerprint(CREATOR_PIN));
+      } else {
+        localStorage.removeItem(CREATOR_UNLOCK_KEY);
+      }
       applyAdminUIState();
 
       const page = getPageFromHash();
