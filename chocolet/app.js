@@ -2603,7 +2603,7 @@ function renderPacks() {
           <div class="pack-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
           <div class="pack-body">
             <div class="pack-name">${name}</div>
-            <div class="pack-desc">${desc} (Cost ${PACK_COST})</div>
+            <div class="pack-desc">Cost ${PACK_COST}</div>
             <div class="row">
               <button class="btn" type="button" data-open-pack="${escapeHtml(p?.id || "")}" ${disabled}>Open</button>
             </div>
