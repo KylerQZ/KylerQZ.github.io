@@ -4,36 +4,37 @@
 const canvas = document.getElementById("pitch");
 const ctx = canvas.getContext("2d");
 
-const W = 1100;
-const H = 600;
+const W = 1430;
+const H = 780;
 
 // Pitch markings
-const TRY_L = 60;
+const TRY_L = 78;
 const TRY_R = W - TRY_L;
 const HALFWAY = W / 2;
-const M22_L = TRY_L + 220;
-const M22_R = TRY_R - 220;
+const M22_L = TRY_L + 285;
+const M22_R = TRY_R - 285;
 
 // Tunables
 const PER_TEAM = 3;
 const PLAYER_RADIUS = 16;
-const PLAYER_SPEED = 240;
+const PLAYER_SPEED = 168; // 30% slower than before
 const AI_SPEED_MULT = 0.92;
 const BALL_RADIUS = 7;
 const CATCH_RADIUS = 26;
 const CATCH_COOLDOWN_MS = 500;
 const TACKLE_RADIUS = 40;
-const TACKLE_PROB = 0.8; // Phase 1: same for all players
-const TACKLE_COOLDOWN_MS = 700;
-const STUN_MS = 750;
-const KNOCKBACK_PX = 22;
+const TACKLE_PROB = 0.8;
+const TACKLE_COOLDOWN_MS = 5000; // 5s cooldown per player
+const STUN_MS = 900;
+const KNOCKBACK_PX = 24;
 const PASS_MIN = 320;
 const PASS_MAX = 920;
 const PASS_CHARGE_MS = 1100;
 const BALL_FRICTION = 0.985;
 const BALL_MIN_SPEED = 8;
-const TRIES_TO_WIN = 3;
+const ROUND_S = 60;
 const TRY_PAUSE_MS = 1800;
+const CONTROLLED_IDX = 0; // always control team A jersey #1
 
 const elScoreA = document.getElementById("scoreA");
 const elScoreB = document.getElementById("scoreB");
@@ -57,10 +58,9 @@ let ball = {
 };
 let scoreA = 0;
 let scoreB = 0;
-let timeLeft = 0;
+let timeLeft = ROUND_S;
 let frozenUntilMs = 0;
-let manualControlIdx = null; // when player presses Q to lock onto a specific player
-let manualControlUntilMs = 0;
+let extraTime = false;
 let lastFrameMs = 0;
 let running = true;
 
@@ -108,9 +108,9 @@ function setupKickoff(receivingTeam) {
 function startMatch() {
   scoreA = 0;
   scoreB = 0;
-  timeLeft = 0;
+  timeLeft = ROUND_S;
   frozenUntilMs = 0;
-  manualControlIdx = null;
+  extraTime = false;
   setupKickoff("A");
   setMsg("");
   running = true;
@@ -124,7 +124,6 @@ function setMsg(s) {
 window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   keys[k] = true;
-  if (k === "q") cycleManualControl();
   if (k === "r") startMatch();
   if (k === "f") tryTackle();
 });
@@ -168,40 +167,8 @@ function chargePower() {
 
 // === Control selection ===
 function controlledIdx() {
-  // If manual lock recent and still on team A & alive: use it
-  if (manualControlIdx !== null && performance.now() < manualControlUntilMs) {
-    return manualControlIdx;
-  }
-  // If team A holds ball -> control carrier
-  if (ball.carrierIdx !== null && players[ball.carrierIdx].team === "A") {
-    return ball.carrierIdx;
-  }
-  // Else control nearest team A player to ball
-  let best = -1;
-  let bestD = Infinity;
-  for (let i = 0; i < players.length; i++) {
-    if (players[i].team !== "A") continue;
-    const dx = players[i].x - ball.x;
-    const dy = players[i].y - ball.y;
-    const d = dx * dx + dy * dy;
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
-  }
-  return best;
-}
-
-function cycleManualControl() {
-  const teamA = players
-    .map((p, i) => ({ p, i }))
-    .filter((x) => x.p.team === "A");
-  if (!teamA.length) return;
-  const cur = manualControlIdx;
-  const curPos = teamA.findIndex((x) => x.i === cur);
-  const next = teamA[(curPos + 1 + teamA.length) % teamA.length];
-  manualControlIdx = next.i;
-  manualControlUntilMs = performance.now() + 4000;
+  // Always the same player — user controls only #1.
+  return CONTROLLED_IDX;
 }
 
 // === Pass ===
@@ -308,7 +275,18 @@ function update(dt) {
   const frozen = now < frozenUntilMs;
 
   if (!frozen) {
-    timeLeft += dt; // counts up as a clock
+    timeLeft = Math.max(0, timeLeft - dt);
+    if (timeLeft <= 0 && running && !extraTime) {
+      if (scoreA === scoreB) {
+        // Draw — enter golden-goal extra time
+        extraTime = true;
+        setMsg("EXTRA TIME \u2014 next try wins");
+      } else {
+        running = false;
+        setMsg(scoreA > scoreB ? "FULL TIME \u2014 YOU WIN" : "FULL TIME \u2014 CPU WINS");
+        return;
+      }
+    }
   }
 
   const ctrlIdx = controlledIdx();
@@ -437,9 +415,10 @@ function onTryScored(team) {
   frozenUntilMs = now + TRY_PAUSE_MS;
   triggerShake(12, 320);
 
-  if (scoreA >= TRIES_TO_WIN || scoreB >= TRIES_TO_WIN) {
+  // Golden-goal: any try in extra time ends match
+  if (extraTime) {
     running = false;
-    setMsg(scoreA > scoreB ? "YOU WIN!  \u2014  press R to play again" : "CPU WINS  \u2014  press R to play again");
+    setMsg(team === "A" ? "GOLDEN TRY \u2014 YOU WIN" : "GOLDEN TRY \u2014 CPU WINS");
     return;
   }
 
@@ -447,7 +426,7 @@ function onTryScored(team) {
   setTimeout(() => {
     if (!running) return;
     setupKickoff(team === "A" ? "B" : "A");
-    setMsg("");
+    if (!extraTime) setMsg("");
   }, TRY_PAUSE_MS);
 }
 
@@ -710,7 +689,9 @@ function updateHUD() {
   elScoreB.textContent = String(scoreB);
   const m = Math.floor(timeLeft / 60);
   const s = Math.floor(timeLeft % 60);
-  elTime.textContent = `First to ${TRIES_TO_WIN}  \u00b7  ${m}:${String(s).padStart(2, "0")}`;
+  elTime.textContent = extraTime
+    ? "EXTRA TIME"
+    : `${m}:${String(s).padStart(2, "0")}`;
   const pct = mouseDown ? Math.round(chargePower() * 100) : 0;
   elPower.style.width = `${pct}%`;
 }
