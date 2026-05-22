@@ -15,7 +15,7 @@ const M22_L = TRY_L + 285;
 const M22_R = TRY_R - 285;
 
 // Tunables
-const PER_TEAM = 3;
+let PER_TEAM = 3;
 const PLAYER_RADIUS = 16;
 const PLAYER_SPEED = 168; // 30% slower than before
 const AI_SPEED_MULT = 0.92;
@@ -127,6 +127,17 @@ function setMsg(s) {
 }
 
 // === Input ===
+// Mode selector (1v1 / 2v2 / 3v3)
+document.querySelectorAll(".mode-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const n = Math.max(1, Math.min(3, Number(btn.getAttribute("data-mode")) || 3));
+    if (n === PER_TEAM) return;
+    PER_TEAM = n;
+    document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    startMatch();
+  });
+});
+
 window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   keys[k] = true;

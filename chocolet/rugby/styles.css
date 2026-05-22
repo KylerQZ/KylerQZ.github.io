@@ -93,6 +93,34 @@ kbd {
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.mode-select {
+  display: flex;
+  gap: 4px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  margin-left: 8px;
+}
+.mode-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e8f0e6;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 100ms, border-color 100ms;
+}
+.mode-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.mode-btn.active {
+  background: linear-gradient(135deg, #ffd166, #ef476f);
+  color: #1a0c08;
+  border-color: rgba(255, 209, 102, 0.6);
+}
+
 .bar {
   display: flex;
   align-items: center;
