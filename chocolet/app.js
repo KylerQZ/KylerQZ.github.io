@@ -160,6 +160,19 @@ const el = {
 
   packOpenQtyChips: document.getElementById("packOpenQtyChips"),
   packOpenQtyCost: document.getElementById("packOpenQtyCost"),
+
+  coinBet: document.getElementById("coinBet"),
+  coinHeadsBtn: document.getElementById("coinHeadsBtn"),
+  coinTailsBtn: document.getElementById("coinTailsBtn"),
+  coinResult: document.getElementById("coinResult"),
+
+  guessBet: document.getElementById("guessBet"),
+  guessButtons: document.getElementById("guessButtons"),
+  guessResult: document.getElementById("guessResult"),
+
+  diceBet: document.getElementById("diceBet"),
+  diceRollBtn: document.getElementById("diceRollBtn"),
+  diceResult: document.getElementById("diceResult"),
 };
 
 const ADMIN_PIN = "67120925";
@@ -3814,6 +3827,102 @@ if (el.packOpenQtyChips) {
     });
   });
 }
+
+async function playCoinFlip(pick) {
+  if (!auth?.currentUser || !el.coinResult) return;
+  const bet = Math.max(1, Math.floor(Number(el.coinBet?.value) || 0));
+  if (!bet) {
+    el.coinResult.textContent = "Bet must be at least 1.";
+    return;
+  }
+  el.coinResult.textContent = "Flipping…";
+  if (el.coinHeadsBtn) el.coinHeadsBtn.disabled = true;
+  if (el.coinTailsBtn) el.coinTailsBtn.disabled = true;
+  try {
+    await addTokensForCurrentUser(-bet);
+  } catch {
+    el.coinResult.textContent = `Not enough tokens. Bet ${bet}.`;
+    if (el.coinHeadsBtn) el.coinHeadsBtn.disabled = false;
+    if (el.coinTailsBtn) el.coinTailsBtn.disabled = false;
+    return;
+  }
+  const result = Math.random() < 0.5 ? "heads" : "tails";
+  const win = result === pick;
+  if (win) {
+    try { await addTokensForCurrentUser(bet * 2); } catch {}
+    el.coinResult.textContent = `🪙 ${result.toUpperCase()} — you won +${bet}!`;
+  } else {
+    el.coinResult.textContent = `🪙 ${result.toUpperCase()} — you lost -${bet}.`;
+  }
+  if (el.coinHeadsBtn) el.coinHeadsBtn.disabled = false;
+  if (el.coinTailsBtn) el.coinTailsBtn.disabled = false;
+}
+
+async function playGuess(num) {
+  if (!auth?.currentUser || !el.guessResult) return;
+  const bet = Math.max(1, Math.floor(Number(el.guessBet?.value) || 0));
+  if (!bet) {
+    el.guessResult.textContent = "Bet must be at least 1.";
+    return;
+  }
+  const buttons = el.guessButtons?.querySelectorAll("[data-guess]") || [];
+  buttons.forEach((b) => (b.disabled = true));
+  el.guessResult.textContent = "Rolling…";
+  try {
+    await addTokensForCurrentUser(-bet);
+  } catch {
+    el.guessResult.textContent = `Not enough tokens. Bet ${bet}.`;
+    buttons.forEach((b) => (b.disabled = false));
+    return;
+  }
+  const answer = Math.floor(Math.random() * 5) + 1;
+  const win = Number(num) === answer;
+  if (win) {
+    try { await addTokensForCurrentUser(bet * 4); } catch {}
+    el.guessResult.textContent = `🎯 Answer was ${answer} — you won +${bet * 3}!`;
+  } else {
+    el.guessResult.textContent = `Answer was ${answer} — you lost -${bet}.`;
+  }
+  buttons.forEach((b) => (b.disabled = false));
+}
+
+async function playDice() {
+  if (!auth?.currentUser || !el.diceResult) return;
+  const bet = Math.max(1, Math.floor(Number(el.diceBet?.value) || 0));
+  if (!bet) {
+    el.diceResult.textContent = "Bet must be at least 1.";
+    return;
+  }
+  if (el.diceRollBtn) el.diceRollBtn.disabled = true;
+  el.diceResult.textContent = "Rolling…";
+  try {
+    await addTokensForCurrentUser(-bet);
+  } catch {
+    el.diceResult.textContent = `Not enough tokens. Bet ${bet}.`;
+    if (el.diceRollBtn) el.diceRollBtn.disabled = false;
+    return;
+  }
+  const d1 = Math.floor(Math.random() * 6) + 1;
+  const d2 = Math.floor(Math.random() * 6) + 1;
+  const sum = d1 + d2;
+  const win = sum >= 7;
+  if (win) {
+    try { await addTokensForCurrentUser(bet * 2); } catch {}
+    el.diceResult.textContent = `🎲 ${d1} + ${d2} = ${sum} — you won +${bet}!`;
+  } else {
+    el.diceResult.textContent = `🎲 ${d1} + ${d2} = ${sum} — you lost -${bet}.`;
+  }
+  if (el.diceRollBtn) el.diceRollBtn.disabled = false;
+}
+
+if (el.coinHeadsBtn) el.coinHeadsBtn.addEventListener("click", () => playCoinFlip("heads"));
+if (el.coinTailsBtn) el.coinTailsBtn.addEventListener("click", () => playCoinFlip("tails"));
+if (el.guessButtons) {
+  el.guessButtons.querySelectorAll("[data-guess]").forEach((b) => {
+    b.addEventListener("click", () => playGuess(Number(b.getAttribute("data-guess")) || 0));
+  });
+}
+if (el.diceRollBtn) el.diceRollBtn.addEventListener("click", () => playDice());
 
 window.addEventListener("hashchange", () => {
   if (!auth?.currentUser) return;

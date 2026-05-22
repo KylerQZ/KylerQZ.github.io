@@ -1395,6 +1395,19 @@ select.input {
   font-size: 12px;
 }
 
+.game-result {
+  margin-top: 8px;
+  min-height: 22px;
+  color: rgba(255, 231, 214, 0.92);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.guess-btn {
+  min-width: 48px;
+  font-weight: 700;
+}
+
 .packopen-stage {
   position: relative;
   overflow: hidden;
