@@ -43,7 +43,7 @@ const elPower = document.getElementById("powerBar");
 const elMsg = document.getElementById("msg");
 
 // State
-/** @type {Array<{team:'A'|'B', jersey:number, x:number, y:number, vx:number, vy:number, lastTackleMs:number, stunUntilMs:number}>} */
+/** @type {Array<{team:'A'|'B', jersey:number, x:number, y:number, vx:number, vy:number, lastTackleMs:number, stunUntilMs:number, requestUntilMs:number}>} */
 let players = [];
 let impacts = []; // {x,y,t0,life}
 let shakeUntilMs = 0;
@@ -55,7 +55,11 @@ let ball = {
   vy: 0,
   carrierIdx: null,
   lastDropMs: 0,
+  pickedUpMs: 0,
 };
+
+const REQUEST_DURATION_MS = 2500;
+const AI_PASS_DELAY_MS = 350;
 let scoreA = 0;
 let scoreB = 0;
 let timeLeft = ROUND_S;
@@ -84,6 +88,7 @@ function setupKickoff(receivingTeam) {
       vx: 0, vy: 0,
       lastTackleMs: 0,
       stunUntilMs: 0,
+      requestUntilMs: 0,
     });
   }
   for (let i = 0; i < PER_TEAM; i++) {
@@ -95,6 +100,7 @@ function setupKickoff(receivingTeam) {
       vx: 0, vy: 0,
       lastTackleMs: 0,
       stunUntilMs: 0,
+      requestUntilMs: 0,
     });
   }
   ball.x = W / 2;
@@ -140,12 +146,16 @@ canvas.addEventListener("mousemove", (e) => {
 canvas.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
   e.preventDefault();
-  // only useful if we have ball
   const c = controlledIdx();
   if (c < 0) return;
-  if (ball.carrierIdx !== c) return;
-  mouseDown = true;
-  chargeStart = performance.now();
+  if (ball.carrierIdx === c) {
+    // we have the ball — start charging a pass
+    mouseDown = true;
+    chargeStart = performance.now();
+  } else {
+    // no ball — raise a hand for a pass
+    players[c].requestUntilMs = performance.now() + REQUEST_DURATION_MS;
+  }
 });
 
 canvas.addEventListener("mouseup", (e) => {
@@ -191,6 +201,8 @@ function attemptPass(power) {
   ball.vx = dx * speed;
   ball.vy = dy * speed;
   ball.lastDropMs = performance.now();
+  // clear our own pass request when we throw
+  p.requestUntilMs = 0;
 }
 
 // === Tackle ===
@@ -240,6 +252,7 @@ function completeTackle(tacklerIdx, carrierIdx, byAI) {
   ball.vx = 0;
   ball.vy = 0;
   ball.lastDropMs = now;
+  ball.pickedUpMs = now;
 
   // Knock the carrier back along the hit vector & stun them
   const dx = carrier.x - tackler.x;
@@ -258,6 +271,54 @@ function completeTackle(tacklerIdx, carrierIdx, byAI) {
 
   spawnImpact((tackler.x + carrier.x) / 2, (tackler.y + carrier.y) / 2, 1.0);
   triggerShake(byAI ? 8 : 10, 220);
+}
+
+function findRequestingTeammate(carrierIdx) {
+  const c = players[carrierIdx];
+  const now = performance.now();
+  let best = -1;
+  let bestD = Infinity;
+  for (let i = 0; i < players.length; i++) {
+    if (i === carrierIdx) continue;
+    const p = players[i];
+    if (p.team !== c.team) continue;
+    if (p.requestUntilMs <= now) continue;
+    const d = Math.hypot(p.x - c.x, p.y - c.y);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function aiPassTo(fromIdx, toIdx) {
+  const from = players[fromIdx];
+  const to = players[toIdx];
+  // lead the receiver slightly based on their velocity
+  const targetX = to.x + to.vx * 0.25;
+  const targetY = to.y + to.vy * 0.25;
+  let dx = targetX - from.x;
+  let dy = targetY - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  dx /= len;
+  dy /= len;
+  // small inaccuracy
+  const jitter = 0.08;
+  const cs = Math.cos((Math.random() - 0.5) * jitter);
+  const sn = Math.sin((Math.random() - 0.5) * jitter);
+  const nx = dx * cs - dy * sn;
+  const ny = dx * sn + dy * cs;
+  const distance = len;
+  const speed = Math.max(PASS_MIN, Math.min(PASS_MAX, distance * 1.6 + 200));
+  ball.carrierIdx = null;
+  ball.x = from.x + nx * (PLAYER_RADIUS + 6);
+  ball.y = from.y + ny * (PLAYER_RADIUS + 6);
+  ball.vx = nx * speed;
+  ball.vy = ny * speed;
+  ball.lastDropMs = performance.now();
+  // clear the request once the pass is on its way
+  to.requestUntilMs = 0;
 }
 
 function spawnImpact(x, y, scale) {
@@ -393,6 +454,7 @@ function update(dt) {
         ball.carrierIdx = nearest;
         ball.vx = 0;
         ball.vy = 0;
+        ball.pickedUpMs = now;
       }
     }
   }
@@ -438,6 +500,15 @@ function aiPlayer(p, idx) {
   let dy = 0;
 
   if (isCarrier) {
+    // If a teammate is requesting a pass and we've held the ball briefly, throw it
+    const now = performance.now();
+    if (now - ball.pickedUpMs > AI_PASS_DELAY_MS) {
+      const reqIdx = findRequestingTeammate(idx);
+      if (reqIdx !== -1) {
+        aiPassTo(idx, reqIdx);
+        return;
+      }
+    }
     // run toward opponent's tryline
     dx = p.team === "A" ? 1 : -1;
     // dodge nearest opponent
@@ -593,6 +664,35 @@ function drawPlayer(p, isControlled) {
     ctx.fillStyle = "#ffd166";
     ctx.font = "bold 14px -apple-system, sans-serif";
     ctx.fillText("\u2605", p.x, p.y - PLAYER_RADIUS - 8);
+  }
+
+  // Pass-request indicator: small ball above head
+  if (p.requestUntilMs > performance.now()) {
+    const bx = p.x + PLAYER_RADIUS + 4;
+    const by = p.y - PLAYER_RADIUS - 6;
+    // pulse
+    const t = (performance.now() % 600) / 600;
+    const pulse = 1 + Math.sin(t * Math.PI * 2) * 0.12;
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.scale(pulse, pulse);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, BALL_RADIUS * 1.3, BALL_RADIUS * 0.95, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#5b3a1d";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-BALL_RADIUS, 0);
+    ctx.lineTo(BALL_RADIUS, 0);
+    ctx.stroke();
+    ctx.restore();
+    // "!" marker for clarity
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 11px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("!", bx + BALL_RADIUS + 5, by + 4);
   }
 }
 
