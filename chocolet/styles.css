@@ -1395,6 +1395,61 @@ select.input {
   font-size: 12px;
 }
 
+.chocoby-card {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 90, 90, 0.18), transparent 60%),
+    radial-gradient(120% 140% at 100% 100%, rgba(90, 147, 255, 0.18), transparent 60%),
+    linear-gradient(160deg, #2a1d18, #15110d);
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+.chocoby-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(180deg, #ff5757, #ffd166, #5a93ff);
+}
+.chocoby-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chocoby-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin: 0;
+  background: linear-gradient(90deg, #ff5757, #ffd166, #5a93ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.chocoby-tag {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 231, 214, 0.85);
+}
+.chocoby-play {
+  align-self: flex-start;
+  margin-top: 6px;
+  background: linear-gradient(90deg, #ef476f, #ffd166);
+  color: #1a0c08;
+  font-weight: 700;
+  text-decoration: none;
+}
+.chocoby-play:hover {
+  filter: brightness(1.08);
+}
+
 .game-result {
   margin-top: 8px;
   min-height: 22px;

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260522-1900" />
+    <link rel="stylesheet" href="./styles.css?v=20260522-2210" />
   </head>
   <body>
     <div class="bg"></div>
@@ -182,52 +182,17 @@
           </div>
         </section>
 
-        <section class="card page" aria-label="Mini Games" data-page="games" hidden>
-          <h2 class="card-title">Mini Games</h2>
-
+        <section class="card page" aria-label="Games" data-page="games" hidden>
+          <h2 class="card-title">Games</h2>
           <div class="divider"></div>
-
-          <h3 class="card-title">Coin Flip</h3>
-          <p class="card-note">2x payout. Pick a side, bet tokens.</p>
-          <div class="row">
-            <div class="label">Bet</div>
-            <input id="coinBet" class="input" type="number" min="1" max="9999" value="10" />
+          <div class="chocoby-card">
+            <div class="chocoby-info">
+              <h3 class="chocoby-title">Chocoby</h3>
+              <p class="chocoby-tag">Top-down rugby · 3v3 · 60s rounds · golden-goal extra time</p>
+              <p class="card-note">WASD to move · LMB charge / call for pass · F to tackle · R to restart</p>
+              <a class="btn chocoby-play" href="./rugby/" target="_blank" rel="noopener">Play Chocoby →</a>
+            </div>
           </div>
-          <div class="row">
-            <button id="coinHeadsBtn" class="btn" type="button">Heads</button>
-            <button id="coinTailsBtn" class="btn btn-secondary" type="button">Tails</button>
-          </div>
-          <div id="coinResult" class="game-result" aria-live="polite"></div>
-
-          <div class="divider"></div>
-
-          <h3 class="card-title">Number Guess (1–5)</h3>
-          <p class="card-note">4x payout if you guess right.</p>
-          <div class="row">
-            <div class="label">Bet</div>
-            <input id="guessBet" class="input" type="number" min="1" max="9999" value="10" />
-          </div>
-          <div class="row" id="guessButtons">
-            <button class="btn guess-btn" type="button" data-guess="1">1</button>
-            <button class="btn guess-btn" type="button" data-guess="2">2</button>
-            <button class="btn guess-btn" type="button" data-guess="3">3</button>
-            <button class="btn guess-btn" type="button" data-guess="4">4</button>
-            <button class="btn guess-btn" type="button" data-guess="5">5</button>
-          </div>
-          <div id="guessResult" class="game-result" aria-live="polite"></div>
-
-          <div class="divider"></div>
-
-          <h3 class="card-title">Dice Roll (sum 7+ wins)</h3>
-          <p class="card-note">Roll 2 dice. Sum 7 or higher → 2x payout. Else lose.</p>
-          <div class="row">
-            <div class="label">Bet</div>
-            <input id="diceBet" class="input" type="number" min="1" max="9999" value="10" />
-          </div>
-          <div class="row">
-            <button id="diceRollBtn" class="btn" type="button">Roll dice</button>
-          </div>
-          <div id="diceResult" class="game-result" aria-live="polite"></div>
         </section>
 
         <section class="card page" aria-label="Bazaar" data-page="bazaar" hidden>
@@ -425,6 +390,6 @@
 
     <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
-    <script type="module" src="./app.js?v=20260522-1900"></script>
+    <script type="module" src="./app.js?v=20260522-2210"></script>
   </body>
 </html>
