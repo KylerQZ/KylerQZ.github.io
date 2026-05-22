@@ -157,6 +157,9 @@ const el = {
   creatorSaveWeightsBtn: document.getElementById("creatorSaveWeightsBtn"),
   creatorResetWeightsBtn: document.getElementById("creatorResetWeightsBtn"),
   creatorWeightsMsg: document.getElementById("creatorWeightsMsg"),
+
+  packOpenQtyChips: document.getElementById("packOpenQtyChips"),
+  packOpenQtyCost: document.getElementById("packOpenQtyCost"),
 };
 
 const ADMIN_PIN = "67120925";
@@ -195,6 +198,38 @@ let dmThreadsCache;
 const MYSTICAL_SHUSH_IMG = "./assets/blooks/Screenshot 2026-04-29 at 20.05.55.png";
 
 const PACK_COST = 20;
+
+const RARITY_RANK = {
+  common: 0,
+  uncommon: 1,
+  rare: 2,
+  epic: 3,
+  legendary: 4,
+  chroma: 5,
+  supreme: 6,
+  mystical: 7,
+  ultra: 8,
+};
+
+let packOpenQty = 1;
+const PACK_QTY_OPTIONS = [1, 5, 10, 25];
+
+function setPackOpenQty(n) {
+  const allowed = PACK_QTY_OPTIONS.includes(Number(n)) ? Number(n) : 1;
+  packOpenQty = allowed;
+  if (el.packOpenQtyChips) {
+    el.packOpenQtyChips.querySelectorAll("[data-pack-qty]").forEach((b) => {
+      const v = Number(b.getAttribute("data-pack-qty")) || 0;
+      b.classList.toggle("active", v === allowed);
+    });
+  }
+  if (el.packOpenQtyCost) {
+    el.packOpenQtyCost.textContent = `Cost ${PACK_COST * allowed}`;
+  }
+  if (el.packOpenHint) {
+    el.packOpenHint.textContent = allowed > 1 ? `Click to open x${allowed} (Cost ${PACK_COST * allowed})` : `Click to open (Cost ${PACK_COST})`;
+  }
+}
 
 const QUICK_SELL_TOKENS = {
   uncommon: 5,
@@ -2834,6 +2869,8 @@ function renderPackOpenPage() {
 
   el.packOpenBackdrop.style.backgroundImage = img ? `url('${img}')` : "";
   el.packOpenArt.style.backgroundImage = img ? `url('${img}')` : "";
+
+  setPackOpenQty(packOpenQty);
 }
 
 async function grantBlookToUser(blookName) {
@@ -2845,6 +2882,27 @@ async function grantBlookToUser(blookName) {
   const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
   const key = String(blookName || "Blook");
   blooks[key] = (Number(blooks[key]) || 0) + 1;
+  await updateDoc(ref, { blooks });
+
+  renderAccount({ ...data, blooks });
+  renderBlooks({ ...data, blooks });
+  renderPacks();
+
+  playerCache.delete(uid);
+}
+
+async function grantBlooksBulkToUser(blookNames) {
+  if (!auth?.currentUser) return;
+  if (!Array.isArray(blookNames) || blookNames.length === 0) return;
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  const data = snap.exists() ? snap.data() : {};
+  const blooks = data?.blooks && typeof data.blooks === "object" ? { ...data.blooks } : {};
+  for (const n of blookNames) {
+    const key = String(n || "Blook");
+    blooks[key] = (Number(blooks[key]) || 0) + 1;
+  }
   await updateDoc(ref, { blooks });
 
   renderAccount({ ...data, blooks });
@@ -2944,11 +3002,14 @@ async function openCurrentPackOnce() {
     return;
   }
 
+  const qty = Math.max(1, Number(packOpenQty) || 1);
+  const totalCost = PACK_COST * qty;
+
   try {
-    await addTokensForCurrentUser(-PACK_COST);
+    await addTokensForCurrentUser(-totalCost);
   } catch {
     el.packOpenResult.hidden = false;
-    el.packOpenResult.textContent = `Not enough tokens. Cost ${PACK_COST}.`;
+    el.packOpenResult.textContent = `Not enough tokens. Cost ${totalCost}.`;
     if (el.packOpenPack) {
       el.packOpenPack.disabled = false;
       el.packOpenPack.hidden = false;
@@ -2959,10 +3020,30 @@ async function openCurrentPackOnce() {
   el.packOpenPack.disabled = true;
   el.packOpenPack.hidden = true;
 
-  const rarity = rollRarity(pool.weights);
-  const name = randChoice(pool[rarity]) || randChoice(pool.uncommon) || "Blook";
+  const rolls = [];
+  for (let i = 0; i < qty; i++) {
+    const r = rollRarity(pool.weights);
+    const n = randChoice(pool[r]) || randChoice(pool.uncommon) || "Blook";
+    rolls.push({ rarity: String(r), name: String(n) });
+  }
+
+  rolls.sort((a, b) => {
+    const ar = RARITY_RANK[a.rarity] ?? 0;
+    const br = RARITY_RANK[b.rarity] ?? 0;
+    return br - ar;
+  });
+  const top = rolls[0];
+  const rarity = top.rarity;
+  const name = top.name;
   const blook = getBlookByName(name);
   const img = blook?.image || "";
+
+  grantBlooksBulkToUser(rolls.map((r) => r.name)).catch(() => {});
+
+  const extras = rolls.slice(1);
+  const extrasNote = extras.length
+    ? `<div class="packopen-extras">+${extras.length} more: ${extras.map((r) => `<span class="extra-pill rarity-${escapeHtml(r.rarity)}">${escapeHtml(r.name)}</span>`).join(" ")}</div>`
+    : "";
 
   el.packOpenResult.hidden = false;
   el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
@@ -3014,7 +3095,7 @@ async function openCurrentPackOnce() {
       </div>
     `.trim();
 
-    grantBlookToUser(name).catch(() => {});
+    if (extrasNote) el.packOpenResult.insertAdjacentHTML("beforeend", extrasNote);
     startUltraSequence(el.packOpenResult.querySelector(".ultra-anim"));
 
     packOpenReturnTimer = setTimeout(() => {
@@ -3045,7 +3126,7 @@ async function openCurrentPackOnce() {
       </div>
     `.trim();
 
-    grantBlookToUser(name).catch(() => {});
+    if (extrasNote) el.packOpenResult.insertAdjacentHTML("beforeend", extrasNote);
     startMysticalSequence(el.packOpenResult.querySelector(".mystical-anim"));
 
     packOpenReturnTimer = setTimeout(() => {
@@ -3114,13 +3195,13 @@ async function openCurrentPackOnce() {
     </div>
   `.trim();
 
-  grantBlookToUser(name).catch(() => {});
+  if (extrasNote) el.packOpenResult.insertAdjacentHTML("beforeend", extrasNote);
 
   packOpenReturnTimer = setTimeout(() => {
     if (getPageFromHash() === "packopen") {
       location.hash = "#market";
     }
-  }, 1000);
+  }, extras.length ? 4000 : 1000);
 }
 
 function usernameFromEmail(email) {
@@ -3722,6 +3803,15 @@ if (el.packOpenBackBtn) {
 if (el.packOpenPack) {
   el.packOpenPack.addEventListener("click", async () => {
     await openCurrentPackOnce();
+  });
+}
+
+if (el.packOpenQtyChips) {
+  el.packOpenQtyChips.querySelectorAll("[data-pack-qty]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const v = Number(b.getAttribute("data-pack-qty")) || 1;
+      setPackOpenQty(v);
+    });
   });
 }
 

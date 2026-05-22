@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chocolet</title>
-    <link rel="stylesheet" href="./styles.css?v=20260521-1700" />
+    <link rel="stylesheet" href="./styles.css?v=20260522-1850" />
   </head>
   <body>
     <div class="bg"></div>
@@ -153,6 +153,17 @@
         <section class="card page" aria-label="Pack Opening" data-page="packopen" hidden>
           <h2 id="packOpenTitle" class="card-title">Pack</h2>
           <p id="packOpenSubtitle" class="card-note">Click the pack to open</p>
+
+          <div class="row packopen-qty-row" id="packOpenQtyRow">
+            <div class="label">Open</div>
+            <div class="qty-chips" id="packOpenQtyChips">
+              <button class="btn btn-xs qty-chip active" type="button" data-pack-qty="1">x1</button>
+              <button class="btn btn-xs qty-chip" type="button" data-pack-qty="5">x5</button>
+              <button class="btn btn-xs qty-chip" type="button" data-pack-qty="10">x10</button>
+              <button class="btn btn-xs qty-chip" type="button" data-pack-qty="25">x25</button>
+            </div>
+            <div class="value" id="packOpenQtyCost">Cost 20</div>
+          </div>
 
           <div id="packOpenStage" class="packopen-stage">
             <div id="packOpenBackdrop" class="packopen-backdrop" aria-hidden="true"></div>
@@ -365,6 +376,6 @@
 
     <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
-    <script type="module" src="./app.js?v=20260521-1700"></script>
+    <script type="module" src="./app.js?v=20260522-1850"></script>
   </body>
 </html>

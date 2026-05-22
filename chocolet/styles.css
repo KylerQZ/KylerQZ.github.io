@@ -1350,6 +1350,51 @@ select.input {
   text-align: right;
 }
 
+.packopen-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qty-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.qty-chip {
+  min-width: 44px;
+}
+
+.qty-chip.active {
+  background: rgba(255, 204, 61, 0.85);
+  color: #1a1208;
+  font-weight: 700;
+}
+
+.packopen-extras {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 231, 214, 0.85);
+  text-align: center;
+  justify-content: center;
+  z-index: 10;
+  position: relative;
+}
+
+.extra-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+}
+
 .packopen-stage {
   position: relative;
   overflow: hidden;
