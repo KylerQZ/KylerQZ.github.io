@@ -1,5 +1,5 @@
-// Rugby 7s — Phase 1 prototype
-// All players identical. Top-down 2D, 7v7. WASD + mouse + F + Q + R.
+// Rugby — Phase 1 prototype
+// All players identical. Top-down 2D, 3v3. WASD + mouse + F + Q + R.
 
 const canvas = document.getElementById("pitch");
 const ctx = canvas.getContext("2d");
@@ -15,15 +15,18 @@ const M22_L = TRY_L + 220;
 const M22_R = TRY_R - 220;
 
 // Tunables
-const PLAYER_RADIUS = 14;
-const PLAYER_SPEED = 230;
+const PER_TEAM = 3;
+const PLAYER_RADIUS = 16;
+const PLAYER_SPEED = 240;
 const AI_SPEED_MULT = 0.92;
 const BALL_RADIUS = 7;
-const CATCH_RADIUS = 24;
-const CATCH_COOLDOWN_MS = 400;
-const TACKLE_RADIUS = 34;
-const TACKLE_PROB = 0.7; // Phase 1: same for all players
+const CATCH_RADIUS = 26;
+const CATCH_COOLDOWN_MS = 500;
+const TACKLE_RADIUS = 40;
+const TACKLE_PROB = 0.8; // Phase 1: same for all players
 const TACKLE_COOLDOWN_MS = 700;
+const STUN_MS = 750;
+const KNOCKBACK_PX = 22;
 const PASS_MIN = 320;
 const PASS_MAX = 920;
 const PASS_CHARGE_MS = 1100;
@@ -39,8 +42,11 @@ const elPower = document.getElementById("powerBar");
 const elMsg = document.getElementById("msg");
 
 // State
-/** @type {Array<{team:'A'|'B', jersey:number, x:number, y:number, vx:number, vy:number, lastTackleMs:number}>} */
+/** @type {Array<{team:'A'|'B', jersey:number, x:number, y:number, vx:number, vy:number, lastTackleMs:number, stunUntilMs:number}>} */
 let players = [];
+let impacts = []; // {x,y,t0,life}
+let shakeUntilMs = 0;
+let shakeMag = 0;
 let ball = {
   x: W / 2,
   y: H / 2,
@@ -68,27 +74,27 @@ let chargeStart = 0;
 // === Setup ===
 function setupKickoff(receivingTeam) {
   players = [];
-  // Team A on left half, B on right half
-  for (let i = 0; i < 7; i++) {
+  const spacingY = (H - 160) / Math.max(1, PER_TEAM - 1 || 1);
+  for (let i = 0; i < PER_TEAM; i++) {
     players.push({
       team: "A",
       jersey: i + 1,
-      x: TRY_L + 80 + (i % 3) * 60,
-      y: 90 + (i * 70) % (H - 180),
-      vx: 0,
-      vy: 0,
+      x: TRY_L + 120 + (i % 2) * 70,
+      y: 80 + (PER_TEAM > 1 ? i * spacingY : H / 2 - 80),
+      vx: 0, vy: 0,
       lastTackleMs: 0,
+      stunUntilMs: 0,
     });
   }
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < PER_TEAM; i++) {
     players.push({
       team: "B",
       jersey: i + 1,
-      x: TRY_R - 80 - (i % 3) * 60,
-      y: 90 + (i * 70) % (H - 180),
-      vx: 0,
-      vy: 0,
+      x: TRY_R - 120 - (i % 2) * 70,
+      y: 80 + (PER_TEAM > 1 ? i * spacingY : H / 2 - 80),
+      vx: 0, vy: 0,
       lastTackleMs: 0,
+      stunUntilMs: 0,
     });
   }
   ball.x = W / 2;
@@ -96,8 +102,9 @@ function setupKickoff(receivingTeam) {
   ball.vx = 0;
   ball.vy = 0;
   ball.lastDropMs = 0;
-  // give to receiving team's "scrum-half" (idx 3 for A, 10 for B)
-  ball.carrierIdx = receivingTeam === "A" ? 3 : 10;
+  // give to receiving team's middle player
+  const mid = Math.floor(PER_TEAM / 2);
+  ball.carrierIdx = receivingTeam === "A" ? mid : PER_TEAM + mid;
 }
 
 function startMatch() {
@@ -242,28 +249,59 @@ function tryTackle() {
   if (d > TACKLE_RADIUS) return;
 
   if (Math.random() < TACKLE_PROB) {
-    // Knock-on / drop ball
-    ball.carrierIdx = null;
-    ball.x = carrier.x;
-    ball.y = carrier.y;
-    // ball squirts in carrier's running direction with some randomness
-    const cv = Math.hypot(carrier.vx, carrier.vy) || 1;
-    const nx = carrier.vx / cv;
-    const ny = carrier.vy / cv;
-    const sp = 140 + Math.random() * 80;
-    ball.vx = nx * sp + (Math.random() - 0.5) * 80;
-    ball.vy = ny * sp + (Math.random() - 0.5) * 80;
-    ball.lastDropMs = performance.now();
-    setMsg("TACKLE!");
-    setTimeout(() => {
-      if (elMsg.textContent === "TACKLE!") setMsg("");
-    }, 700);
+    completeTackle(idx, ball.carrierIdx, false);
+    setMsg("BIG HIT!");
+    setTimeout(() => { if (elMsg.textContent === "BIG HIT!") setMsg(""); }, 700);
   } else {
+    // glancing bump — small knockback, no turnover
+    const dx = carrier.x - p.x;
+    const dy = carrier.y - p.y;
+    const dl = Math.hypot(dx, dy) || 1;
+    carrier.x += (dx / dl) * 6;
+    carrier.y += (dy / dl) * 6;
+    spawnImpact((p.x + carrier.x) / 2, (p.y + carrier.y) / 2, 0.6);
     setMsg("missed tackle");
-    setTimeout(() => {
-      if (elMsg.textContent === "missed tackle") setMsg("");
-    }, 600);
+    setTimeout(() => { if (elMsg.textContent === "missed tackle") setMsg(""); }, 600);
   }
+}
+
+function completeTackle(tacklerIdx, carrierIdx, byAI) {
+  const tackler = players[tacklerIdx];
+  const carrier = players[carrierIdx];
+  const now = performance.now();
+
+  // Hand ball to tackler so the carrier can't insta-recatch
+  ball.carrierIdx = tacklerIdx;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.lastDropMs = now;
+
+  // Knock the carrier back along the hit vector & stun them
+  const dx = carrier.x - tackler.x;
+  const dy = carrier.y - tackler.y;
+  const dl = Math.hypot(dx, dy) || 1;
+  carrier.x += (dx / dl) * KNOCKBACK_PX;
+  carrier.y += (dy / dl) * KNOCKBACK_PX;
+  carrier.vx = 0;
+  carrier.vy = 0;
+  carrier.stunUntilMs = now + STUN_MS;
+
+  // Tackler also briefly stops (committing to the hit)
+  tackler.vx = 0;
+  tackler.vy = 0;
+  tackler.stunUntilMs = now + STUN_MS * 0.5;
+
+  spawnImpact((tackler.x + carrier.x) / 2, (tackler.y + carrier.y) / 2, 1.0);
+  triggerShake(byAI ? 8 : 10, 220);
+}
+
+function spawnImpact(x, y, scale) {
+  impacts.push({ x, y, t0: performance.now(), life: 380, scale });
+}
+
+function triggerShake(mag, durMs) {
+  shakeMag = Math.max(shakeMag, mag);
+  shakeUntilMs = Math.max(shakeUntilMs, performance.now() + durMs);
 }
 
 // === Update tick ===
@@ -285,7 +323,9 @@ function update(dt) {
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
     if (frozen) continue;
-    if (i === ctrlIdx) {
+    if (p.stunUntilMs > now) {
+      p.vx = 0; p.vy = 0;
+    } else if (i === ctrlIdx) {
       let dx = 0;
       let dy = 0;
       if (keys["w"]) dy -= 1;
@@ -450,25 +490,17 @@ function aiPlayer(p, idx) {
       // defender: chase carrier
       dx = carrier.x - p.x;
       dy = carrier.y - p.y;
-      // attempt tackle if close (B-team only AI tackle on player-controlled A carrier)
-      if (p.team === "B" && Math.hypot(dx, dy) < TACKLE_RADIUS) {
+      // attempt tackle if close (AI defenders go for the carrier)
+      if (Math.hypot(dx, dy) < TACKLE_RADIUS) {
         const now = performance.now();
         if (now - p.lastTackleMs > TACKLE_COOLDOWN_MS) {
           p.lastTackleMs = now;
           if (Math.random() < TACKLE_PROB) {
-            ball.carrierIdx = null;
-            ball.x = carrier.x;
-            ball.y = carrier.y;
-            const cv = Math.hypot(carrier.vx, carrier.vy) || 1;
-            const nx = carrier.vx / cv;
-            const ny = carrier.vy / cv;
-            const sp = 140 + Math.random() * 80;
-            ball.vx = nx * sp + (Math.random() - 0.5) * 80;
-            ball.vy = ny * sp + (Math.random() - 0.5) * 80;
-            ball.lastDropMs = now;
-            setMsg("TACKLED!");
+            completeTackle(idx, ball.carrierIdx, true);
+            setMsg(p.team === "B" ? "TACKLED!" : "TURNOVER!");
             setTimeout(() => {
-              if (elMsg.textContent === "TACKLED!") setMsg("");
+              const cur = elMsg.textContent;
+              if (cur === "TACKLED!" || cur === "TURNOVER!") setMsg("");
             }, 700);
           }
         }
@@ -542,6 +574,7 @@ function drawPitch() {
 }
 
 function drawPlayer(p, isControlled) {
+  const stunned = p.stunUntilMs > performance.now();
   const color = p.team === "A" ? "#ff5757" : "#5a93ff";
 
   // Shadow
@@ -553,7 +586,7 @@ function drawPlayer(p, isControlled) {
   // Body
   ctx.beginPath();
   ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2);
-  ctx.fillStyle = color;
+  ctx.fillStyle = stunned ? "#7a7a7a" : color;
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.strokeStyle = "rgba(0,0,0,0.5)";
@@ -570,10 +603,16 @@ function drawPlayer(p, isControlled) {
 
   // Jersey number
   ctx.fillStyle = "#fff";
-  ctx.font = "bold 12px -apple-system, sans-serif";
+  ctx.font = "bold 13px -apple-system, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(String(p.jersey), p.x, p.y);
+
+  if (stunned) {
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 14px -apple-system, sans-serif";
+    ctx.fillText("\u2605", p.x, p.y - PLAYER_RADIUS - 8);
+  }
 }
 
 function drawBall() {
@@ -621,7 +660,37 @@ function drawAimLine() {
   ctx.setLineDash([]);
 }
 
+function drawImpacts() {
+  const now = performance.now();
+  for (let i = impacts.length - 1; i >= 0; i--) {
+    const im = impacts[i];
+    const t = (now - im.t0) / im.life;
+    if (t >= 1) { impacts.splice(i, 1); continue; }
+    const r = (10 + t * 50) * (im.scale || 1);
+    ctx.beginPath();
+    ctx.arc(im.x, im.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 230, 120, ${(1 - t) * 0.9})`;
+    ctx.lineWidth = 4 * (1 - t) + 1;
+    ctx.stroke();
+    // inner flash
+    ctx.beginPath();
+    ctx.arc(im.x, im.y, r * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 90, 60, ${(1 - t) * 0.5})`;
+    ctx.fill();
+  }
+}
+
 function render() {
+  ctx.save();
+  const now = performance.now();
+  if (now < shakeUntilMs) {
+    const k = (shakeUntilMs - now) / 220;
+    const m = shakeMag * k;
+    ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+  } else {
+    shakeMag = 0;
+  }
+
   drawPitch();
   drawAimLine();
 
@@ -630,6 +699,8 @@ function render() {
     drawPlayer(players[i], i === ctrlIdx);
   }
   drawBall();
+  drawImpacts();
+  ctx.restore();
 }
 
 function updateHUD() {
