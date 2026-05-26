@@ -1,0 +1,80 @@
+[
+  {
+    "id": "blade_knight",
+    "name": "Blade Knight",
+    "rarity": "Common",
+    "health": 105,
+    "baseDamage": 10,
+    "skill": {
+      "name": "Cross Slash",
+      "damage": 18,
+      "cooldownTurns": 2,
+      "effectId": "slash_x"
+    }
+  },
+  {
+    "id": "ember_mage",
+    "name": "Ember Mage",
+    "rarity": "Common",
+    "health": 98,
+    "baseDamage": 11,
+    "skill": {
+      "name": "Fire Burst",
+      "damage": 19,
+      "cooldownTurns": 2,
+      "effectId": "fire_burst"
+    }
+  },
+  {
+    "id": "stone_guard",
+    "name": "Stone Guard",
+    "rarity": "Common",
+    "health": 110,
+    "baseDamage": 9,
+    "skill": {
+      "name": "Shield Bash",
+      "damage": 17,
+      "cooldownTurns": 2,
+      "effectId": "impact"
+    }
+  },
+  {
+    "id": "storm_archer",
+    "name": "Storm Archer",
+    "rarity": "Rare",
+    "health": 100,
+    "baseDamage": 10,
+    "skill": {
+      "name": "Volley",
+      "damage": 20,
+      "cooldownTurns": 3,
+      "effectId": "arrows_rain"
+    }
+  },
+  {
+    "id": "shadow_duelist",
+    "name": "Shadow Duelist",
+    "rarity": "Epic",
+    "health": 102,
+    "baseDamage": 10,
+    "skill": {
+      "name": "Night Pierce",
+      "damage": 22,
+      "cooldownTurns": 3,
+      "effectId": "shadow_pierce"
+    }
+  },
+  {
+    "id": "celestial_samurai",
+    "name": "Celestial Samurai",
+    "rarity": "Legendary",
+    "health": 104,
+    "baseDamage": 11,
+    "skill": {
+      "name": "Starfall Cut",
+      "damage": 22,
+      "cooldownTurns": 3,
+      "effectId": "starfall"
+    }
+  }
+]
