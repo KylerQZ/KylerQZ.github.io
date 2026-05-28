@@ -152,15 +152,6 @@ const io = new Server(server, {
   }
 });
 
-// Attach Chocoby rugby namespace (/rugby). Lives in its own module
-// so the simulation code stays separate from hero-battle logic.
-try {
-  const { attachRugby } = require('./rugby');
-  attachRugby(io);
-} catch (err) {
-  console.error('[rugby] failed to attach namespace:', err);
-}
-
 const rooms = new Map();
 const socketToRoom = new Map();
 
