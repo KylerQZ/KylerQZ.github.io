@@ -225,10 +225,12 @@ function setPackOpenQty(n) {
     });
   }
   if (el.packOpenQtyCost) {
-    el.packOpenQtyCost.textContent = `Cost ${PACK_COST * allowed}`;
+    el.packOpenQtyCost.innerHTML = `${PACK_COST * allowed} <span class="coin"></span>`;
   }
   if (el.packOpenHint) {
-    el.packOpenHint.textContent = allowed > 1 ? `Click to open x${allowed} (Cost ${PACK_COST * allowed})` : `Click to open (Cost ${PACK_COST})`;
+    el.packOpenHint.innerHTML = allowed > 1
+      ? `Click to open x${allowed} (${PACK_COST * allowed} <span class="coin"></span>)`
+      : `Click to open (${PACK_COST} <span class="coin"></span>)`;
   }
 }
 
@@ -297,7 +299,7 @@ async function handleDailyWheel() {
   setDailyWheelMsg("");
   try {
     const reward = await spinDailyWheel();
-    if (typeof reward === "number") setDailyWheelMsg(`You won ${reward} tokens!`);
+    if (typeof reward === "number") setDailyWheelMsg(`You won ${reward} <span class="coin"></span>!`);
   } catch (e) {
     if (String(e?.message || "") === "ALREADY_SPUN") setDailyWheelMsg("Already spun today.");
     else setDailyWheelMsg("Spin failed.");
@@ -980,7 +982,7 @@ function renderCreatorUsers(items) {
         <div class="bazaar-row">
           <div class="bazaar-meta">
             <div class="bazaar-title">${name}</div>
-            <div class="bazaar-sub">${status}${banned} · ${tokens} tokens · ${blooksCount} blooks</div>
+            <div class="bazaar-sub">${status}${banned} · ${tokens} <span class="coin"></span> · ${blooksCount} blooks</div>
           </div>
           <div>
             <button class="btn btn-xs" type="button" data-creator-pick="${uid}">Edit</button>
@@ -1724,7 +1726,7 @@ async function openPlayerModal(uid) {
       </div>
     </div>
     <div class="player-stats">
-      <div class="player-stat"><div class="label">Tokens</div><div class="value">${tokens}</div></div>
+      <div class="player-stat"><div class="label"><span class="coin"></span></div><div class="value">${tokens}</div></div>
       <div class="player-stat"><div class="label">Blooks owned</div><div class="value">${blooksOwned}</div></div>
     </div>
     ${actionsHtml}
@@ -1848,7 +1850,7 @@ function renderBazaarListings(listings) {
           <div class="chat-avatar" aria-hidden="true" style="${avatarImg ? `background-image:url('${avatarImg}')` : ""}"></div>
           <div class="bazaar-meta">
             <div class="bazaar-title">${name}</div>
-            <div class="bazaar-sub">Seller: ${sellerHtml} · Price: ${price}</div>
+            <div class="bazaar-sub">Seller: ${sellerHtml} · ${price} <span class="coin"></span></div>
           </div>
           <div>${action}</div>
         </div>
@@ -2639,7 +2641,7 @@ function renderPacks() {
           <div class="pack-art" role="img" aria-label="${name} artwork" style="${img ? `background-image:url('${img}')` : ""}"></div>
           <div class="pack-body">
             <div class="pack-name">${name}</div>
-            <div class="pack-desc">Cost ${PACK_COST}</div>
+            <div class="pack-desc">${PACK_COST} <span class="coin"></span></div>
             <div class="row">
               <button class="btn" type="button" data-open-pack="${escapeHtml(p?.id || "")}" ${disabled}>Open</button>
             </div>
@@ -2827,7 +2829,7 @@ function renderBlooks(userDoc) {
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
       const name = btn.getAttribute("data-list-bazaar") || "";
-      const raw = prompt(`List ${name} for how many tokens?`, "100");
+      const raw = prompt(`List ${name} for how many coins?`, "100");
       if (raw === null) return;
       const price = Math.max(1, Math.floor(Number(raw) || 0));
       if (!price) return;
@@ -2849,7 +2851,7 @@ function resetPackOpenUI() {
     el.packOpenResult.classList.remove("reveal", "explode", "explode-uncommon", "explode-rare");
     el.packOpenResult.textContent = "";
   }
-  if (el.packOpenHint) el.packOpenHint.textContent = `Click to open (Cost ${PACK_COST})`;
+  if (el.packOpenHint) el.packOpenHint.innerHTML = `Click to open (${PACK_COST} <span class="coin"></span>)`;
   if (el.packOpenPack) {
     el.packOpenPack.disabled = false;
     el.packOpenPack.hidden = false;
@@ -2866,7 +2868,7 @@ function renderPackOpenPage() {
   const img = p?.image || "";
 
   el.packOpenTitle.textContent = name;
-  if (el.packOpenSubtitle) el.packOpenSubtitle.textContent = `Click the pack to open (Cost ${PACK_COST})`;
+  if (el.packOpenSubtitle) el.packOpenSubtitle.innerHTML = `Click the pack to open (${PACK_COST} <span class="coin"></span>)`;
 
   el.packOpenBackdrop.style.backgroundImage = img ? `url('${img}')` : "";
   el.packOpenArt.style.backgroundImage = img ? `url('${img}')` : "";
@@ -3010,7 +3012,7 @@ async function openCurrentPackOnce() {
     await addTokensForCurrentUser(-totalCost);
   } catch {
     el.packOpenResult.hidden = false;
-    el.packOpenResult.textContent = `Not enough tokens. Cost ${totalCost}.`;
+    el.packOpenResult.innerHTML = `Not enough <span class="coin"></span>. Cost ${totalCost} <span class="coin"></span>.`;
     if (el.packOpenPack) {
       el.packOpenPack.disabled = false;
       el.packOpenPack.hidden = false;

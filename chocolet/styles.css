@@ -1386,6 +1386,34 @@ select.input {
   position: relative;
 }
 
+.coin {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  background-image: url("./assets/coin.png?v=1");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  vertical-align: -0.22em;
+  margin: 0 0.12em;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+.coin.coin-lg {
+  width: 1.6em;
+  height: 1.6em;
+  vertical-align: -0.4em;
+}
+.coin.coin-xl {
+  width: 2.2em;
+  height: 2.2em;
+  vertical-align: -0.7em;
+}
+.stat .label .coin {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.18em;
+}
+
 .extra-pill {
   display: inline-block;
   padding: 3px 8px;
